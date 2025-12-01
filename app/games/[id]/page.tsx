@@ -8,6 +8,16 @@ export default function GameDetailsPage({ params }: Props) {
   const { id } = params;
 
   return (
+    {
+  id: "robinzon",
+  name: "RobinzON Island",
+  provider: "Pulz Originals",
+  rtp: 97.8,
+  volatility: "Высокая",
+  tags: ["Эксклюзив", "Крэш", "Оригинал"],
+  type: "external", // или "html5", как тебе удобнее
+  launchUrl: "https://ТВОЙ-ДОМЕН-РОБИНЗОНА" // сюда потом подставишь реальный URL
+},
     <PulzShell
       title={`Демо‑игра ${id}`}
       subtitle="В продакшене здесь будет iframe от игрового провайдера (например, SlotMatrix / EveryMatrix, Spribe и др.). Сейчас — статичный mock‑экран."

@@ -4,7 +4,23 @@ import Link from "next/link";
 
 export const metadata = {
   title: "Pulz — Премиум онлайн-казино",
-  description: "Играй с огнём. Побеждай с умом.",
+  description: "Pulz — онлайн-казино в фирменном стиле WynixBet. Играй с огнём. Побеждай с умом.",
+  openGraph: {
+    title: "Pulz — Премиум онлайн-казино",
+    description: "Играй с огнём. Побеждай с умом.",
+    url: "https://pulzwin.com",
+    siteName: "Pulz",
+    images: [
+      {
+        url: "/pulz-og-banner.png", // потом положишь этот баннер в public
+        width: 1200,
+        height: 630,
+        alt: "Pulz — онлайн-казино",
+      },
+    ],
+    locale: "ru_RU",
+    type: "website",
+  },
 };
 
 export default function RootLayout({
