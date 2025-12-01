@@ -90,9 +90,9 @@ export default function RootLayout({
           <div className="mx-auto grid max-w-6xl gap-6 px-4 py-6 text-xs text-slate-400 md:grid-cols-4">
             <div>
               <img
-                src="/pulz-logo-dark.png"
+                src="/pulz-logo-light.png"
                 alt="Pulz Casino"
-                className="mb-2 h-6 w-auto"
+                className="h-7 w-auto"
               />
               <p className="text-[11px] leading-snug text-slate-500">
                 Pulz — онлайн-казино с дерзким красно-чёрным стилем и честными
