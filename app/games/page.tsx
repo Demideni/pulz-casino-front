@@ -158,4 +158,4 @@ export default function GamesPage() {
                   <span className="text-slate-100">
                     {g.rtp.toFixed(1)}%
                   </span>
-                </span
+                </span>
