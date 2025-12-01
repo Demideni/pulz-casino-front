@@ -1,174 +1,161 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import PulzShell from "@/components/PulzShell";
+import type { Game } from "../api/games/route";
 
-type GameCategory = "slot" | "crash" | "live";
-type Volatility = "low" | "medium" | "high";
-
-type Game = {
-  id: string;
-  name: string;
-  provider: string;
-  category: GameCategory;
-  rtp: number;
-  volatility: Volatility;
+const volatilityLabel: Record<Game["volatility"], string> = {
+  low: "Низкая",
+  medium: "Средняя",
+  high: "Высокая",
 };
 
-const GAMES: Game[] = [
-  {
-    id: "clover-clover",
-    name: "Clover Clover",
-    provider: "Fantasma",
-    category: "slot",
-    rtp: 96.5,
-    volatility: "medium"
-  },
-  {
-    id: "kongo-bongo",
-    name: "Kongo Bongo",
-    provider: "Powderkeg",
-    category: "slot",
-    rtp: 96.9,
-    volatility: "high"
-  },
-  {
-    id: "rage-bait",
-    name: "Rage Bait",
-    provider: "Powderkeg",
-    category: "slot",
-    rtp: 97.2,
-    volatility: "high"
-  },
-  {
-    id: "aviapulz",
-    name: "AviaPulz Crash",
-    provider: "Spribe‑style",
-    category: "crash",
-    rtp: 97.8,
-    volatility: "high"
-  },
-  {
-    id: "pulz-roulette",
-    name: "Pulz Roulette",
-    provider: "Live Demo",
-    category: "live",
-    rtp: 97.3,
-    volatility: "medium"
-  }
-];
-
 export default function GamesPage() {
-  const [category, setCategory] = useState<GameCategory | "all">("all");
-  const [provider, setProvider] = useState<string>("all");
+  const [games, setGames] = useState<Game[]>([]);
+  const [query, setQuery] = useState("");
+  const [providerFilter, setProviderFilter] = useState<string>("all");
+  const [categoryFilter, setCategoryFilter] = useState<string>("all");
+  const [volatilityFilter, setVolatilityFilter] = useState<string>("all");
+  const [rtpFilter, setRtpFilter] = useState<string>("all");
+
+  useEffect(() => {
+    (async () => {
+      const res = await fetch("/api/games");
+      const data = (await res.json()) as Game[];
+      setGames(data);
+    })();
+  }, []);
 
   const providers = useMemo(
-    () => Array.from(new Set(GAMES.map((g) => g.provider))),
-    []
+    () => Array.from(new Set(games.map((g) => g.provider))).sort(),
+    [games],
   );
 
   const filtered = useMemo(
     () =>
-      GAMES.filter((g) => {
-        if (category !== "all" && g.category !== category) return false;
-        if (provider !== "all" && g.provider !== provider) return false;
+      games.filter((g) => {
+        if (
+          query &&
+          !g.name.toLowerCase().includes(query.toLowerCase()) &&
+          !g.provider.toLowerCase().includes(query.toLowerCase())
+        )
+          return false;
+
+        if (providerFilter !== "all" && g.provider !== providerFilter)
+          return false;
+        if (categoryFilter !== "all" && g.category !== categoryFilter)
+          return false;
+        if (volatilityFilter !== "all" && g.volatility !== volatilityFilter)
+          return false;
+
+        if (rtpFilter === "97" && g.rtp < 97) return false;
+        if (rtpFilter === "96" && (g.rtp < 96 || g.rtp >= 97)) return false;
+        if (rtpFilter === "below96" && g.rtp >= 96) return false;
+
         return true;
       }),
-    [category, provider]
+    [games, query, providerFilter, categoryFilter, volatilityFilter, rtpFilter],
   );
 
   return (
-    <PulzShell
-      title="Каталог игр Pulz"
-      subtitle="Слоты, crash‑игры и live‑казино. Все игры открываются в безопасном демо‑режиме через iframe."
-    >
-      <div className="mb-4 flex flex-wrap items-center justify-between gap-3 text-xs">
-        <div className="flex flex-wrap gap-2">
-          {[
-            { key: "all" as const, label: "Все" },
-            { key: "slot" as const, label: "Слоты" },
-            { key: "crash" as const, label: "Crash / Aviator" },
-            { key: "live" as const, label: "Live" }
-          ].map((btn) => (
-            <button
-              key={btn.key}
-              onClick={() => setCategory(btn.key)}
-              className={
-                "rounded-full px-3 py-1 transition " +
-                (category === btn.key
-                  ? "bg-pulzRed text-white shadow-[0_0_20px_rgba(248,113,113,0.8)]"
-                  : "bg-black/60 text-slate-200 hover:bg-black")
-              }
-            >
-              {btn.label}
-            </button>
+    <div className="space-y-6">
+      <header className="flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <h1 className="text-xl font-semibold text-slate-50">Каталог игр</h1>
+          <p className="text-xs text-slate-400">
+            Демо-каталог. Фильтры работают, позже сюда подставим реальные API
+            провайдеров.
+          </p>
+        </div>
+      </header>
+
+      {/* Filters */}
+      <div className="grid gap-3 rounded-2xl border border-slate-800/80 bg-black/60 p-4 text-xs md:grid-cols-[2fr,repeat(4,1fr)]">
+        <input
+          placeholder="Поиск по названию или провайдеру…"
+          className="rounded-full border border-slate-700/80 bg-slate-900/70 px-3 py-2 text-xs text-slate-100 outline-none placeholder:text-slate-500"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+        />
+
+        <select
+          className="rounded-full border border-slate-700/80 bg-slate-900/70 px-3 py-2 text-xs"
+          value={providerFilter}
+          onChange={(e) => setProviderFilter(e.target.value)}
+        >
+          <option value="all">Все провайдеры</option>
+          {providers.map((p) => (
+            <option key={p} value={p}>
+              {p}
+            </option>
           ))}
-        </div>
+        </select>
 
-        <div className="flex items-center gap-2">
-          <span className="text-slate-400">Провайдер:</span>
-          <select
-            value={provider}
-            onChange={(e) => setProvider(e.target.value)}
-            className="rounded-full border border-white/20 bg-black/80 px-3 py-1 text-xs text-slate-100"
-          >
-            <option value="all">Все</option>
-            {providers.map((p) => (
-              <option key={p} value={p}>
-                {p}
-              </option>
-            ))}
-          </select>
-        </div>
+        <select
+          className="rounded-full border border-slate-700/80 bg-slate-900/70 px-3 py-2 text-xs"
+          value={categoryFilter}
+          onChange={(e) => setCategoryFilter(e.target.value)}
+        >
+          <option value="all">Все категории</option>
+          <option value="slots">Слоты</option>
+          <option value="crash">Crash/Авиатор</option>
+          <option value="live">Live</option>
+          <option value="table">Столы</option>
+        </select>
+
+        <select
+          className="rounded-full border border-slate-700/80 bg-slate-900/70 px-3 py-2 text-xs"
+          value={volatilityFilter}
+          onChange={(e) => setVolatilityFilter(e.target.value)}
+        >
+          <option value="all">Волатильность</option>
+          <option value="low">Низкая</option>
+          <option value="medium">Средняя</option>
+          <option value="high">Высокая</option>
+        </select>
+
+        <select
+          className="rounded-full border border-slate-700/80 bg-slate-900/70 px-3 py-2 text-xs"
+          value={rtpFilter}
+          onChange={(e) => setRtpFilter(e.target.value)}
+        >
+          <option value="all">RTP: все</option>
+          <option value="97">97%+</option>
+          <option value="96">96–97%</option>
+          <option value="below96">Меньше 96%</option>
+        </select>
       </div>
 
+      {/* Games grid */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {filtered.map((game) => (
+        {filtered.map((g) => (
           <Link
-            key={game.id}
-            href={`/games/${game.id}`}
-            className="group flex h-44 flex-col overflow-hidden rounded-2xl border border-white/10 bg-gradient-to-br from-black via-black/80 to-slate-950 text-left transition hover:-translate-y-1 hover:border-pulzRed/80"
+            key={g.id}
+            href={`/games/${g.id}`}
+            className="group overflow-hidden rounded-3xl border border-slate-800/80 bg-gradient-to-br from-slate-950 via-black to-[#1a0207] shadow-[0_0_25px_rgba(15,23,42,0.8)] hover:border-red-500/80 hover:shadow-[0_0_45px_rgba(248,113,113,0.6)]"
           >
-            <div className="relative flex-1 overflow-hidden">
-              <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,_#ef4444,_transparent_55%),radial-gradient(circle_at_bottom,_#22d3ee,_transparent_55%)] opacity-70 transition group-hover:opacity-100" />
-              <div className="relative flex h-full items-end p-3">
-                <p className="max-w-[80%] text-sm font-semibold text-white drop-shadow">
-                  {game.name}
-                </p>
+            <div className="relative h-40 overflow-hidden">
+              <div className="absolute inset-0 bg-gradient-to-tr from-red-700/40 via-black to-slate-900" />
+              <div className="absolute inset-0 flex items-center justify-center text-sm font-semibold text-slate-100">
+                {g.name}
               </div>
+              <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(248,113,113,0.55),transparent_55%)] opacity-0 transition-opacity group-hover:opacity-100" />
             </div>
-            <div className="flex items-center justify-between border-t border-white/10 bg-black/80 px-3 py-2 text-[11px] text-slate-200">
-              <div>
-                <p className="font-medium text-slate-100">{game.provider}</p>
-                <p className="text-[10px] uppercase tracking-[0.2em] text-slate-400">
-                  {formatCategory(game.category)}
-                </p>
-              </div>
-              <div className="text-right">
-                <p className="text-xs text-emerald-400">
-                  RTP {game.rtp.toFixed(1)}%
-                </p>
-                <p className="text-[10px] text-slate-400">
-                  Волатильность: {formatVolatility(game.volatility)}
-                </p>
-              </div>
-            </div>
-          </Link>
-        ))}
-      </div>
-    </PulzShell>
-  );
-}
 
-function formatCategory(c: GameCategory): string {
-  if (c === "slot") return "Слот";
-  if (c === "crash") return "Crash / Aviator";
-  return "Live";
-}
+            <div className="space-y-2 p-4">
+              <div className="flex items-center justify-between text-xs">
+                <span className="font-semibold text-slate-50">
+                  {g.name}
+                </span>
+                <span className="rounded-full bg-slate-900/80 px-2 py-0.5 text-[10px] text-slate-400">
+                  {g.provider}
+                </span>
+              </div>
 
-function formatVolatility(v: Volatility): string {
-  if (v === "low") return "низкая";
-  if (v === "medium") return "средняя";
-  return "высокая";
-}
+              <div className="flex items-center justify-between text-[11px] text-slate-400">
+                <span>
+                  RTP{" "}
+                  <span className="text-slate-100">
+                    {g.rtp.toFixed(1)}%
+                  </span>
+                </span
