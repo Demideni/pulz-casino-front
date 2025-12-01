@@ -1,46 +1,41 @@
-import PulzShell from "@/components/PulzShell";
+interface GameParams {
+  params: {
+    id: string;
+  };
+}
 
-type Props = {
-  params: { id: string };
-};
+export default function GamePage({ params }: GameParams) {
+  const games = {
+    robinson: {
+      id: "robinson",
+      name: "RobinzON Island",
+      provider: "Pulz Originals",
+      description: "Эксклюзивная игра Pulz Casino.",
+    },
+  };
 
-export default function GameDetailsPage({ params }: Props) {
-  const { id } = params;
+  const game = games[params.id];
+
+  if (!game) {
+    return (
+      <div className="text-center text-slate-300 mt-20">
+        Игра не найдена 😢
+      </div>
+    );
+  }
 
   return (
-    {
-  id: "robinzon",
-  name: "RobinzON Island",
-  provider: "Pulz Originals",
-  rtp: 97.8,
-  volatility: "Высокая",
-  tags: ["Эксклюзив", "Крэш", "Оригинал"],
-  type: "external", // или "html5", как тебе удобнее
-  launchUrl: "https://ТВОЙ-ДОМЕН-РОБИНЗОНА" // сюда потом подставишь реальный URL
-},
-    <PulzShell
-      title={`Демо‑игра ${id}`}
-      subtitle="В продакшене здесь будет iframe от игрового провайдера (например, SlotMatrix / EveryMatrix, Spribe и др.). Сейчас — статичный mock‑экран."
-    >
-      <div className="space-y-4 text-sm text-slate-200">
-        <div className="aspect-[16/9] overflow-hidden rounded-3xl border border-white/10 bg-[radial-gradient(circle_at_top,_#ef4444,_transparent_60%),radial-gradient(circle_at_bottom,_#22c55e,_transparent_60%)]">
-          <div className="flex h-full flex-col items-center justify-center gap-2 bg-black/40 text-center">
-            <p className="text-base font-semibold text-white">
-              Демо‑iframe игры <span className="text-pulzRed">{id}</span>
-            </p>
-            <p className="max-w-md text-xs text-slate-200">
-              Здесь фронт просто показывает контейнер. На бою сюда подставляем
-              URL от провайдера (по токену с бэкенда) и игра загружается в
-              iframe.
-            </p>
-          </div>
-        </div>
-        <ul className="text-[11px] text-slate-300 space-y-1">
-          <li>• В демо‑версии реальные ставки и выигрыши отключены.</li>
-          <li>• Можно подключить crash‑игры, слоты, live‑казино через API.</li>
-          <li>• Страница уже готова к интеграции бэкенда WynixBet.</li>
-        </ul>
-      </div>
-    </PulzShell>
+    <div className="space-y-6">
+      <h1 className="text-2xl font-bold text-slate-50">
+        {game.name}
+      </h1>
+
+      <p className="text-sm text-slate-300">{game.description}</p>
+
+      <iframe
+        src="/robinzON/index.html"
+        className="w-full h-[80vh] rounded-2xl border border-slate-800"
+      />
+    </div>
   );
 }
