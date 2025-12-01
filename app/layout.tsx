@@ -20,7 +20,7 @@ export default function RootLayout({
           <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3">
             <Link href="/" className="flex items-center gap-2">
               <img
-                src="/pulz-logo-dark.png"
+                src="/pulz-logo-dark.PNG"
                 alt="Pulz Casino"
                 className="h-7 w-auto"
               />
@@ -90,7 +90,7 @@ export default function RootLayout({
           <div className="mx-auto grid max-w-6xl gap-6 px-4 py-6 text-xs text-slate-400 md:grid-cols-4">
             <div>
               <img
-                src="/pulz-logo-light.png"
+                src="/pulz-logo-light.PNG"
                 alt="Pulz Casino"
                 className="h-7 w-auto"
               />
