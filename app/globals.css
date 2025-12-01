@@ -1,0 +1,19 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: dark;
+}
+
+body {
+  @apply bg-black text-slate-100 antialiased;
+}
+
+.pulz-gradient-bg {
+  background:
+    radial-gradient(circle at 0% 0%, rgba(255,29,55,0.45), transparent 55%),
+    radial-gradient(circle at 100% 0%, rgba(248,113,113,0.35), transparent 55%),
+    radial-gradient(circle at 50% 100%, rgba(37,99,235,0.35), transparent 55%),
+    linear-gradient(to bottom, #05040a, #020106);
+}
