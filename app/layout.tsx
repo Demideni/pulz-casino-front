@@ -1,26 +1,11 @@
-// app/layout.tsx
 import "./globals.css";
 import Link from "next/link";
+import type { Metadata } from "next";
+import FortuneWheel from "@/components/FortuneWheel";
 
-export const metadata = {
+export const metadata: Metadata = {
   title: "Pulz — Премиум онлайн-казино",
-  description: "Pulz — онлайн-казино в фирменном стиле WynixBet. Играй с огнём. Побеждай с умом.",
-  openGraph: {
-    title: "Pulz — Премиум онлайн-казино",
-    description: "Играй с огнём. Побеждай с умом.",
-    url: "https://pulzwin.com",
-    siteName: "Pulz",
-    images: [
-      {
-        url: "/pulz-og-banner.png", // потом положишь этот баннер в public
-        width: 1200,
-        height: 630,
-        alt: "Pulz — онлайн-казино",
-      },
-    ],
-    locale: "ru_RU",
-    type: "website",
-  },
+  description: "Играй с огнём. Побеждай с умом.",
 };
 
 export default function RootLayout({
@@ -36,7 +21,7 @@ export default function RootLayout({
           <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3">
             <Link href="/" className="flex items-center gap-2">
               <img
-                src="/pulz-logo-dark.PNG"
+                src="/pulz-logo-dark.png"
                 alt="Pulz Casino"
                 className="h-7 w-auto"
               />
@@ -72,22 +57,13 @@ export default function RootLayout({
             >
               Игры
             </Link>
-            <Link
-              href="/bonuses"
-              className="text-slate-300 hover:text-white"
-            >
+            <Link href="/bonuses" className="text-slate-300 hover:text-white">
               Бонусы
             </Link>
-            <Link
-              href="/cashier"
-              className="text-slate-300 hover:text-white"
-            >
+            <Link href="/cashier" className="text-slate-300 hover:text-white">
               Касса
             </Link>
-            <Link
-              href="/partners"
-              className="text-slate-300 hover:text-white"
-            >
+            <Link href="/partners" className="text-slate-300 hover:text-white">
               Партнёрам
             </Link>
             <Link href="/about" className="text-slate-300 hover:text-white">
@@ -96,7 +72,7 @@ export default function RootLayout({
           </div>
         </nav>
 
-        {/* Page */}
+        {/* Page content */}
         <main className="mx-auto min-h-[calc(100vh-140px)] max-w-6xl px-4 py-8">
           {children}
         </main>
@@ -106,7 +82,7 @@ export default function RootLayout({
           <div className="mx-auto grid max-w-6xl gap-6 px-4 py-6 text-xs text-slate-400 md:grid-cols-4">
             <div>
               <img
-                src="/pulz-logo-light.PNG"
+                src="/pulz-logo-light.png"
                 alt="Pulz Casino"
                 className="h-7 w-auto"
               />
@@ -116,9 +92,7 @@ export default function RootLayout({
               </p>
             </div>
             <div>
-              <div className="mb-1 font-semibold text-slate-200">
-                Компания
-              </div>
+              <div className="mb-1 font-semibold text-slate-200">Компания</div>
               <ul className="space-y-1">
                 <li>
                   <Link href="/about" className="hover:text-slate-100">
@@ -133,9 +107,7 @@ export default function RootLayout({
               </ul>
             </div>
             <div>
-              <div className="mb-1 font-semibold text-slate-200">
-                Помощь
-              </div>
+              <div className="mb-1 font-semibold text-slate-200">Помощь</div>
               <ul className="space-y-1">
                 <li>
                   <Link href="/status" className="hover:text-slate-100">
@@ -148,9 +120,7 @@ export default function RootLayout({
               </ul>
             </div>
             <div>
-              <div className="mb-1 font-semibold text-slate-200">
-                Контакты
-              </div>
+              <div className="mb-1 font-semibold text-slate-200">Контакты</div>
               <ul className="space-y-1">
                 <li>support@pulz.casino</li>
                 <li>Чат 24/7 (в разработке)</li>
@@ -164,6 +134,9 @@ export default function RootLayout({
             </div>
           </div>
         </footer>
+
+        {/* Колесо фортуны снизу всех страниц */}
+        <FortuneWheel />
       </body>
     </html>
   );
