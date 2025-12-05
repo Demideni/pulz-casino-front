@@ -19,62 +19,111 @@
   animation: spin-slow 2.8s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
 }
 
-/* Молнии Pulz */
+/* ===== Реалистичные молнии Pulz ===== */
+
 @keyframes pulz-lightning-flash {
   0% {
     opacity: 0;
-    transform: scale(0.9);
+    transform: scale(0.95) translateY(4px);
   }
-  10% {
+  8% {
     opacity: 1;
-    transform: scale(1);
+    transform: scale(1) translateY(0);
   }
-  30% {
-    opacity: 0.3;
+  15% {
+    opacity: 0.4;
   }
-  50% {
+  22% {
     opacity: 1;
   }
-  70% {
+  35% {
+    opacity: 0.35;
+  }
+  55% {
+    opacity: 0.9;
+  }
+  75% {
     opacity: 0.25;
   }
   100% {
     opacity: 0;
-    transform: scale(1.05);
+    transform: scale(1.03) translateY(-4px);
   }
 }
 
 .pulz-lightning {
   position: absolute;
-  background: radial-gradient(circle at center, rgba(248, 250, 252, 0.9), transparent 60%);
-  filter: drop-shadow(0 0 24px rgba(248, 250, 252, 0.95));
+  pointer-events: none;
   opacity: 0;
   animation: pulz-lightning-flash 0.6s ease-out forwards;
-  pointer-events: none;
+  filter: drop-shadow(0 0 22px rgba(129, 230, 217, 1));
 }
 
+/* Основной ствол + ответвление делаем через ::before / ::after */
+.pulz-lightning::before,
+.pulz-lightning::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    to bottom,
+    rgba(248, 250, 252, 0.0) 0%,
+    rgba(248, 250, 252, 1) 25%,
+    rgba(190, 242, 100, 0.9) 55%,
+    rgba(45, 212, 191, 0.8) 75%,
+    rgba(56, 189, 248, 0.0) 100%
+  );
+  /* Зигзагообразная форма молнии */
+  clip-path: polygon(
+    50% 0%,
+    56% 14%,
+    46% 26%,
+    54% 40%,
+    43% 54%,
+    52% 68%,
+    41% 82%,
+    48% 100%,
+    44% 100%,
+    37% 82%,
+    47% 68%,
+    38% 54%,
+    49% 40%,
+    40% 26%,
+    51% 14%,
+    45% 0%
+  );
+  border-radius: 999px;
+}
+
+.pulz-lightning::after {
+  opacity: 0.55;
+  transform: scale(0.75) translateX(-18%) translateY(6%);
+}
+
+/* Три молнии в разных местах и с разным наклоном */
+
 .pulz-lightning-1 {
-  top: 5%;
-  left: 10%;
-  width: 160px;
+  top: 6%;
+  left: 6%;
+  width: 110px;
   height: 260px;
-  transform: rotate(-18deg);
+  transform: rotate(-16deg);
 }
 
 .pulz-lightning-2 {
-  top: 15%;
-  right: 5%;
-  width: 180px;
+  top: 10%;
+  right: 4%;
+  width: 130px;
   height: 280px;
   transform: rotate(12deg);
 }
 
 .pulz-lightning-3 {
-  bottom: 10%;
-  left: 30%;
-  width: 220px;
-  height: 260px;
-  transform: rotate(-8deg);
+  bottom: 6%;
+  left: 28%;
+  width: 140px;
+  height: 250px;
+  transform: rotate(-6deg);
 }
 
 
