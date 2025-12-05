@@ -2,135 +2,6 @@
 @tailwind components;
 @tailwind utilities;
 
-/* ============================= */
-/*   Анимация для колеса фортуны */
-/* ============================= */
-
-@keyframes spin-slow {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(1080deg);
-  }
-}
-
-.animate-spin-slow {
-  animation: spin-slow 2.8s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
-}
-
-/* ===== Реалистичные молнии Pulz ===== */
-
-@keyframes pulz-lightning-flash {
-  0% {
-    opacity: 0;
-    transform: scale(0.95) translateY(4px);
-  }
-  8% {
-    opacity: 1;
-    transform: scale(1) translateY(0);
-  }
-  15% {
-    opacity: 0.4;
-  }
-  22% {
-    opacity: 1;
-  }
-  35% {
-    opacity: 0.35;
-  }
-  55% {
-    opacity: 0.9;
-  }
-  75% {
-    opacity: 0.25;
-  }
-  100% {
-    opacity: 0;
-    transform: scale(1.03) translateY(-4px);
-  }
-}
-
-.pulz-lightning {
-  position: absolute;
-  pointer-events: none;
-  opacity: 0;
-  animation: pulz-lightning-flash 0.6s ease-out forwards;
-  filter: drop-shadow(0 0 22px rgba(129, 230, 217, 1));
-}
-
-/* Основной ствол + ответвление делаем через ::before / ::after */
-.pulz-lightning::before,
-.pulz-lightning::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(
-    to bottom,
-    rgba(248, 250, 252, 0.0) 0%,
-    rgba(248, 250, 252, 1) 25%,
-    rgba(190, 242, 100, 0.9) 55%,
-    rgba(45, 212, 191, 0.8) 75%,
-    rgba(56, 189, 248, 0.0) 100%
-  );
-  /* Зигзагообразная форма молнии */
-  clip-path: polygon(
-    50% 0%,
-    56% 14%,
-    46% 26%,
-    54% 40%,
-    43% 54%,
-    52% 68%,
-    41% 82%,
-    48% 100%,
-    44% 100%,
-    37% 82%,
-    47% 68%,
-    38% 54%,
-    49% 40%,
-    40% 26%,
-    51% 14%,
-    45% 0%
-  );
-  border-radius: 999px;
-}
-
-.pulz-lightning::after {
-  opacity: 0.55;
-  transform: scale(0.75) translateX(-18%) translateY(6%);
-}
-
-/* Три молнии в разных местах и с разным наклоном */
-
-.pulz-lightning-1 {
-  top: 6%;
-  left: 6%;
-  width: 110px;
-  height: 260px;
-  transform: rotate(-16deg);
-}
-
-.pulz-lightning-2 {
-  top: 10%;
-  right: 4%;
-  width: 130px;
-  height: 280px;
-  transform: rotate(12deg);
-}
-
-.pulz-lightning-3 {
-  bottom: 6%;
-  left: 28%;
-  width: 140px;
-  height: 250px;
-  transform: rotate(-6deg);
-}
-
-
-/* ============================= */
-/*      Базовые кастом стили     */
-/* ============================= */
-
 :root {
   color-scheme: dark;
 }
@@ -145,4 +16,83 @@ body {
     radial-gradient(circle at 100% 0%, rgba(248,113,113,0.35), transparent 55%),
     radial-gradient(circle at 50% 100%, rgba(37,99,235,0.35), transparent 55%),
     linear-gradient(to bottom, #05040a, #020106);
+}
+
+/* Медленное вращение (фон колеса) */
+@keyframes spin-slow {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(1080deg);
+  }
+}
+
+.animate-spin-slow {
+  animation: spin-slow 2.8s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+/* Реалистичная вспышка молний вокруг кнопки */
+@keyframes pulz-lightning-flash {
+  0% {
+    opacity: 0;
+    filter: brightness(1);
+  }
+  10% {
+    opacity: 1;
+    filter: brightness(2.5);
+  }
+  25% {
+    opacity: 0.3;
+    filter: brightness(1.2);
+  }
+  40% {
+    opacity: 0.9;
+    filter: brightness(2);
+  }
+  60% {
+    opacity: 0.2;
+    filter: brightness(1);
+  }
+  75% {
+    opacity: 0.8;
+    filter: brightness(1.6);
+  }
+  100% {
+    opacity: 0;
+    filter: brightness(1);
+  }
+}
+
+/* Облако молний поверх экрана */
+.pulz-lightning {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 40;
+  opacity: 0;
+  background:
+    radial-gradient(circle at 10% 20%, rgba(252, 211, 77, 0.35), transparent 55%),
+    radial-gradient(circle at 80% 15%, rgba(248, 113, 113, 0.45), transparent 55%),
+    radial-gradient(circle at 20% 80%, rgba(56, 189, 248, 0.35), transparent 55%),
+    radial-gradient(circle at 75% 75%, rgba(251, 113, 133, 0.4), transparent 55%);
+  mix-blend-mode: screen;
+}
+
+/* Активная анимация молний */
+.pulz-lightning-active {
+  animation: pulz-lightning-flash 0.8s ease-out forwards;
+}
+
+/* "Луч" молнии (несколько узких полос) */
+.pulz-lightning-beam {
+  position: absolute;
+  width: 2px;
+  inset-block: 5%;
+  background:
+    linear-gradient(to bottom, transparent, rgba(248, 250, 252, 0.9), transparent);
+  box-shadow:
+    0 0 20px rgba(248, 250, 252, 0.9),
+    0 0 40px rgba(248, 113, 113, 0.7);
+  opacity: 0.7;
 }
