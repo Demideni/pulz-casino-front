@@ -2,6 +2,13 @@
 
 import { useState, useMemo } from "react";
 import Link from "next/link";
+import {
+  FaMoneyBillWave,
+  FaUserAlt,
+  FaBolt,
+  FaDice,
+  FaBars,
+} from "react-icons/fa";
 
 type Segment = {
   label: string;
@@ -88,7 +95,7 @@ const FortuneWheel: React.FC = () => {
 
   return (
     <>
-      {/* Молнии поверх экрана */}
+      {/* Молнии по экрану */}
       {showLightning && (
         <div className="pulz-lightning pulz-lightning-active">
           <div className="pulz-lightning-beam" style={{ left: "20%" }} />
@@ -103,54 +110,46 @@ const FortuneWheel: React.FC = () => {
         </div>
       )}
 
-      {/* НИЖНЯЯ ПАНЕЛЬ С 5 КРУГЛЫМИ КНОПКАМИ */}
+      {/* НИЖНИЙ ТАБ-БАР */}
       <div className="fixed inset-x-0 bottom-0 z-30 border-t border-slate-800/70 bg-black/85 pb-5 pt-3 backdrop-blur">
         <div className="mx-auto flex max-w-6xl items-center justify-between gap-5 px-6 text-xs">
-          {/* Касса (деньги) */}
+          {/* Касса */}
           <Link
             href="/cashier"
             className="relative flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-b from-amber-400 via-red-500 to-red-700 shadow-[0_0_22px_rgba(248,113,113,0.6)] outline-none ring-2 ring-red-500/40 ring-offset-2 ring-offset-black hover:scale-105 transition-transform"
           >
             <span className="absolute inset-[-8px] rounded-full bg-[radial-gradient(circle_at_30%_0%,rgba(255,255,255,0.35),transparent_55%),radial-gradient(circle_at_70%_120%,rgba(248,113,113,0.45),transparent_60%)] opacity-80 blur-[2px]" />
-            <span className="relative text-xl font-bold text-white drop-shadow-[0_0_8px_rgba(0,0,0,0.8)]">
-              💰
-            </span>
+            <FaMoneyBillWave className="relative h-7 w-7 text-white drop-shadow-[0_0_8px_rgba(0,0,0,0.8)]" />
             <span className="sr-only">Касса</span>
           </Link>
 
-          {/* Авторизация */}
+          {/* Вход / авторизация */}
           <Link
             href="/login"
             className="relative flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-b from-amber-400 via-red-500 to-red-700 shadow-[0_0_22px_rgba(248,113,113,0.6)] outline-none ring-2 ring-red-500/40 ring-offset-2 ring-offset-black hover:scale-105 transition-transform"
           >
             <span className="absolute inset-[-8px] rounded-full bg-[radial-gradient(circle_at_30%_0%,rgba(255,255,255,0.35),transparent_55%),radial-gradient(circle_at_70%_120%,rgba(248,113,113,0.45),transparent_60%)] opacity-80 blur-[2px]" />
-            <span className="relative text-xl font-bold text-white drop-shadow-[0_0_8px_rgba(0,0,0,0.8)]">
-              👤
-            </span>
+            <FaUserAlt className="relative h-7 w-7 text-white drop-shadow-[0_0_8px_rgba(0,0,0,0.8)]" />
             <span className="sr-only">Вход / регистрация</span>
           </Link>
 
-          {/* Центральная кнопка PULZ WHEEL (молния) */}
+          {/* Центральная кнопка PULZ WHEEL */}
           <button
             onClick={handleOpenModal}
             className="relative flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-b from-amber-400 via-red-500 to-red-700 shadow-[0_0_30px_rgba(248,113,113,0.9)] outline-none ring-2 ring-red-500/70 ring-offset-2 ring-offset-black hover:scale-110 transition-transform"
           >
             <div className="absolute inset-[-10px] rounded-full bg-[radial-gradient(circle_at_30%_0%,rgba(255,255,255,0.45),transparent_55%),radial-gradient(circle_at_70%_120%,rgba(248,113,113,0.55),transparent_60%)] opacity-90 blur-[2px]" />
-            <span className="relative text-2xl font-black text-white drop-shadow-[0_0_10px_rgba(0,0,0,0.8)]">
-              ⚡
-            </span>
+            <FaBolt className="relative h-7 w-7 text-white drop-shadow-[0_0_10px_rgba(0,0,0,0.8)]" />
             <span className="sr-only">Открыть Pulz Wheel</span>
           </button>
 
-          {/* Игры (фишка / слот) */}
+          {/* Игры / фишка казино */}
           <Link
             href="/games"
             className="relative flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-b from-amber-400 via-red-500 to-red-700 shadow-[0_0_22px_rgba(248,113,113,0.6)] outline-none ring-2 ring-red-500/40 ring-offset-2 ring-offset-black hover:scale-105 transition-transform"
           >
             <span className="absolute inset-[-8px] rounded-full bg-[radial-gradient(circle_at_30%_0%,rgba(255,255,255,0.35),transparent_55%),radial-gradient(circle_at_70%_120%,rgba(248,113,113,0.45),transparent_60%)] opacity-80 blur-[2px]" />
-            <span className="relative text-xl font-bold text-white drop-shadow-[0_0_8px_rgba(0,0,0,0.8)]">
-              🎰
-            </span>
+            <FaDice className="relative h-7 w-7 text-white drop-shadow-[0_0_8px_rgba(0,0,0,0.8)]" />
             <span className="sr-only">Каталог игр</span>
           </Link>
 
@@ -160,15 +159,9 @@ const FortuneWheel: React.FC = () => {
             className="relative flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-b from-amber-400 via-red-500 to-red-700 shadow-[0_0_22px_rgba(248,113,113,0.6)] outline-none ring-2 ring-red-500/40 ring-offset-2 ring-offset-black hover:scale-105 transition-transform"
           >
             <span className="absolute inset-[-8px] rounded-full bg-[radial-gradient(circle_at_30%_0%,rgba(255,255,255,0.35),transparent_55%),radial-gradient(circle_at_70%_120%,rgba(248,113,113,0.45),transparent_60%)] opacity-80 blur-[2px]" />
-            <span className="relative text-xl font-bold text-white drop-shadow-[0_0_8px_rgba(0,0,0,0.8)]">
-              ☰
-            </span>
+            <FaBars className="relative h-6 w-6 text-white drop-shadow-[0_0_8px_rgba(0,0,0,0.8)]" />
             <span className="sr-only">Меню</span>
           </Link>
-        </div>
-
-        <div className="mt-2 text-center text-[11px] uppercase tracking-[0.2em] text-slate-500">
-          PULZ WHEEL • Первый спин — бесплатно
         </div>
       </div>
 
