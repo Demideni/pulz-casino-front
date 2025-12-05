@@ -1,92 +1,55 @@
+// app/layout.tsx
 import "./globals.css";
 import Link from "next/link";
-import type { Metadata } from "next";
+import type { ReactNode } from "react";
 import FortuneWheel from "@/components/FortuneWheel";
 
-export const metadata: Metadata = {
-  title: "Pulz — Премиум онлайн-казино",
-  description: "Играй с огнём. Побеждай с умом.",
+export const metadata = {
+  title: "Pulz — онлайн-казино",
+  description: "Pulz demo",
 };
 
-export default function RootLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="ru" className="bg-[#050509] text-slate-100">
-      <body className="min-h-screen bg-gradient-to-b from-[#050509] via-[#090711] to-[#050509] text-slate-100">
-        {/* Top bar */}
-        <div className="border-b border-red-900/40 bg-black/40 backdrop-blur">
+      <body className="min-h-screen bg-[#050509] text-slate-100">
+        {/* Top bar: логотип + Вход / Регистрация */}
+        <header className="sticky top-0 z-40 border-b border-slate-900/80 bg-[#050509]/95 backdrop-blur">
           <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3">
-            <Link href="/" className="flex items-center gap-2">
+            <Link href="/" className="flex items-center gap-3">
               <img
-                src="/pulz-logo-dark.PNG"
+                src="/pulz-logo-light.png"
                 alt="Pulz Casino"
                 className="h-7 w-auto"
               />
-              <span className="text-xs uppercase tracking-[0.2em] text-red-400">
-                Играй с огнём. Побеждай с умом.
-              </span>
             </Link>
 
-            <div className="flex items-center gap-3 text-sm">
-              <Link
-                href="/status"
-                className="hidden text-xs text-slate-400 hover:text-slate-100 md:inline"
-              >
-                Статус платформы
-              </Link>
-
-              <button className="rounded-full border border-red-500/60 bg-red-500/10 px-4 py-1.5 text-xs font-semibold uppercase tracking-wide text-red-100 hover:bg-red-500/20">
-                Войти
+            <div className="flex items-center gap-2 text-sm">
+              <button className="rounded-full border border-slate-600 bg-black/60 px-4 py-1.5 text-xs font-medium text-slate-100 hover:border-slate-300 hover:bg-slate-900">
+                Вход
               </button>
-              <button className="rounded-full bg-red-600 px-4 py-1.5 text-xs font-semibold uppercase tracking-wide text-white shadow-[0_0_25px_rgba(239,68,68,0.65)] hover:bg-red-500">
+              <button className="rounded-full bg-red-600 px-4 py-1.5 text-xs font-semibold uppercase tracking-wide text-white shadow-[0_0_25px_rgba(239,68,68,0.7)] hover:bg-red-500">
                 Регистрация
               </button>
             </div>
           </div>
-        </div>
+        </header>
 
-        {/* Main nav */}
-        <nav className="border-b border-slate-800/60 bg-gradient-to-r from-black/70 via-[#12020a]/80 to-black/70 backdrop-blur">
-          <div className="mx-auto flex max-w-6xl items-center gap-6 px-4 py-2 text-sm">
-            <Link
-              href="/games"
-              className="font-medium text-slate-100 hover:text-white"
-            >
-              Игры
-            </Link>
-            <Link href="/bonuses" className="text-slate-300 hover:text-white">
-              Бонусы
-            </Link>
-            <Link href="/cashier" className="text-slate-300 hover:text-white">
-              Касса
-            </Link>
-            <Link href="/partners" className="text-slate-300 hover:text-white">
-              Партнёрам
-            </Link>
-            <Link href="/about" className="text-slate-300 hover:text-white">
-              О нас
-            </Link>
-          </div>
-        </nav>
-
-        {/* Page content */}
-        <main className="mx-auto min-h-[calc(100vh-140px)] max-w-6xl px-4 py-8">
+        {/* Основной контент */}
+        <main className="mx-auto max-w-6xl px-4 pb-28 pt-4">
           {children}
         </main>
 
-        {/* Footer */}
+        {/* Футер (сюда как раз и попадают Партнёрам / О нас) */}
         <footer className="border-t border-slate-800/60 bg-black/80">
           <div className="mx-auto grid max-w-6xl gap-6 px-4 py-6 text-xs text-slate-400 md:grid-cols-4">
             <div>
               <img
-                src="/pulz-logo-light.PNG"
+                src="/pulz-logo-light.png"
                 alt="Pulz Casino"
                 className="h-7 w-auto"
               />
-              <p className="text-[11px] leading-snug text-slate-500">
+              <p className="text-[11px] leading-snug text-slate-500 mt-2">
                 Pulz — онлайн-казино с дерзким красно-чёрным стилем и честными
                 коэффициентами для взрослых игроков 18+.
               </p>
@@ -135,7 +98,7 @@ export default function RootLayout({
           </div>
         </footer>
 
-        {/* Колесо фортуны снизу всех страниц */}
+        {/* Нижний бар с Pulz Wheel — оставляем как был */}
         <FortuneWheel />
       </body>
     </html>
