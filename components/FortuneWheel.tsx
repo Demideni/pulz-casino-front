@@ -159,7 +159,7 @@ export default function FortuneWheel() {
             <div className="relative flex h-14 w-14 items-center justify-center">
               <div className="absolute inset-0 rounded-full bg-[radial-gradient(circle_at_30%_0%,#f97373,transparent_55%),radial-gradient(circle_at_70%_100%,#facc15,transparent_55%)] opacity-80 shadow-[0_0_35px_rgba(248,113,113,0.85)]" />
               <div className="absolute inset-[3px] rounded-full bg-gradient-to-b from-[#1a0207] via-black to-[#050509] ring-1 ring-red-700/70" />
-              <div className={`relative h-9 w-9 rounded-full border border-red-500/70 bg-gradient-to-b from-red-500 via-amber-400 to-red-600 ${isOpen ? "animate-spin-slow" : ""}`}>
+              <div className="relative h-9 w-9 rounded-full border border-red-500/70 bg-gradient-to-b from-red-500 via-amber-400 to-red-600 animate-spin-slow">
                 {/* условный делёж колеса */}
                 <div className="absolute inset-[5px] rounded-full bg-[conic-gradient(from_210deg,_#fecaca_0deg,_#fecaca_45deg,_#f97373_45deg,_#f97373_90deg,_#fee2e2_90deg,_#fee2e2_135deg,_#fbbf24_135deg,_#fbbf24_180deg,_#fee2e2_180deg,_#fee2e2_225deg,_#f97373_225deg,_#f97373_270deg,_#fed7aa_270deg,_#fed7aa_315deg,_#fecaca_315deg,_#fecaca_360deg)]" />
                 <div className="absolute inset-[9px] rounded-full bg-slate-950/95" />
