@@ -20,7 +20,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
               <img
                 src="/pulz-logo-light.PNG"
                 alt="Pulz Casino"
-                className="h-7 w-auto"
+                className="h-6 w-auto"
               />
             </Link>
 
@@ -50,8 +50,8 @@ export default function RootLayout({ children }: { children: ReactNode }) {
                 className="h-7 w-auto"
               />
               <p className="text-[11px] leading-snug text-slate-500 mt-2">
-                Pulz — онлайн-казино с дерзким красно-чёрным стилем и честными
-                коэффициентами для взрослых игроков 18+.
+                Pulz — честные
+                коэффициенты для взрослых игроков 18+.
               </p>
             </div>
             <div>
