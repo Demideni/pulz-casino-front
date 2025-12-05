@@ -1,91 +1,60 @@
-// app/games/[id]/page.tsx
-import { notFound } from "next/navigation";
 import Link from "next/link";
 
-type GameDetails = {
-  id: string;
-  name: string;
-  provider: string;
-  description: string;
-  iframeSrc?: string;
+type Props = {
+  params: { id: string };
 };
 
-const GAMES: GameDetails[] = [
-  {
-    id: "robinzon",
-    name: "RobinZON Island",
-    provider: "Pulz Originals",
-    description:
-      "Авторская краш-игра: Робинзон летит над океаном, собирает бонусы и должен приземлиться на остров.",
-    iframeSrc: "https://robinson-game-1.onrender.com",
-  },
-  {
-    id: "gates-of-olympus",
-    name: "Gates of Olympus (demo)",
-    provider: "Pragmatic Play",
-    description: "Демо-слот. Здесь пока только заглушка без встроенной игры.",
-  },
-  {
-    id: "blackjack-vip",
-    name: "Blackjack VIP (demo)",
-    provider: "Evolution",
-    description: "Демо-стол Blackjack. Пока без реального live-потока.",
-  },
-];
+const ROBINZON_URL = "https://robinson-game-1.onrender.com";
 
-export default function GamePage({
-  params,
-}: {
-  params: { id: string };
-}) {
-  const game = GAMES.find((g) => g.id === params.id);
+const NAMES: Record<string, string> = {
+  robinson: "RobinzON Island",
+  robinzON: "RobinzON Island",
+  "gates-of-olympus": "Gates of Olympus",
+};
 
-  if (!game) {
-    notFound();
-  }
+export default function GameDetailsPage({ params }: Props) {
+  const id = params.id;
+  const normalized = id.toLowerCase();
+  const name = NAMES[normalized] ?? "Игра Pulz";
+
+  const isRobinzON = normalized === "robinzon";
 
   return (
-    <div className="space-y-6">
-      <header className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+    <div className="space-y-4">
+      <div className="flex items-center justify-between gap-3">
         <div>
-          <p className="text-xs uppercase tracking-[0.2em] text-red-400">
-            Игровой демо-режим
-          </p>
-          <h1 className="text-2xl font-semibold text-slate-50">
-            {game.name}
-          </h1>
+          <h1 className="text-lg font-semibold text-slate-50">{name}</h1>
           <p className="text-sm text-slate-400">
-            Провайдер: {game.provider}
+            Демо-страница игры. Для production-версии нужна интеграция с
+            провайдерами и лицензия.
           </p>
         </div>
-
         <Link
           href="/games"
-          className="mt-2 rounded-full border border-slate-700/70 px-4 py-1.5 text-xs text-slate-300 hover:border-slate-500 hover:text-slate-100"
+          className="rounded-full border border-slate-700 bg-slate-900/70 px-4 py-1.5 text-xs text-slate-200 hover:border-red-500 hover:text-white"
         >
           ← Назад к каталогу
         </Link>
-      </header>
+      </div>
 
-      {game.iframeSrc ? (
-        <div className="space-y-3">
-          <p className="text-sm text-slate-400">
-            {game.description}
-          </p>
-          <div className="aspect-[9/16] w-full overflow-hidden rounded-3xl border border-slate-800 bg-black">
-            <iframe
-              src={game.iframeSrc}
-              className="h-full w-full"
-              allowFullScreen
-            />
+      <div className="aspect-video w-full overflow-hidden rounded-2xl border border-slate-800 bg-black">
+        {isRobinzON ? (
+          <iframe
+            src={ROBINZON_URL}
+            title="RobinzON Island — Pulz Originals"
+            className="h-full w-full border-0"
+            loading="lazy"
+            allowFullScreen
+          />
+        ) : (
+          <div className="flex h-full w-full items-center justify-center bg-[radial-gradient(circle_at_top,_rgba(248,113,113,0.15),transparent_60%)]">
+            <p className="text-sm text-slate-400">
+              Интеграция этой игры ещё в разработке. Сейчас используется только
+              лендинг и демо-логика.
+            </p>
           </div>
-        </div>
-      ) : (
-        <div className="rounded-3xl border border-slate-800 bg-slate-950/70 p-6 text-sm text-slate-400">
-          Эта игра пока добавлена как заглушка. После интеграции провайдера
-          здесь будет реальное игровое окно.
-        </div>
-      )}
+        )}
+      </div>
     </div>
   );
 }
