@@ -5,7 +5,7 @@ import Link from "next/link";
 
 type Segment = {
   label: string;
-  color: string; // tailwind градиент для подписи
+  color: string;
   value: string;
 };
 
@@ -30,7 +30,6 @@ const FortuneWheel: React.FC = () => {
   const segmentAngle = 360 / SEGMENTS.length;
 
   const wheelBackground = useMemo(() => {
-    // conic-gradient для красивых цветных секторов
     const colors = [
       "#f97316",
       "#fb7185",
@@ -55,7 +54,6 @@ const FortuneWheel: React.FC = () => {
   }, []);
 
   const handleOpenModal = () => {
-    // Вспышка молний + открытие модалки
     setShowLightning(true);
     setTimeout(() => setShowLightning(false), 800);
     setIsModalOpen(true);
@@ -73,7 +71,7 @@ const FortuneWheel: React.FC = () => {
     setResult(null);
 
     const randomIndex = Math.floor(Math.random() * SEGMENTS.length);
-    const extraSpins = 3; // сколько полных оборотов сделает колесо
+    const extraSpins = 3;
 
     const target =
       extraSpins * 360 +
@@ -93,10 +91,7 @@ const FortuneWheel: React.FC = () => {
       {/* Молнии поверх экрана */}
       {showLightning && (
         <div className="pulz-lightning pulz-lightning-active">
-          <div
-            className="pulz-lightning-beam"
-            style={{ left: "20%" }}
-          />
+          <div className="pulz-lightning-beam" style={{ left: "20%" }} />
           <div
             className="pulz-lightning-beam"
             style={{ left: "50%", height: "110%" }}
@@ -108,46 +103,67 @@ const FortuneWheel: React.FC = () => {
         </div>
       )}
 
-      {/* Нижняя панель с круглой кнопкой */}
-      <div className="fixed inset-x-0 bottom-0 z-30 border-t border-slate-800/70 bg-black/85 pb-6 pt-3 backdrop-blur">
-        <div className="mx-auto flex max-w-6xl items-center justify-between gap-3 px-4 text-xs">
+      {/* НИЖНЯЯ ПАНЕЛЬ С 5 КРУГЛЫМИ КНОПКАМИ */}
+      <div className="fixed inset-x-0 bottom-0 z-30 border-t border-slate-800/70 bg-black/85 pb-5 pt-3 backdrop-blur">
+        <div className="mx-auto flex max-w-6xl items-center justify-between gap-5 px-6 text-xs">
+          {/* Касса (деньги) */}
           <Link
             href="/cashier"
-            className="rounded-full bg-slate-900 px-4 py-2 text-slate-100 shadow-[0_0_15px_rgba(15,23,42,0.9)] hover:bg-slate-800"
+            className="relative flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-b from-amber-400 via-red-500 to-red-700 shadow-[0_0_22px_rgba(248,113,113,0.6)] outline-none ring-2 ring-red-500/40 ring-offset-2 ring-offset-black hover:scale-105 transition-transform"
           >
-            Касса
+            <span className="absolute inset-[-8px] rounded-full bg-[radial-gradient(circle_at_30%_0%,rgba(255,255,255,0.35),transparent_55%),radial-gradient(circle_at_70%_120%,rgba(248,113,113,0.45),transparent_60%)] opacity-80 blur-[2px]" />
+            <span className="relative text-xl font-bold text-white drop-shadow-[0_0_8px_rgba(0,0,0,0.8)]">
+              💰
+            </span>
+            <span className="sr-only">Касса</span>
           </Link>
 
+          {/* Авторизация */}
           <Link
             href="/login"
-            className="rounded-full bg-slate-900 px-4 py-2 text-slate-100 hover:bg-slate-800"
+            className="relative flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-b from-amber-400 via-red-500 to-red-700 shadow-[0_0_22px_rgba(248,113,113,0.6)] outline-none ring-2 ring-red-500/40 ring-offset-2 ring-offset-black hover:scale-105 transition-transform"
           >
-            Вход
+            <span className="absolute inset-[-8px] rounded-full bg-[radial-gradient(circle_at_30%_0%,rgba(255,255,255,0.35),transparent_55%),radial-gradient(circle_at_70%_120%,rgba(248,113,113,0.45),transparent_60%)] opacity-80 blur-[2px]" />
+            <span className="relative text-xl font-bold text-white drop-shadow-[0_0_8px_rgba(0,0,0,0.8)]">
+              👤
+            </span>
+            <span className="sr-only">Вход / регистрация</span>
           </Link>
 
-          {/* Центральная кнопка-молния */}
+          {/* Центральная кнопка PULZ WHEEL (молния) */}
           <button
             onClick={handleOpenModal}
-            className="relative flex h-16 w-16 items-center justify-center rounded-full bg-gradient-to-b from-amber-400 via-red-500 to-red-700 shadow-[0_0_35px_rgba(248,113,113,0.9)] outline-none ring-2 ring-red-500/70 ring-offset-2 ring-offset-black hover:scale-105 transition-transform"
+            className="relative flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-b from-amber-400 via-red-500 to-red-700 shadow-[0_0_30px_rgba(248,113,113,0.9)] outline-none ring-2 ring-red-500/70 ring-offset-2 ring-offset-black hover:scale-110 transition-transform"
           >
-            <div className="absolute inset-[-12px] rounded-full bg-[radial-gradient(circle_at_30%_0%,rgba(255,255,255,0.45),transparent_55%),radial-gradient(circle_at_70%_120%,rgba(248,113,113,0.55),transparent_60%)] opacity-90 blur-[2px]" />
+            <div className="absolute inset-[-10px] rounded-full bg-[radial-gradient(circle_at_30%_0%,rgba(255,255,255,0.45),transparent_55%),radial-gradient(circle_at_70%_120%,rgba(248,113,113,0.55),transparent_60%)] opacity-90 blur-[2px]" />
             <span className="relative text-2xl font-black text-white drop-shadow-[0_0_10px_rgba(0,0,0,0.8)]">
               ⚡
             </span>
+            <span className="sr-only">Открыть Pulz Wheel</span>
           </button>
 
+          {/* Игры (фишка / слот) */}
           <Link
-            href="/register"
-            className="rounded-full bg-red-600 px-4 py-2 font-semibold text-white shadow-[0_0_25px_rgba(248,113,113,0.9)] hover:bg-red-500"
+            href="/games"
+            className="relative flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-b from-amber-400 via-red-500 to-red-700 shadow-[0_0_22px_rgba(248,113,113,0.6)] outline-none ring-2 ring-red-500/40 ring-offset-2 ring-offset-black hover:scale-105 transition-transform"
           >
-            Регистрация
+            <span className="absolute inset-[-8px] rounded-full bg-[radial-gradient(circle_at_30%_0%,rgba(255,255,255,0.35),transparent_55%),radial-gradient(circle_at_70%_120%,rgba(248,113,113,0.45),transparent_60%)] opacity-80 blur-[2px]" />
+            <span className="relative text-xl font-bold text-white drop-shadow-[0_0_8px_rgba(0,0,0,0.8)]">
+              🎰
+            </span>
+            <span className="sr-only">Каталог игр</span>
           </Link>
 
+          {/* Меню */}
           <Link
             href="/menu"
-            className="rounded-full bg-slate-900 px-4 py-2 text-slate-100 hover:bg-slate-800"
+            className="relative flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-b from-amber-400 via-red-500 to-red-700 shadow-[0_0_22px_rgba(248,113,113,0.6)] outline-none ring-2 ring-red-500/40 ring-offset-2 ring-offset-black hover:scale-105 transition-transform"
           >
-            Меню
+            <span className="absolute inset-[-8px] rounded-full bg-[radial-gradient(circle_at_30%_0%,rgba(255,255,255,0.35),transparent_55%),radial-gradient(circle_at_70%_120%,rgba(248,113,113,0.45),transparent_60%)] opacity-80 blur-[2px]" />
+            <span className="relative text-xl font-bold text-white drop-shadow-[0_0_8px_rgba(0,0,0,0.8)]">
+              ☰
+            </span>
+            <span className="sr-only">Меню</span>
           </Link>
         </div>
 
@@ -180,14 +196,11 @@ const FortuneWheel: React.FC = () => {
               </p>
             </div>
 
-            {/* Само колесо */}
             <div className="flex flex-col items-center gap-4">
               <div className="relative h-56 w-56">
-                {/* Внешнее золотое кольцо */}
                 <div className="absolute inset-0 rounded-full bg-gradient-to-b from-yellow-500 via-amber-400 to-orange-500 shadow-[0_0_35px_rgba(251,191,36,0.7)] p-[5px]">
-                  {/* Внутренний фон колеса */}
                   <div
-                    className={`flex h-full w-full items-center justify-center rounded-full border-4 border-yellow-200/60`}
+                    className="flex h-full w-full items-center justify-center rounded-full border-4 border-yellow-200/60"
                     style={{
                       backgroundImage: wheelBackground,
                       transform: `rotate(${rotation}deg)`,
@@ -196,7 +209,6 @@ const FortuneWheel: React.FC = () => {
                         : "none",
                     }}
                   >
-                    {/* Центральная кнопка SPIN */}
                     <button
                       onClick={spinWheel}
                       disabled={isSpinning}
@@ -210,7 +222,6 @@ const FortuneWheel: React.FC = () => {
                   </div>
                 </div>
 
-                {/* Указатель сверху */}
                 <div className="pointer-events-none absolute -top-3 left-1/2 -translate-x-1/2">
                   <div className="h-6 w-6 rotate-180 rounded-b-full bg-gradient-to-b from-yellow-200 via-amber-300 to-orange-500 shadow-[0_0_15px_rgba(251,191,36,0.9)]">
                     <div className="mx-auto mt-[6px] h-3 w-[6px] rounded-b-full bg-red-600" />
@@ -218,7 +229,6 @@ const FortuneWheel: React.FC = () => {
                 </div>
               </div>
 
-              {/* Текст результата */}
               <div className="w-full rounded-2xl border border-slate-800/80 bg-slate-950/80 px-4 py-3 text-sm text-slate-200">
                 {result ? (
                   <>
@@ -231,8 +241,6 @@ const FortuneWheel: React.FC = () => {
                     <p className="mt-1 text-[11px] text-slate-400">
                       Забрать бонус можно после регистрации или входа в аккаунт.
                     </p>
-
-                    {/* CTA на регистрацию */}
                     <div className="mt-3 flex gap-2">
                       <Link
                         href="/register"
