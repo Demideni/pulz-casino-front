@@ -2,13 +2,10 @@
 
 import { useState, useMemo } from "react";
 import Link from "next/link";
-import {
-  FaMoneyBillWave,
-  FaUserAlt,
-  FaBolt,
-  FaDice,
-  FaBars,
-} from "react-icons/fa";
+import { GiMoneyStack, GiPokerChip } from "react-icons/gi";
+import { HiOutlineUserCircle, HiOutlineMenuAlt3 } from "react-icons/hi";
+import { BsLightningChargeFill } from "react-icons/bs";
+
 
 type Segment = {
   label: string;
@@ -119,7 +116,7 @@ const FortuneWheel: React.FC = () => {
             className="relative flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-b from-amber-400 via-red-500 to-red-700 shadow-[0_0_22px_rgba(248,113,113,0.6)] outline-none ring-2 ring-red-500/40 ring-offset-2 ring-offset-black hover:scale-105 transition-transform"
           >
             <span className="absolute inset-[-8px] rounded-full bg-[radial-gradient(circle_at_30%_0%,rgba(255,255,255,0.35),transparent_55%),radial-gradient(circle_at_70%_120%,rgba(248,113,113,0.45),transparent_60%)] opacity-80 blur-[2px]" />
-            <FaMoneyBillWave className="relative h-7 w-7 text-white drop-shadow-[0_0_8px_rgba(0,0,0,0.8)]" />
+            <GiMoneyStack className="relative h-7 w-7 text-white drop-shadow-[0_0_8px_rgba(0,0,0,0.8)]" />
             <span className="sr-only">Касса</span>
           </Link>
 
@@ -129,7 +126,7 @@ const FortuneWheel: React.FC = () => {
             className="relative flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-b from-amber-400 via-red-500 to-red-700 shadow-[0_0_22px_rgba(248,113,113,0.6)] outline-none ring-2 ring-red-500/40 ring-offset-2 ring-offset-black hover:scale-105 transition-transform"
           >
             <span className="absolute inset-[-8px] rounded-full bg-[radial-gradient(circle_at_30%_0%,rgba(255,255,255,0.35),transparent_55%),radial-gradient(circle_at_70%_120%,rgba(248,113,113,0.45),transparent_60%)] opacity-80 blur-[2px]" />
-            <FaUserAlt className="relative h-7 w-7 text-white drop-shadow-[0_0_8px_rgba(0,0,0,0.8)]" />
+            <HiOutlineUserCircle className="relative h-8 w-8 text-white drop-shadow-[0_0_8px_rgba(0,0,0,0.8)]" />
             <span className="sr-only">Вход / регистрация</span>
           </Link>
 
@@ -139,7 +136,7 @@ const FortuneWheel: React.FC = () => {
             className="relative flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-b from-amber-400 via-red-500 to-red-700 shadow-[0_0_30px_rgba(248,113,113,0.9)] outline-none ring-2 ring-red-500/70 ring-offset-2 ring-offset-black hover:scale-110 transition-transform"
           >
             <div className="absolute inset-[-10px] rounded-full bg-[radial-gradient(circle_at_30%_0%,rgba(255,255,255,0.45),transparent_55%),radial-gradient(circle_at_70%_120%,rgba(248,113,113,0.55),transparent_60%)] opacity-90 blur-[2px]" />
-            <FaBolt className="relative h-7 w-7 text-white drop-shadow-[0_0_10px_rgba(0,0,0,0.8)]" />
+            <BsLightningChargeFill className="relative h-7 w-7 text-white drop-shadow-[0_0_10px_rgba(0,0,0,0.8)]" />
             <span className="sr-only">Открыть Pulz Wheel</span>
           </button>
 
@@ -149,7 +146,7 @@ const FortuneWheel: React.FC = () => {
             className="relative flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-b from-amber-400 via-red-500 to-red-700 shadow-[0_0_22px_rgba(248,113,113,0.6)] outline-none ring-2 ring-red-500/40 ring-offset-2 ring-offset-black hover:scale-105 transition-transform"
           >
             <span className="absolute inset-[-8px] rounded-full bg-[radial-gradient(circle_at_30%_0%,rgba(255,255,255,0.35),transparent_55%),radial-gradient(circle_at_70%_120%,rgba(248,113,113,0.45),transparent_60%)] opacity-80 blur-[2px]" />
-            <FaDice className="relative h-7 w-7 text-white drop-shadow-[0_0_8px_rgba(0,0,0,0.8)]" />
+            <GiPokerChip className="relative h-7 w-7 text-white drop-shadow-[0_0_8px_rgba(0,0,0,0.8)]" />
             <span className="sr-only">Каталог игр</span>
           </Link>
 
@@ -159,7 +156,7 @@ const FortuneWheel: React.FC = () => {
             className="relative flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-b from-amber-400 via-red-500 to-red-700 shadow-[0_0_22px_rgba(248,113,113,0.6)] outline-none ring-2 ring-red-500/40 ring-offset-2 ring-offset-black hover:scale-105 transition-transform"
           >
             <span className="absolute inset-[-8px] rounded-full bg-[radial-gradient(circle_at_30%_0%,rgba(255,255,255,0.35),transparent_55%),radial-gradient(circle_at_70%_120%,rgba(248,113,113,0.45),transparent_60%)] opacity-80 blur-[2px]" />
-            <FaBars className="relative h-6 w-6 text-white drop-shadow-[0_0_8px_rgba(0,0,0,0.8)]" />
+            <HiOutlineMenuAlt3 className="relative h-6 w-6 text-white drop-shadow-[0_0_8px_rgba(0,0,0,0.8)]" />
             <span className="sr-only">Меню</span>
           </Link>
         </div>
