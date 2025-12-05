@@ -144,23 +144,28 @@ type CircleButtonProps = {
 };
 
 function CircleButton({ label, href, onClick, important, children }: CircleButtonProps) {
-  const inner = (
-    <span
-      className={[
-        "relative flex h-14 w-14 items-center justify-center rounded-full",
-        "bg-gradient-to-b from-[#ffb347] via-[#ff6b6b] to-[#b91c1c]",
-        "shadow-[0_0_25px_rgba(248,113,113,0.7)]",
-        "border border-black/60",
-        "transition-transform duration-150 group-active:scale-95",
-        important ? "ring-2 ring-red-500/80" : "",
-      ]
-        .filter(Boolean)
-        .join(" ")}
-    >
-      <span className="pointer-events-none absolute -inset-1 rounded-full bg-red-500/15 blur-md" />
-      <span className="relative flex h-12 w-12 items-center justify-center rounded-full bg-gradient-to-b from-[#ffe1a8] via-[#ff9f7b] to-[#ff5b5b]">
-        {children}
-      </span>
+  const outerClasses = [
+    "relative flex h-14 w-14 items-center justify-center rounded-full",
+    "bg-gradient-to-b from-[#050816] via-black to-[#050816]",
+    "border border-red-500/40",
+    "shadow-[0_0_22px_rgba(248,113,113,0.35)]",
+    "transition-transform duration-150 group-active:scale-95",
+    "overflow-hidden",
+    important ? "ring-2 ring-red-500/80" : "ring-1 ring-slate-900/70",
+  ]
+    .filter(Boolean)
+    .join(" ");
+
+  const innerGlow =
+    "pointer-events-none absolute -inset-2 rounded-full bg-[radial-gradient(circle_at_top,_rgba(248,113,113,0.55),transparent_60%)] opacity-70";
+
+  const innerCircle =
+    "relative flex h-11 w-11 items-center justify-center rounded-full bg-gradient-to-b from-[#111827] via-black to-[#020617]";
+
+  const content = (
+    <span className={outerClasses}>
+      <span className={innerGlow} />
+      <span className={innerCircle}>{children}</span>
     </span>
   );
 
@@ -171,7 +176,7 @@ function CircleButton({ label, href, onClick, important, children }: CircleButto
         aria-label={label}
         className="group inline-flex items-center justify-center"
       >
-        {inner}
+        {content}
       </Link>
     );
   }
@@ -183,7 +188,7 @@ function CircleButton({ label, href, onClick, important, children }: CircleButto
       onClick={onClick}
       className="group inline-flex items-center justify-center"
     >
-      {inner}
+      {content}
     </button>
   );
 }
