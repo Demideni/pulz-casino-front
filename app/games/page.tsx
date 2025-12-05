@@ -202,37 +202,67 @@ export default function GamesPage() {
         </div>
       </div>
 
-      {/* Модалка игры */}
-      {openedGame && (
-        <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/85 backdrop-blur-sm">
-          <div className="relative mx-4 w-full max-w-5xl rounded-3xl border border-slate-800 bg-gradient-to-b from-[#050509] via-black to-[#050509] shadow-[0_0_55px_rgba(0,0,0,1)]">
-            {/* Header */}
-            <div className="flex items-center justify-between gap-3 border-b border-slate-800/80 px-4 py-3">
-              <div>
-                <div className="flex items-center gap-2">
-                  <h2 className="text-sm font-semibold text-slate-50">
-                    {openedGame.name}
-                  </h2>
-                  {openedGame.isPulzOriginal && (
-                    <span className="rounded-full bg-red-600/80 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-white">
-                      Pulz Originals
-                    </span>
-                  )}
-                </div>
-                <p className="text-[11px] text-slate-400">
-                  Провайдер: {openedGame.provider} · RTP{" "}
-                  {openedGame.rtp.toFixed(1)}% · Волатильность{" "}
-                  {formatVolatility(openedGame.volatility)}
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={() => setOpenedGame(null)}
-                className="rounded-full border border-slate-700 bg-slate-900/70 px-3 py-1 text-xs text-slate-200 hover:border-red-500 hover:text-white"
-              >
-                Закрыть
-              </button>
-            </div>
+    {/* Модалка игры (фуллскрин) */}
+{openedGame && (
+  <div className="fixed inset-0 z-40 bg-black/90 backdrop-blur-sm">
+    <div className="flex h-full flex-col md:mx-4 md:my-6 md:rounded-3xl md:border md:border-slate-800 md:bg-gradient-to-b md:from-[#050509] md:via-black md:to-[#050509] md:shadow-[0_0_55px_rgba(0,0,0,1)] overflow-hidden">
+      {/* Header */}
+      <div className="flex items-center justify-between gap-3 border-b border-slate-800/80 bg-black/70 px-4 py-3">
+        <div>
+          <div className="flex items-center gap-2">
+            <h2 className="text-sm font-semibold text-slate-50">
+              {openedGame.name}
+            </h2>
+            {openedGame.isPulzOriginal && (
+              <span className="rounded-full bg-red-600/80 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-white">
+                Pulz Originals
+              </span>
+            )}
+          </div>
+          <p className="text-[11px] text-slate-400">
+            Провайдер: {openedGame.provider} · RTP{" "}
+            {openedGame.rtp.toFixed(1)}% · Волатильность{" "}
+            {formatVolatility(openedGame.volatility)}
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={() => setOpenedGame(null)}
+          className="rounded-full border border-slate-700 bg-slate-900/70 px-3 py-1 text-xs text-slate-200 hover:border-red-500 hover:text-white"
+        >
+          Закрыть
+        </button>
+      </div>
+
+      {/* Контент: iframe на весь экран */}
+      <div className="flex-1 overflow-hidden bg-black">
+        {openedGame.id === "robinzon" ? (
+          <iframe
+            src="https://robinson-game-1.onrender.com"
+            title="RobinzON Island — Pulz Originals"
+            className="h-full w-full border-0"
+            loading="lazy"
+            allowFullScreen
+          />
+        ) : (
+          <div className="flex h-full w-full items-center justify-center bg-[radial-gradient(circle_at_top,_rgba(248,113,113,0.15),transparent_60%)]">
+            <p className="px-4 text-center text-sm text-slate-400">
+              Интеграция с провайдером для этой игры в процессе.
+              Сейчас доступен только макет.
+            </p>
+          </div>
+        )}
+      </div>
+
+      {/* Низ модалки (короткий дисклеймер, чтобы не съедать экран) */}
+      <div className="border-t border-slate-800/80 bg-black/80 px-4 py-2 text-[10px] text-slate-500">
+        Это демо-режим без реальных денег и лицензии. Для реальных ставок
+        нужна полноценная платформа, лицензия и интеграция провайдеров
+        (SlotMatrix, Spribe, Pragmatic и др.).
+      </div>
+    </div>
+  </div>
+)}
 
             {/* Content */}
             <div className="space-y-3 p-4">
