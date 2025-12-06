@@ -7,7 +7,7 @@ import { usePathname } from "next/navigation";
 export default function FortuneWheel() {
   const pathname = usePathname();
 
-  // Скрываем тап-бар на страницах игр
+  // Скрываем весь низ на страницах игр
   const hideBottomBar =
     pathname === "/games" ||
     pathname === "/games/" ||
@@ -26,8 +26,8 @@ export default function FortuneWheel() {
 
   const handleSpin = () => {
     if (isSpinning) return;
-    setIsSpinning(true);
 
+    setIsSpinning(true);
     setTimeout(() => {
       const prizes = ["+5%", "+10%", "+15%", "+20%", "x2", "x3"];
       const prize = prizes[Math.floor(Math.random() * prizes.length)];
@@ -36,95 +36,101 @@ export default function FortuneWheel() {
     }, 2500);
   };
 
-  // На странице игры не показываем нижний бар вообще
   if (hideBottomBar) return null;
 
   return (
     <>
-      {/* === НИЖНИЙ ТАП-БАР С КРУГЛЫМИ КНОПКАМИ === */}
-      <nav className="fixed inset-x-0 bottom-0 z-40 bg-[#050509]/95 backdrop-blur-2xl border-t border-red-900/40">
-        <div className="mx-auto flex max-w-md items-end justify-between px-5 py-2.5">
-          {/* Касса */}
-          <Link
-            href="#"
-            className="flex flex-col items-center text-[11px] text-slate-200"
-          >
-            <div className="relative mb-1 flex h-12 w-12 items-center justify-center rounded-full bg-gradient-to-b from-slate-800 via-slate-950 to-black shadow-[0_0_20px_rgba(15,23,42,0.9)]">
-              <div className="absolute inset-0 rounded-full border border-slate-500/70" />
-              <div className="relative h-4 w-6 rounded-md bg-gradient-to-r from-emerald-400 to-lime-300 shadow-[0_0_12px_rgba(74,222,128,0.8)]" />
-            </div>
-            <span>Касса</span>
-          </Link>
-
-          {/* Вход */}
-          <Link
-            href="#"
-            className="flex flex-col items-center text-[11px] text-slate-200"
-          >
-            <div className="relative mb-1 flex h-12 w-12 items-center justify-center rounded-full bg-gradient-to-b from-slate-800 via-slate-950 to-black shadow-[0_0_20px_rgba(15,23,42,0.9)]">
-              <div className="absolute inset-0 rounded-full border border-slate-500/70" />
-              <div className="relative flex flex-col items-center">
-                <div className="h-3.5 w-3.5 rounded-full border border-sky-300" />
-                <div className="mt-0.5 h-2 w-4 rounded-t-full border border-sky-300 border-t-0" />
+      {/* ===== НИЖНИЙ БАР как у JetTon ===== */}
+      <nav className="fixed inset-x-0 bottom-0 z-40 bg-[#050509]">
+        <div className="relative mx-auto max-w-xl px-2 pb-2 pt-1">
+          {/* Тёмная полоса с 4 секциями */}
+          <div className="grid grid-cols-4 rounded-t-2xl border-t border-slate-800 bg-[#05070b] px-2 py-2 text-[11px] text-slate-200">
+            {/* Касса */}
+            <Link
+              href="#"
+              className="flex flex-col items-center justify-center gap-1"
+            >
+              <div className="flex h-6 w-6 items-center justify-center rounded-lg border border-slate-400/70">
+                <div className="h-3 w-4 rounded-md bg-slate-300/90" />
               </div>
-            </div>
-            <span>Вход</span>
-          </Link>
+              <span>Касса</span>
+            </Link>
 
-          {/* Центральная кнопка Pulz Wheel */}
+            {/* Вход */}
+            <Link
+              href="#"
+              className="flex flex-col items-center justify-center gap-1"
+            >
+              <div className="flex h-6 w-6 items-center justify-center rounded-lg border border-slate-400/70">
+                <div className="flex flex-col items-center">
+                  <div className="h-2.5 w-2.5 rounded-full border border-slate-200" />
+                  <div className="mt-0.5 h-1.5 w-3 rounded-t-full border border-slate-200 border-t-0" />
+                </div>
+              </div>
+              <span>Вход</span>
+            </Link>
+
+            {/* Игры */}
+            <Link
+              href="/games"
+              className="flex flex-col items-center justify-center gap-1"
+            >
+              <div className="flex h-6 w-6 items-center justify-center rounded-lg border border-lime-400/80 bg-lime-400/10">
+                <div className="flex h-3 w-4 items-center justify-between">
+                  <span className="h-2 w-[3px] rounded-sm bg-lime-300" />
+                  <span className="h-2 w-[3px] rounded-sm bg-lime-300" />
+                  <span className="h-2 w-[3px] rounded-sm bg-lime-300" />
+                </div>
+              </div>
+              <span className="text-lime-300">Игры</span>
+            </Link>
+
+            {/* Меню */}
+            <button
+              type="button"
+              className="flex flex-col items-center justify-center gap-1"
+            >
+              <div className="flex h-6 w-6 items-center justify-center rounded-lg border border-slate-400/70">
+                <div className="space-y-0.5">
+                  <span className="block h-[2px] w-4 rounded-full bg-slate-100" />
+                  <span className="block h-[2px] w-4 rounded-full bg-slate-100/80" />
+                  <span className="block h-[2px] w-4 rounded-full bg-slate-100/60" />
+                </div>
+              </div>
+              <span>Меню</span>
+            </button>
+          </div>
+
+          {/* Центральное колесо, как Lucky Turbine */}
           <button
             type="button"
             onClick={openWheel}
-            className="flex -translate-y-1 flex-col items-center text-[11px] text-red-100"
+            className="pointer-events-auto absolute left-1/2 top-0 flex -translate-x-1/2 -translate-y-4 flex-col items-center"
           >
-            <div className="relative mb-1 flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-b from-red-500 via-red-400 to-amber-300 shadow-[0_0_35px_rgba(248,113,113,0.9)]">
-              {/* внешний обод */}
-              <div className="absolute inset-0 rounded-full border border-red-900/70" />
-              {/* вращающееся кольцо */}
-              <div className="absolute inset-[6px] rounded-full border border-red-300/70 bg-[conic-gradient(from_0deg,#fecaca,#fb923c,#fed7aa,#fecaca)] animate-spin-slow" />
+            {/* подпись над колесом */}
+            <span className="mb-1 text-[11px] font-semibold tracking-[0.18em] text-slate-200">
+              Pulz Wheel
+            </span>
+
+            {/* само маленькое колесо */}
+            <div className="relative h-14 w-14">
+              {/* внешнее свечение */}
+              <div className="absolute inset-0 rounded-full bg-[radial-gradient(circle_at_50%_0%,rgba(96,165,250,0.6),transparent_60%),radial-gradient(circle_at_50%_100%,rgba(248,113,113,0.7),transparent_65%)] opacity-90 blur-[2px]" />
+
+              {/* синее кольцо */}
+              <div className="absolute inset-[3px] rounded-full bg-gradient-to-b from-sky-500 via-sky-700 to-slate-900 shadow-[0_0_16px_rgba(56,189,248,0.9)]" />
+
+              {/* вращающийся диск */}
+              <div className="absolute inset-[6px] rounded-full bg-[conic-gradient(from_0deg,#e5e7eb,#f97316,#22c55e,#3b82f6,#e5e7eb)] animate-spin-slow" />
+
               {/* центр */}
-              <div className="absolute inset-[14px] rounded-full bg-slate-950/95" />
-              {/* молния */}
-              <div className="relative h-5 w-3 -skew-x-6 bg-gradient-to-b from-yellow-300 to-orange-500 clip-path-[polygon(50%_0%,0%_55%,35%_55%,10%_100%,100%_40%,65%_40%,90%_0%)]" />
+              <div className="absolute inset-[14px] rounded-full bg-gradient-to-b from-rose-500 via-rose-600 to-rose-800 shadow-[0_0_10px_rgba(248,113,113,0.9)]" />
             </div>
-            <span className="font-semibold">Pulz Wheel</span>
-          </button>
-
-          {/* Игры */}
-          <Link
-            href="/games"
-            className="flex flex-col items-center text-[11px] text-slate-200"
-          >
-            <div className="relative mb-1 flex h-12 w-12 items-center justify-center rounded-full bg-gradient-to-b from-slate-800 via-slate-950 to-black shadow-[0_0_20px_rgba(15,23,42,0.9)]">
-              <div className="absolute inset-0 rounded-full border border-slate-500/70" />
-              <div className="relative flex h-4 w-6 items-center justify-between rounded-md bg-gradient-to-r from-fuchsia-500 to-amber-400 px-1">
-                <span className="h-2 w-1 rounded-sm bg-white/90" />
-                <span className="h-2 w-1 rounded-sm bg-white/90" />
-                <span className="h-2 w-1 rounded-sm bg-white/90" />
-              </div>
-            </div>
-            <span>Игры</span>
-          </Link>
-
-          {/* Меню */}
-          <button
-            type="button"
-            className="flex flex-col items-center text-[11px] text-slate-200"
-          >
-            <div className="relative mb-1 flex h-12 w-12 items-center justify-center rounded-full bg-gradient-to-b from-slate-800 via-slate-950 to-black shadow-[0_0_20px_rgba(15,23,42,0.9)]">
-              <div className="absolute inset-0 rounded-full border border-slate-500/70" />
-              <div className="relative space-y-0.5">
-                <span className="block h-[2px] w-5 rounded-full bg-slate-100" />
-                <span className="block h-[2px] w-5 rounded-full bg-slate-100/80" />
-                <span className="block h-[2px] w-5 rounded-full bg-slate-100/60" />
-              </div>
-            </div>
-            <span>Меню</span>
           </button>
         </div>
       </nav>
 
-      {/* === МОДАЛКА С БОЛЬШИМ КОЛЕСОМ (как у тебя было) === */}
+      {/* ===== МОДАЛКА БОЛЬШОГО КОЛЕСА ===== */}
       {isOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 px-4 backdrop-blur-sm">
           <div className="w-full max-w-md rounded-3xl border border-red-900/70 bg-gradient-to-b from-[#12020a] via-black to-[#050509] p-5 shadow-[0_30px_80px_rgba(0,0,0,0.9)]">
@@ -146,7 +152,6 @@ export default function FortuneWheel() {
               </button>
             </div>
 
-            {/* Само колесо */}
             <div className="mb-4 flex flex-col items-center">
               <div className="relative h-52 w-52">
                 <div className="absolute inset-0 rounded-full bg-[radial-gradient(circle_at_0%_0%,rgba(248,113,113,0.6),transparent_60%),radial-gradient(circle_at_100%_100%,rgba(251,191,36,0.55),transparent_55%)] opacity-80 blur-sm" />
@@ -164,14 +169,12 @@ export default function FortuneWheel() {
                 >
                   {isSpinning ? "Крутим..." : "Крутить"}
                 </button>
-                {/* стрелка */}
                 <div className="absolute -top-2 left-1/2 -translate-x-1/2">
                   <div className="h-5 w-3 origin-bottom rounded-b-full bg-amber-300 shadow-[0_0_10px_rgba(251,191,36,0.9)]" />
                 </div>
               </div>
             </div>
 
-            {/* Результат + оффер регистрации */}
             {result && (
               <div className="space-y-2 text-center text-sm">
                 <div className="text-slate-100">Твой бонус: {result}</div>
