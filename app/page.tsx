@@ -171,9 +171,9 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* БОНУС-КАРТОЧКИ */}
-      <section className="grid grid-cols-2 gap-3 md:grid-cols-4">
-        {BONUS_TILES.map((tile) => (
+      {/* БОНУС-КАРТОЧКИ — только два блока */}
+      <section className="grid grid-cols-2 gap-3 md:grid-cols-2">
+        {BONUS_TILES.slice(0, 2).map((tile) => (
           <div
             key={tile.id}
             className="relative overflow-hidden rounded-2xl border border-slate-800/80 bg-gradient-to-br from-[#09030d] via-[#130514] to-[#050509] p-3 text-xs shadow-[0_0_30px_rgba(15,23,42,0.85)]"
@@ -189,6 +189,7 @@ export default function HomePage() {
           </div>
         ))}
       </section>
+
 
       {/* ПОПУЛЯРНЫЕ ИГРЫ НА ГЛАВНОЙ */}
       <section className="space-y-3">
