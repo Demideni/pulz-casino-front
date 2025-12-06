@@ -2,7 +2,6 @@
 
 import React from "react";
 import Link from "next/link";
-import Image from "next/image";
 import FortuneWheelModal from "@/components/FortuneWheel";
 
 export default function BottomNav() {
@@ -10,97 +9,103 @@ export default function BottomNav() {
 
   return (
     <>
-      {/* ФИКСИРОВАННЫЙ НИЖНИЙ ТАП-БАР */}
-      <div className="pointer-events-none fixed bottom-0 left-0 right-0 z-40 flex justify-center pb-3">
-        <nav className="pointer-events-auto relative flex w-full max-w-xl items-end justify-between px-0">
+      {/* снизу по центру, как системный таб-бар */}
+      <div className="pointer-events-none fixed inset-x-0 bottom-0 z-40 flex justify-center pb-3">
+        <nav
+          className="
+            pointer-events-auto
+            relative flex w-full max-w-xl items-end justify-between
+            rounded-t-[28px]
+            bg-[#11141f]/95
+            px-2 pb-3 pt-4
+            border-t border-slate-800/80
+            shadow-[0_-16px_40px_rgba(0,0,0,0.9)]
+            overflow-visible
+          "
+        >
+          {/* дуга, которая обнимает колесо (имитация JetTon) */}
+          <div
+            className="
+              pointer-events-none
+              absolute -top-8 left-1/2
+              h-16 w-44
+              -translate-x-1/2
+              rounded-t-[999px]
+              border-t border-x border-slate-700/80
+              bg-[#11141f]/95
+            "
+          />
 
-          {/* Серая подложка бара */}
-          <div className="relative flex w-full items-end justify-between rounded-t-3xl bg-[#12151f]/96 px-4 pb-3 pt-3 border-t border-slate-700/70">
+          {/* Касса */}
+          <NavButton href="/cashier" label="Касса" first />
 
-            {/* Касса */}
-            <Link
-              href="/cashier"
-              className="flex w-1/5 flex-col items-center text-[11px] text-slate-200"
-            >
-              <div className="flex h-10 w-10 items-center justify-center rounded-2xl border border-slate-600/70 bg-black/60">
-                {/* сюда потом поставим иконку кассы */}
-              </div>
-              <span className="mt-1">Касса</span>
-            </Link>
+          {/* Вход */}
+          <NavButton href="/login" label="Вход" />
 
-            {/* Вертикальный разделитель */}
-            <div className="h-8 w-px bg-slate-700/70" />
+          {/* Пустое место под колесо, чтобы элементы не наехали */}
+          <div className="w-[96px]" />
 
-            {/* Вход */}
-            <Link
-              href="/login"
-              className="flex w-1/5 flex-col items-center text-[11px] text-slate-200"
-            >
-              <div className="flex h-10 w-10 items-center justify-center rounded-2xl border border-slate-600/70 bg-black/60">
-                {/* иконка входа */}
-              </div>
-              <span className="mt-1">Вход</span>
-            </Link>
+          {/* Игры */}
+          <NavButton href="/games" label="Игры" />
 
-            {/* Пустое место под колесо (чтобы бар визуально его "обходил") */}
-            <div className="w-1/5" />
+          {/* Меню */}
+          <NavButton href="/menu" label="Меню" />
 
-            {/* Вертикальный разделитель справа от колеса */}
-            <div className="h-8 w-px bg-slate-700/70" />
-
-            {/* Игры */}
-            <Link
-              href="/games"
-              className="flex w-1/5 flex-col items-center text-[11px] text-slate-200"
-            >
-              <div className="flex h-10 w-10 items-center justify-center rounded-2xl border border-slate-600/70 bg-black/60">
-                {/* иконка игр */}
-              </div>
-              <span className="mt-1">Игры</span>
-            </Link>
-
-            {/* Вертикальный разделитель */}
-            <div className="h-8 w-px bg-slate-700/70" />
-
-            {/* Меню */}
-            <Link
-              href="/menu"
-              className="flex w-1/5 flex-col items-center text-[11px] text-slate-200"
-            >
-              <div className="flex h-10 w-10 items-center justify-center rounded-2xl border border-slate-600/70 bg-black/60">
-                {/* иконка меню */}
-              </div>
-              <span className="mt-1">Меню</span>
-            </Link>
-          </div>
-
-          {/* ЦЕНТРАЛЬНОЕ КОЛЕСО – ВЫЕЗЖАЕТ НА ~60% */}
+          {/* САМО КОЛЕСО — центр, вытащено из бара примерно на 60% */}
           <button
             type="button"
             onClick={() => setOpen(true)}
-            className="pointer-events-auto absolute left-1/2 bottom-0 flex -translate-x-1/2 translate-y-[40%] items-center justify-center"
+            className="
+              absolute
+              -top-10 left-1/2
+              flex h-24 w-24 -translate-x-1/2
+              items-center justify-center
+              rounded-full
+              bg-[radial-gradient(circle_at_30%_0%,rgba(250,250,250,0.35),transparent_55%),radial-gradient(circle_at_70%_120%,rgba(34,197,94,0.7),transparent_60%)]
+              shadow-[0_0_40px_rgba(34,197,94,0.9)]
+            "
           >
-            <div className="relative h-24 w-24 rounded-full shadow-[0_0_40px_rgba(34,197,94,0.85)]">
-              {/* мягкое свечение под колесом */}
-              <div className="absolute inset-0 rounded-full bg-[radial-gradient(circle_at_50%_20%,rgba(255,255,255,0.45),transparent_55%),radial-gradient(circle_at_50%_120%,rgba(34,197,94,0.65),transparent_60%)] opacity-90" />
-              {/* само колесо */}
-              <Image
-                src="/pulz-wheel.png"
-                alt="Pulz Wheel"
-                fill
-                className="rounded-full object-contain"
-                sizes="96px"
-                priority
-              />
-            </div>
+            <img
+              src="/Pulz-wheel.png"
+              alt="Pulz Wheel"
+              className="h-20 w-20 rounded-full object-contain"
+            />
           </button>
         </nav>
       </div>
 
-      {/* МОДАЛКА С БОЛЬШИМ КОЛЕСОМ */}
-      {open && (
-        <FortuneWheelModal open={open} onClose={() => setOpen(false)} />
-      )}
+      {/* модалка с большим колесом */}
+      {open && <FortuneWheelModal open={open} onClose={() => setOpen(false)} />}
     </>
+  );
+}
+
+type NavButtonProps = {
+  href: string;
+  label: string;
+  first?: boolean;
+};
+
+function NavButton({ href, label, first }: NavButtonProps) {
+  return (
+    <Link
+      href={href}
+      className={`
+        flex w-[72px] flex-col items-center text-[11px] text-slate-100
+        ${first ? "" : "border-l border-slate-700/70"}
+      `}
+    >
+      <div
+        className="
+          flex h-10 w-10 items-center justify-center
+          rounded-2xl
+          border border-slate-600/70
+          bg-black/40
+        "
+      >
+        {/* сюда позже поставим нормальные иконки */}
+      </div>
+      <span className="mt-1">{label}</span>
+    </Link>
   );
 }
