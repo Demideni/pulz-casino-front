@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 
 type HeroBanner = {
   id: string;
@@ -8,7 +9,7 @@ type HeroBanner = {
   subtitle: string;
   badge?: string;
   ctaLabel: string;
-  bg: string; // tailwind bg classes
+  bg: string;
 };
 
 const HERO_BANNERS: HeroBanner[] = [
@@ -65,14 +66,46 @@ const BONUS_TILES = [
   },
 ];
 
+// упрощённый список «топ игр» для главной
+const FEATURED_GAMES = [
+  {
+    id: "gates-of-olympus",
+    name: "Gates of Olympus",
+    provider: "Pragmatic Play",
+    rtp: "96.5%",
+    tag: "Хит",
+  },
+  {
+    id: "sweet-bonanza",
+    name: "Sweet Bonanza",
+    provider: "Pragmatic Play",
+    rtp: "96.5%",
+    tag: "Популярная",
+  },
+  {
+    id: "robinzon-island",
+    name: "RobinzON Island",
+    provider: "Pulz Originals",
+    rtp: "97.2%",
+    tag: "Pulz Originals",
+  },
+  {
+    id: "book-of-gods",
+    name: "Book of Gods",
+    provider: "Hacksaw",
+    rtp: "96.3%",
+    tag: "Топ выбор",
+  },
+];
+
 export default function HomePage() {
   const [activeIndex, setActiveIndex] = useState(0);
 
-  // автопрокрутка баннеров как у JetTon
   useEffect(() => {
-    const timer = setInterval(() => {
-      setActiveIndex((prev) => (prev + 1) % HERO_BANNERS.length);
-    }, 7000);
+    const timer = setInterval(
+      () => setActiveIndex((prev) => (prev + 1) % HERO_BANNERS.length),
+      7000
+    );
     return () => clearInterval(timer);
   }, []);
 
@@ -80,12 +113,12 @@ export default function HomePage() {
 
   return (
     <div className="space-y-6 pb-28">
-      {/* Hero-баннер */}
+      {/* HERO-БАННЕР */}
       <section className="relative overflow-hidden rounded-3xl border border-slate-800/80 bg-black/60 pulz-hero-shadow">
         <div
           className={`relative flex h-[210px] w-full items-center justify-between overflow-hidden bg-gradient-to-r ${activeBanner.bg}`}
         >
-          {/* Левая часть — текст */}
+          {/* ЛЕВАЯ ЧАСТЬ */}
           <div className="z-10 flex h-full flex-1 flex-col justify-center px-4 sm:px-6">
             {activeBanner.badge && (
               <span className="mb-2 inline-flex items-center rounded-full bg-red-500/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-red-300">
@@ -103,7 +136,7 @@ export default function HomePage() {
             </button>
           </div>
 
-          {/* Правая часть — «картинка»/чип-колесо в стиле Pulz */}
+          {/* ПРАВАЯ ЧАСТЬ – ЧИП/КОЛЕСО */}
           <div className="pointer-events-none relative hidden h-full flex-1 items-center justify-center md:flex">
             <div className="pulz-hero-orbit" />
             <div className="pulz-hero-orbit pulz-hero-orbit-2" />
@@ -118,11 +151,10 @@ export default function HomePage() {
             </div>
           </div>
 
-          {/* Градиентный бликовый оверлей */}
           <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_0%_0%,rgba(248,113,113,0.65),transparent_55%),radial-gradient(circle_at_100%_100%,rgba(56,189,248,0.4),transparent_55%)] opacity-70 mix-blend-screen" />
         </div>
 
-        {/* Навигация по слайдам — точки как у JetTon */}
+        {/* ТОЧКИ-ИНДИКАТОРЫ */}
         <div className="flex items-center justify-center gap-1.5 px-4 pb-3 pt-2">
           {HERO_BANNERS.map((banner, index) => (
             <button
@@ -139,7 +171,7 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* Ряд бонус-баннеров как у маленьких карточек JetTon */}
+      {/* БОНУС-КАРТОЧКИ */}
       <section className="grid grid-cols-2 gap-3 md:grid-cols-4">
         {BONUS_TILES.map((tile) => (
           <div
@@ -156,6 +188,51 @@ export default function HomePage() {
             <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_0%_0%,rgba(248,113,113,0.35),transparent_55%)] opacity-70" />
           </div>
         ))}
+      </section>
+
+      {/* ПОПУЛЯРНЫЕ ИГРЫ НА ГЛАВНОЙ */}
+      <section className="space-y-3">
+        <div className="flex items-center justify-between">
+          <h2 className="text-sm font-semibold text-slate-50">
+            Популярные игры
+          </h2>
+          <Link
+            href="/games"
+            className="text-[11px] font-semibold text-red-400 hover:text-red-300"
+          >
+            Все игры
+          </Link>
+        </div>
+
+        {/* горизонтальный скролл, как на JetTon */}
+        <div className="-mx-4 overflow-x-auto px-4">
+          <div className="flex gap-3">
+            {FEATURED_GAMES.map((game) => (
+              <Link
+                key={game.id}
+                href={`/games/${game.id}`}
+                className="group relative min-w-[160px] flex-1 max-w-[200px] overflow-hidden rounded-2xl border border-slate-800/80 bg-gradient-to-br from-[#050509] via-[#12030b] to-[#050509] p-3 shadow-[0_0_25px_rgba(15,23,42,0.8)]"
+              >
+                <div className="mb-2 flex h-20 items-center justify-center rounded-xl bg-gradient-to-br from-slate-900 via-slate-950 to-black text-xs text-slate-200 group-hover:from-red-900/40 group-hover:via-black group-hover:to-slate-900">
+                  <span className="max-w-[90%] text-center font-semibold">
+                    {game.name}
+                  </span>
+                </div>
+                <div className="mb-1 flex items-center justify-between text-[11px] text-slate-400">
+                  <span>{game.provider}</span>
+                  <span className="rounded-full bg-slate-900/70 px-2 py-0.5 text-[10px] text-emerald-300">
+                    RTP {game.rtp}
+                  </span>
+                </div>
+                <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-red-300">
+                  {game.tag}
+                </div>
+
+                <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_0%_0%,rgba(248,113,113,0.35),transparent_55%)] opacity-0 transition-opacity group-hover:opacity-100" />
+              </Link>
+            ))}
+          </div>
+        </div>
       </section>
     </div>
   );
