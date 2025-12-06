@@ -1,5 +1,6 @@
 // app/page.tsx
 import Link from "next/link";
+import Image from "next/image";
 import BannerCarousel from "@/components/BannerCarousel";
 
 const POPULAR_GAMES = [
@@ -9,6 +10,7 @@ const POPULAR_GAMES = [
     provider: "Pragmatic Play",
     rtp: "96.5%",
     tag: "ТОП СЛОТ",
+    image: "/games/gates.png", // добавь PNG позже
   },
   {
     id: "sweet-bonanza",
@@ -16,6 +18,7 @@ const POPULAR_GAMES = [
     provider: "Pragmatic Play",
     rtp: "96.4%",
     tag: "ПОПУЛЯРНЫЙ",
+    image: "/games/sweet.png", // добавь PNG позже
   },
   {
     id: "robinzon-island",
@@ -23,18 +26,19 @@ const POPULAR_GAMES = [
     provider: "Pulz Originals",
     rtp: "97.2%",
     tag: "EXCLUSIVE",
+    image: "/games/robinzon.png",
   },
 ];
 
 export default function HomePage() {
   return (
     <div className="space-y-8 pb-6">
-      {/* 1. Большой верхний баннер-карусель */}
+      {/* 1. Большой баннер */}
       <section className="px-4">
         <BannerCarousel />
       </section>
 
-      {/* 2. Два маленьких бонусных блока в одну линию */}
+      {/* 2. Два бонусных блока */}
       <section className="px-4">
         <div className="flex gap-3">
           {/* Бонус без депозита */}
@@ -79,31 +83,46 @@ export default function HomePage() {
 
         {/* Горизонтальный скролл с карточками игр */}
         <div className="-mx-4 overflow-x-auto px-4 pb-2">
-          <div className="flex gap-3">
+          <div className="flex gap-4">
             {POPULAR_GAMES.map((game) => (
               <Link
                 key={game.id}
                 href={`/games/${game.id}`}
-                className="group relative min-w-[160px] max-w-[210px] flex-1 overflow-hidden rounded-2xl border border-slate-800/80 bg-gradient-to-br from-[#050509] via-[#12030b] to-[#050509] p-3 shadow-[0_0_25px_rgba(15,23,42,0.8)]"
+                className="group relative w-[170px] flex-shrink-0 rounded-3xl overflow-hidden bg-[#0f0f17] border border-slate-800/60 shadow-[0_0_20px_rgba(0,0,0,0.4)] transition-all"
               >
-                <div className="mb-2 flex h-20 items-center justify-center rounded-xl bg-gradient-to-br from-slate-900 via-slate-950 to-black text-xs text-slate-200 group-hover:from-red-900/40 group-hover:via-black group-hover:to-slate-900">
-                  <span className="max-w-[90%] text-center font-semibold">
+                {/* картинка игры */}
+                <div className="h-[105px] w-full overflow-hidden">
+                  <Image
+                    src={game.image}
+                    alt={game.name}
+                    width={340}
+                    height={210}
+                    className="w-full h-full object-cover transition-transform group-hover:scale-105"
+                  />
+                </div>
+
+                {/* Нижняя панель */}
+                <div className="p-3 space-y-1">
+                  {/* Название */}
+                  <div className="text-sm font-semibold text-slate-100">
                     {game.name}
-                  </span>
-                </div>
+                  </div>
 
-                <div className="mb-1 flex items-center justify-between text-[11px] text-slate-400">
-                  <span>{game.provider}</span>
-                  <span className="rounded-full bg-slate-900/70 px-2 py-0.5 text-[10px] text-emerald-300">
-                    RTP {game.rtp}
-                  </span>
-                </div>
+                  {/* Provider + RTP */}
+                  <div className="flex items-center justify-between">
+                    <span className="text-slate-400 text-[11px]">
+                      {game.provider}
+                    </span>
+                    <span className="text-[10px] rounded-full bg-slate-900/70 px-2 py-0.5 text-emerald-300">
+                      RTP {game.rtp}
+                    </span>
+                  </div>
 
-                <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-red-300">
-                  {game.tag}
+                  {/* Тег */}
+                  <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-red-300">
+                    {game.tag}
+                  </div>
                 </div>
-
-                <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_0%_0%,rgba(248,113,113,0.35),transparent_55%)] opacity-0 transition-opacity group-hover:opacity-100" />
               </Link>
             ))}
           </div>
