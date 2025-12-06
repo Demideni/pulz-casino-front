@@ -1,3 +1,4 @@
+// app/games/[id]/page.tsx
 import Link from "next/link";
 
 type Props = {
@@ -7,17 +8,21 @@ type Props = {
 const ROBINZON_URL = "https://robinson-game-1.onrender.com";
 
 const NAMES: Record<string, string> = {
+  "robinzon-island": "RobinzON Island",
   robinson: "RobinzON Island",
-  robinzON: "RobinzON Island",
+  robinzon: "RobinzON Island",
   "gates-of-olympus": "Gates of Olympus",
 };
 
 export default function GameDetailsPage({ params }: Props) {
   const id = params.id;
   const normalized = id.toLowerCase();
+
   const name = NAMES[normalized] ?? "Игра Pulz";
 
-  const isRobinzON = normalized === "robinzon";
+  // Считаем Робинзона и по "robinzon-island", и по "robinzon"
+  const isRobinzON =
+    normalized === "robinzon-island" || normalized === "robinzon";
 
   return (
     <div className="space-y-4">
