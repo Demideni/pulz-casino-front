@@ -50,7 +50,7 @@ export default function FortuneWheel() {
 
           {/* PNG-кнопка */}
           <Image
-            src="/Pulz-wheel.PNG"
+            src="/Pulz-wheel.png"
             alt="Pulz Wheel"
             fill
             className={`object-contain drop-shadow-lg ${
@@ -89,7 +89,7 @@ export default function FortuneWheel() {
                 <div className="absolute inset-[10px] rounded-full bg-black/90 ring-2 ring-red-600/80" />
 
                 <Image
-                  src="/Pulz-wheel.PNG"
+                  src="/Pulz-wheel.png"
                   alt="Pulz Wheel"
                   fill
                   className={`object-contain ${
