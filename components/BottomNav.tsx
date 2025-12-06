@@ -18,9 +18,6 @@ export default function BottomNav() {
             rounded-t-[28px]
             bg-[#11141f]/95
             px-2 pb-3 pt-4
-            border-t border-slate-800/80
-            shadow-[0_-16px_40px_rgba(0,0,0,0.9)]
-            overflow-visible
           "
         >
           {/* дуга, которая обнимает колесо (имитация JetTon) */}
@@ -31,7 +28,8 @@ export default function BottomNav() {
               h-16 w-44
               -translate-x-1/2
               rounded-t-[999px]
-              border-t border-x border-slate-700/80
+              
+            
               bg-[#11141f]/95
             "
           />
@@ -57,8 +55,8 @@ export default function BottomNav() {
             onClick={() => setOpen(true)}
             className="
               absolute
-              -top-10 left-1/2
-              flex h-24 w-24 -translate-x-1/2
+              -top-4 left-1/2
+              flex h-26 w-26 -translate-x-1/2
               items-center justify-center
               rounded-full
               bg-[radial-gradient(circle_at_30%_0%,rgba(250,250,250,0.35),transparent_55%),radial-gradient(circle_at_70%_120%,rgba(34,197,94,0.7),transparent_60%)]
@@ -68,7 +66,7 @@ export default function BottomNav() {
             <img
               src="/Pulz-wheel.png"
               alt="Pulz Wheel"
-              className="h-20 w-20 rounded-full object-contain"
+              className="h-24 w-24 rounded-full object-contain"
             />
           </button>
         </nav>
