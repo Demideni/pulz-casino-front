@@ -36,23 +36,6 @@ export default function HomePage() {
         <BannerCarousel />
       </section>
 
-      {/* Блок бонусов под баннером */}
-      <section className="space-y-4">
-        {/* Большой welcome-баннер (текстовый блок, как сейчас) */}
-        <div className="rounded-[28px] border border-red-900/40 bg-gradient-to-br from-[#23040a] via-[#12020a] to-[#020106] p-5 shadow-[0_0_40px_rgba(248,113,113,0.35)]">
-          <div className="mb-3 text-[11px] font-semibold uppercase tracking-[0.2em] text-red-300">
-            Новый игрок
-          </div>
-          <h1 className="mb-2 text-2xl font-semibold text-slate-50">
-            Welcome-бонус до 500%
-          </h1>
-          <p className="mb-5 text-sm text-slate-300">
-            Пакет на первые депозиты + фриспины в эксклюзивных слотах Pulz.
-          </p>
-          <button className="rounded-full bg-red-600 px-5 py-2 text-sm font-semibold text-white shadow-[0_0_25px_rgba(239,68,68,0.8)] hover:bg-red-500">
-            Забрать бонус
-          </button>
-
           {/* маленькие индикаторы слайдов под текстовым баннером */}
           <div className="mt-4 flex items-center gap-1">
             <span className="h-1.5 w-8 rounded-full bg-red-500" />
