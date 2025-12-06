@@ -19,6 +19,7 @@ export default function FortuneWheel() {
   const [result, setResult] = useState<string | null>(null);
 
   function openWheel() {
+    if (isSpinning) return;
     setIsOpen(true);
     setResult(null);
   }
@@ -41,36 +42,10 @@ export default function FortuneWheel() {
 
   return (
     <>
-      {/* НИЖНИЙ ТАП-БАР С БОЛЬШИМ КОЛЕСОМ */}
+      {/* НИЖНИЙ ТАП-БАР С КОЛЕСОМ ВНУТРИ */}
       <div className="fixed inset-x-0 bottom-0 z-40">
-        <div className="relative mx-auto max-w-md px-4 pb-3">
-          {/* САМО КОЛЕСО — БОЛЬШЕ И НИЖЕ */}
-          <button
-            type="button"
-            onClick={openWheel}
-            className="absolute left-1/2 bottom-1 z-10 -translate-x-1/2 flex flex-col items-center"
-          >
-            <div className="relative h-24 w-24">
-              {/* мягкое свечение */}
-              <div className="absolute inset-0 rounded-full bg-red-500/40 blur-xl" />
-              {/* картинка колеса */}
-              <div className="relative h-24 w-24 overflow-hidden rounded-full border border-red-500/70 bg-black">
-                <img
-                  src="/Pulz-wheel.png"
-                  alt="Pulz Wheel"
-                  className={`h-full w-full object-cover ${
-                    isSpinning ? "animate-spin-slow" : ""
-                  }`}
-                />
-              </div>
-            </div>
-            <span className="mt-1 text-[11px] font-medium tracking-[0.16em] text-slate-100">
-              PULZ WHEEL
-            </span>
-          </button>
-
-          {/* СЕРЫЙ ТАП-БАР, КОТОРЫЙ ИДЁТ ПОВЕРХ ВЕРХА КОЛЕСА */}
-          <div className="relative z-20 flex h-14 items-center justify-between rounded-t-3xl border-t border-slate-700 bg-[#15171f]/95 px-5 text-[11px] text-slate-100">
+        <div className="mx-auto max-w-md px-4 pb-2">
+          <div className="flex items-end justify-between rounded-t-3xl border-t border-slate-700 bg-[#171922]/95 px-3 pt-2 pb-3">
             {/* Касса */}
             <button
               type="button"
@@ -79,7 +54,7 @@ export default function FortuneWheel() {
               <span className="flex h-9 w-9 items-center justify-center rounded-2xl border border-slate-600 bg-slate-900/40">
                 💰
               </span>
-              <span className="text-[11px] text-slate-200">Касса</span>
+              <span className="text-[11px] text-slate-100">Касса</span>
             </button>
 
             {/* Вход */}
@@ -90,11 +65,30 @@ export default function FortuneWheel() {
               <span className="flex h-9 w-9 items-center justify-center rounded-2xl border border-slate-600 bg-slate-900/40">
                 👤
               </span>
-              <span className="text-[11px] text-slate-200">Вход</span>
+              <span className="text-[11px] text-slate-100">Вход</span>
             </button>
 
-            {/* Пустое место под колесо (бар как бы огибает центр) */}
-            <div className="flex-[1.2]" />
+            {/* ЦЕНТР — КОЛЕСО КАК ЧАСТЬ БАРА */}
+            <button
+              type="button"
+              onClick={openWheel}
+              className="flex flex-[1.4] translate-y-[-12px] flex-col items-center"
+            >
+              <div className="relative h-24 w-24">
+                {/* свечение */}
+                <div className="absolute inset-0 rounded-full bg-red-500/40 blur-xl" />
+                {/* само колесо */}
+                <div className="relative h-24 w-24 overflow-hidden rounded-full border border-red-500/70 bg-black">
+                  <img
+                    src="/Pulz-wheel.png"
+                    alt="Pulz Wheel"
+                    className={`h-full w-full object-cover ${
+                      isSpinning ? "animate-spin-slow" : ""
+                    }`}
+                  />
+                </div>
+              </div>
+            </button>
 
             {/* Игры */}
             <button
@@ -104,7 +98,7 @@ export default function FortuneWheel() {
               <span className="flex h-9 w-9 items-center justify-center rounded-2xl border border-slate-600 bg-slate-900/40">
                 🎰
               </span>
-              <span className="text-[11px] text-slate-200">Игры</span>
+              <span className="text-[11px] text-slate-100">Игры</span>
             </button>
 
             {/* Меню */}
@@ -115,13 +109,13 @@ export default function FortuneWheel() {
               <span className="flex h-9 w-9 items-center justify-center rounded-2xl border border-slate-600 bg-slate-900/40">
                 ☰
               </span>
-              <span className="text-[11px] text-slate-200">Меню</span>
+              <span className="text-[11px] text-slate-100">Меню</span>
             </button>
           </div>
         </div>
       </div>
 
-      {/* МОДАЛКА С БОЛЬШИМ КОЛЕСОМ (ТВОЙ СТАРЫЙ КОД, Я ЕГО НЕ МЕНЯЛ) */}
+      {/* МОДАЛКА С БОЛЬШИМ КОЛЕСОМ (как раньше) */}
       {isOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 px-4 backdrop-blur-sm">
           <div className="w-full max-w-md rounded-3xl border border-red-900/70 bg-gradient-to-b from-[#12020a] via-black to-[#050509] p-5 shadow-[0_30px_80px_rgba(0,0,0,0.9)]">
