@@ -7,11 +7,8 @@ import { usePathname } from "next/navigation";
 export default function FortuneWheel() {
   const pathname = usePathname();
 
-  // Скрываем весь низ на страницах игр
-  const hideBottomBar =
-    pathname === "/games" ||
-    pathname === "/games/" ||
-    pathname.startsWith("/games/");
+  // На страницах игры убираем весь низ
+  const hideBottomBar = pathname.startsWith("/games");
 
   const [isOpen, setIsOpen] = useState(false);
   const [isSpinning, setIsSpinning] = useState(false);
@@ -30,8 +27,7 @@ export default function FortuneWheel() {
     setIsSpinning(true);
     setTimeout(() => {
       const prizes = ["+5%", "+10%", "+15%", "+20%", "x2", "x3"];
-      const prize = prizes[Math.floor(Math.random() * prizes.length)];
-      setResult(prize);
+      setResult(prizes[Math.floor(Math.random() * prizes.length)]);
       setIsSpinning(false);
     }, 2500);
   };
@@ -40,97 +36,88 @@ export default function FortuneWheel() {
 
   return (
     <>
-      {/* ===== НИЖНИЙ БАР как у JetTon ===== */}
-      <nav className="fixed inset-x-0 bottom-0 z-40 bg-[#050509]">
-        <div className="relative mx-auto max-w-xl px-2 pb-2 pt-1">
-          {/* Тёмная полоса с 4 секциями */}
-          <div className="grid grid-cols-4 rounded-t-2xl border-t border-slate-800 bg-[#05070b] px-2 py-2 text-[11px] text-slate-200">
-            {/* Касса */}
-            <Link
-              href="#"
-              className="flex flex-col items-center justify-center gap-1"
-            >
-              <div className="flex h-6 w-6 items-center justify-center rounded-lg border border-slate-400/70">
-                <div className="h-3 w-4 rounded-md bg-slate-300/90" />
-              </div>
-              <span>Касса</span>
-            </Link>
-
-            {/* Вход */}
-            <Link
-              href="#"
-              className="flex flex-col items-center justify-center gap-1"
-            >
-              <div className="flex h-6 w-6 items-center justify-center rounded-lg border border-slate-400/70">
-                <div className="flex flex-col items-center">
-                  <div className="h-2.5 w-2.5 rounded-full border border-slate-200" />
-                  <div className="mt-0.5 h-1.5 w-3 rounded-t-full border border-slate-200 border-t-0" />
+      {/* НИЖНИЙ БАР в стиле JetTon */}
+      <nav className="fixed inset-x-0 bottom-0 z-40 bg-black">
+        <div className="mx-auto max-w-xl px-0">
+          <div className="relative h-[64px] border-t border-slate-800 bg-[#05070b]">
+            {/* 4 секции */}
+            <div className="grid h-full grid-cols-4 text-[11px] text-slate-200">
+              {/* Cashier */}
+              <button className="flex flex-col items-center justify-center gap-1">
+                <div className="flex h-7 w-7 items-center justify-center rounded-xl border border-slate-500/70">
+                  <div className="h-3 w-4 rounded-md border border-slate-200" />
                 </div>
-              </div>
-              <span>Вход</span>
-            </Link>
+                <span>Касса</span>
+              </button>
 
-            {/* Игры */}
-            <Link
-              href="/games"
-              className="flex flex-col items-center justify-center gap-1"
-            >
-              <div className="flex h-6 w-6 items-center justify-center rounded-lg border border-lime-400/80 bg-lime-400/10">
-                <div className="flex h-3 w-4 items-center justify-between">
-                  <span className="h-2 w-[3px] rounded-sm bg-lime-300" />
-                  <span className="h-2 w-[3px] rounded-sm bg-lime-300" />
-                  <span className="h-2 w-[3px] rounded-sm bg-lime-300" />
+              {/* Sports */}
+              <button className="flex flex-col items-center justify-center gap-1">
+                <div className="flex h-7 w-7 items-center justify-center rounded-xl border border-slate-500/70">
+                  <div className="flex h-4 w-4 items-center justify-center rounded-full border border-slate-200">
+                    <div className="h-2 w-2 rounded-full border border-slate-200" />
+                  </div>
                 </div>
-              </div>
-              <span className="text-lime-300">Игры</span>
-            </Link>
+                <span>Вход</span>
+              </button>
 
-            {/* Меню */}
+              {/* Casino (активный, подсвечен как у JetTon) */}
+              <Link
+                href="/games"
+                className="flex flex-col items-center justify-center gap-1"
+              >
+                <div className="flex h-7 w-7 items-center justify-center rounded-xl border border-lime-400 bg-lime-400/10">
+                  <div className="flex h-4 w-3 flex-col justify-between">
+                    <span className="h-[3px] w-full rounded-sm bg-lime-300" />
+                    <span className="h-[3px] w-full rounded-sm bg-lime-300" />
+                    <span className="h-[3px] w-full rounded-sm bg-lime-300" />
+                  </div>
+                </div>
+                <span className="text-lime-300">Казино</span>
+              </Link>
+
+              {/* Menu */}
+              <button className="flex flex-col items-center justify-center gap-1">
+                <div className="flex h-7 w-7 items-center justify-center rounded-xl border border-slate-500/70">
+                  <div className="space-y-0.5">
+                    <span className="block h-[2px] w-4 rounded-full bg-slate-200" />
+                    <span className="block h-[2px] w-4 rounded-full bg-slate-200/80" />
+                    <span className="block h-[2px] w-4 rounded-full bg-slate-200/60" />
+                  </div>
+                </div>
+                <span>Меню</span>
+              </button>
+            </div>
+
+            {/* Центральное колесо, “выпрыгивающее” из бара */}
             <button
               type="button"
-              className="flex flex-col items-center justify-center gap-1"
+              onClick={openWheel}
+              className="pointer-events-auto absolute left-1/2 -top-7 flex -translate-x-1/2 flex-col items-center"
             >
-              <div className="flex h-6 w-6 items-center justify-center rounded-lg border border-slate-400/70">
-                <div className="space-y-0.5">
-                  <span className="block h-[2px] w-4 rounded-full bg-slate-100" />
-                  <span className="block h-[2px] w-4 rounded-full bg-slate-100/80" />
-                  <span className="block h-[2px] w-4 rounded-full bg-slate-100/60" />
-                </div>
+              <span className="mb-1 text-[11px] font-semibold tracking-[0.16em] text-sky-200">
+                Pulz Wheel
+              </span>
+
+              <div className="relative h-[76px] w-[76px]">
+                {/* свечение вокруг */}
+                <div className="absolute inset-0 rounded-full bg-[radial-gradient(circle_at_50%_0%,rgba(56,189,248,0.8),transparent_65%),radial-gradient(circle_at_50%_100%,rgba(248,113,113,0.9),transparent_65%)] opacity-90 blur-[2px]" />
+                {/* синее кольцо */}
+                <div className="absolute inset-[3px] rounded-full bg-gradient-to-b from-sky-500 via-sky-700 to-slate-900 shadow-[0_0_20px_rgba(56,189,248,0.9)]" />
+                {/* диск */}
+                <div
+                  className={`absolute inset-[9px] rounded-full bg-[conic-gradient(from_0deg,#e5e7eb,#f97316,#22c55e,#3b82f6,#e5e7eb)] ${
+                    isSpinning ? "animate-spin-slow" : ""
+                  }`}
+                />
+                {/* центр */}
+                <div className="absolute inset-[22px] rounded-full bg-gradient-to-b from-rose-400 via-rose-500 to-rose-700 shadow-[0_0_12px_rgba(248,113,113,0.9)]" />
               </div>
-              <span>Меню</span>
             </button>
           </div>
-
-          {/* Центральное колесо, как Lucky Turbine */}
-          <button
-            type="button"
-            onClick={openWheel}
-            className="pointer-events-auto absolute left-1/2 top-0 flex -translate-x-1/2 -translate-y-4 flex-col items-center"
-          >
-            {/* подпись над колесом */}
-            <span className="mb-1 text-[11px] font-semibold tracking-[0.18em] text-slate-200">
-              Pulz Wheel
-            </span>
-
-            {/* само маленькое колесо */}
-            <div className="relative h-14 w-14">
-              {/* внешнее свечение */}
-              <div className="absolute inset-0 rounded-full bg-[radial-gradient(circle_at_50%_0%,rgba(96,165,250,0.6),transparent_60%),radial-gradient(circle_at_50%_100%,rgba(248,113,113,0.7),transparent_65%)] opacity-90 blur-[2px]" />
-
-              {/* синее кольцо */}
-              <div className="absolute inset-[3px] rounded-full bg-gradient-to-b from-sky-500 via-sky-700 to-slate-900 shadow-[0_0_16px_rgba(56,189,248,0.9)]" />
-
-              {/* вращающийся диск */}
-              <div className="absolute inset-[6px] rounded-full bg-[conic-gradient(from_0deg,#e5e7eb,#f97316,#22c55e,#3b82f6,#e5e7eb)] animate-spin-slow" />
-
-              {/* центр */}
-              <div className="absolute inset-[14px] rounded-full bg-gradient-to-b from-rose-500 via-rose-600 to-rose-800 shadow-[0_0_10px_rgba(248,113,113,0.9)]" />
-            </div>
-          </button>
         </div>
       </nav>
 
-      {/* ===== МОДАЛКА БОЛЬШОГО КОЛЕСА ===== */}
+      {/* Модалка большого колеса (оставили твою логику) */}
       {isOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 px-4 backdrop-blur-sm">
           <div className="w-full max-w-md rounded-3xl border border-red-900/70 bg-gradient-to-b from-[#12020a] via-black to-[#050509] p-5 shadow-[0_30px_80px_rgba(0,0,0,0.9)]">
