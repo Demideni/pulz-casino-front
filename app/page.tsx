@@ -42,21 +42,39 @@ export default function HomePage() {
         <BannerCarousel />
       </section>
 
-      {/* 2. Два бонусных блока под баннером */}
-      <section className="px-4">
-        <div className="grid gap-3 md:grid-cols-2">
-          {/* Бонус без депозита */}
-          <div className="rounded-3xl border border-red-900/30 bg-gradient-to-br from-[#220811] via-[#0a0712] to-[#050509] p-4 shadow-[0_0_25px_rgba(15,23,42,0.9)]">
-            <div className="mb-1 text-[11px] font-semibold uppercase tracking-[0.2em] text-red-300">
-              ДО 100 FS
-            </div>
-            <div className="text-sm font-semibold text-slate-50">
-              Бонус без депозита
-            </div>
-            <p className="mt-1 text-[12px] text-slate-400">
-              Фриспины за регистрацию.
-            </p>
-          </div>
+{/* 2. Два бонусных блока под баннером (в одну линию на мобильных) */}
+<section className="px-4">
+  <div className="flex gap-3 overflow-x-auto pb-1 no-scrollbar">
+    
+    {/* Бонус без депозита */}
+    <div className="min-w-[250px] rounded-3xl border border-red-900/30 bg-gradient-to-br from-[#220811] via-[#0a0712] to-[#050509] p-4 shadow-[0_0_25px_rgba(15,23,42,0.9)]">
+      <div className="mb-1 text-[11px] font-semibold uppercase tracking-[0.2em] text-red-300">
+        ДО 100 FS
+      </div>
+      <div className="text-sm font-semibold text-slate-50">
+        Бонус без депозита
+      </div>
+      <p className="mt-1 text-[12px] text-slate-400">
+        Фриспины за регистрацию.
+      </p>
+    </div>
+
+    {/* Турбо-спины */}
+    <div className="min-w-[250px] rounded-3xl border border-fuchsia-900/30 bg-gradient-to-br from-[#18061b] via-[#080713] to-[#050509] p-4 shadow-[0_0_25px_rgba(15,23,42,0.9)]">
+      <div className="mb-1 text-[11px] font-semibold uppercase tracking-[0.2em] text-fuchsia-300">
+        ЕЖЕДНЕВНО
+      </div>
+      <div className="text-sm font-semibold text-slate-50">
+        Турбо-спины
+      </div>
+      <p className="mt-1 text-[12px] text-slate-400">
+        Ежедневные миссии и гонки.
+      </p>
+    </div>
+
+  </div>
+</section>
+
 
           {/* Турбо-спины */}
           <div className="rounded-3xl border border-fuchsia-900/30 bg-gradient-to-br from-[#18061b] via-[#080713] to-[#050509] p-4 shadow-[0_0_25px_rgba(15,23,42,0.9)]">
