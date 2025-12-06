@@ -1,86 +1,87 @@
 // app/page.tsx
-"use client";
-
 import Link from "next/link";
 import BannerCarousel from "@/components/BannerCarousel";
 
-const POPULAR_GAMES = [
+type PopularGame = {
+  id: string;
+  name: string;
+  provider: string;
+  rtp: string;
+  tag: string;
+};
+
+const POPULAR_GAMES: PopularGame[] = [
   {
     id: "gates-of-olympus",
     name: "Gates of Olympus",
     provider: "Pragmatic Play",
     rtp: "96.5%",
-    tag: "Хит недели",
+    tag: "ТОП СЛОТ",
   },
   {
     id: "sweet-bonanza",
     name: "Sweet Bonanza",
     provider: "Pragmatic Play",
     rtp: "96.4%",
-    tag: "Популярная",
+    tag: "ПОПУЛЯРНЫЙ",
   },
   {
     id: "robinzon",
     name: "RobinZON Island",
     provider: "Pulz Originals",
     rtp: "97.2%",
-    tag: "Эксклюзив",
+    tag: "EXCLUSIVE",
   },
 ];
 
 export default function HomePage() {
   return (
-    <div className="space-y-6">
-      {/* Верхняя карусель баннеров */}
-      <section className="mt-2">
+    <div className="space-y-8">
+      {/* 1. Большой верхний баннер-карусель */}
+      <section className="px-4">
         <BannerCarousel />
       </section>
 
-          {/* маленькие индикаторы слайдов под текстовым баннером */}
-          <div className="mt-4 flex items-center gap-1">
-            <span className="h-1.5 w-8 rounded-full bg-red-500" />
-            <span className="h-1.5 w-6 rounded-full bg-slate-700" />
-            <span className="h-1.5 w-6 rounded-full bg-slate-700" />
-          </div>
-        </div>
-
-        {/* Два маленьких бонусных блока под welcome-баннером */}
-        <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-          <div className="rounded-2xl border border-slate-800/70 bg-gradient-to-br from-[#180313] via-[#090712] to-[#050509] p-4 shadow-[0_0_25px_rgba(15,23,42,0.7)]">
-            <div className="mb-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-rose-300">
-              До 100 FS
+      {/* 2. Два бонусных блока под баннером */}
+      <section className="px-4">
+        <div className="grid gap-3 md:grid-cols-2">
+          {/* Бонус без депозита */}
+          <div className="rounded-3xl border border-red-900/30 bg-gradient-to-br from-[#220811] via-[#0a0712] to-[#050509] p-4 shadow-[0_0_25px_rgba(15,23,42,0.9)]">
+            <div className="mb-1 text-[11px] font-semibold uppercase tracking-[0.2em] text-red-300">
+              ДО 100 FS
             </div>
-            <div className="mb-1 text-sm font-semibold text-slate-50">
+            <div className="text-sm font-semibold text-slate-50">
               Бонус без депозита
             </div>
-            <p className="text-xs text-slate-400">
+            <p className="mt-1 text-[12px] text-slate-400">
               Фриспины за регистрацию.
             </p>
           </div>
 
-          <div className="rounded-2xl border border-slate-800/70 bg-gradient-to-br from-[#140316] via-[#090712] to-[#050509] p-4 shadow-[0_0_25px_rgba(15,23,42,0.7)]">
-            <div className="mb-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-orange-300">
-              Ежедневно
+          {/* Турбо-спины */}
+          <div className="rounded-3xl border border-fuchsia-900/30 bg-gradient-to-br from-[#18061b] via-[#080713] to-[#050509] p-4 shadow-[0_0_25px_rgba(15,23,42,0.9)]">
+            <div className="mb-1 text-[11px] font-semibold uppercase tracking-[0.2em] text-fuchsia-300">
+              ЕЖЕДНЕВНО
             </div>
-            <div className="mb-1 text-sm font-semibold text-slate-50">
+            <div className="text-sm font-semibold text-slate-50">
               Турбо-спины
             </div>
-            <p className="text-xs text-slate-400">
+            <p className="mt-1 text-[12px] text-slate-400">
               Ежедневные миссии и гонки.
             </p>
           </div>
         </div>
       </section>
 
-      {/* Популярные игры */}
-      <section className="space-y-3">
-        <div className="flex items-center justify-between px-1">
-          <h2 className="text-sm font-semibold text-slate-100">
+      {/* 3. Популярные игры */}
+      <section className="space-y-3 px-4">
+        <div className="flex items-center justify-between">
+          <h2 className="text-base font-semibold text-slate-100">
             Популярные игры
           </h2>
           <Link
             href="/games"
-            className="text-xs font-semibold text-red-400 hover:text-red-300"
+            className="text-xs font-semibold text-red-300 hover:text-red-200"
           >
             Все игры
           </Link>
