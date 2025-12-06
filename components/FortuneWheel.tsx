@@ -23,9 +23,8 @@ export default function FortuneWheel() {
     setIsSpinning(true);
 
     setTimeout(() => {
-      const rewards = ["+10% Bonus", "+20% FS", "+5$ Cashback"];
+      const rewards = ["+10% bonus", "+20 FS", "+5$ cashback"];
       const r = rewards[Math.floor(Math.random() * rewards.length)];
-
       setResult(r);
       setIsSpinning(false);
     }, 3000);
@@ -33,22 +32,23 @@ export default function FortuneWheel() {
 
   return (
     <>
-      {/* Центральная кнопка в тап-баре */}
+      {/* Кнопка в центре тап-бара */}
       <button
         type="button"
         onClick={openWheel}
-        className="relative -top-6 z-20 flex flex-col items-center"
+        className="relative -top-4 flex flex-col items-center"
       >
-        <span className="mb-1 text-[11px] font-semibold tracking-[0.16em] text-sky-200 drop-shadow">
+        {/* Надпись над колесом */}
+        <span className="mb-1 text-[11px] font-semibold tracking-[0.16em] text-sky-200">
           Pulz Wheel
         </span>
 
         {/* Контейнер с PNG-колесом */}
-        <div className="relative h-[82px] w-[82px]">
+        <div className="relative h-[70px] w-[70px]">
           {/* Свечение */}
-          <div className="absolute inset-0 rounded-full bg-[radial-gradient(circle_at_50%_50%,rgba(255,80,80,0.65),transparent_60%)] blur-[3px]" />
+          <div className="absolute inset-0 rounded-full bg-[radial-gradient(circle_at_50%_50%,rgba(255,80,80,0.7),transparent_60%)] blur-[4px]" />
 
-          {/* PNG колесо */}
+          {/* PNG-кнопка */}
           <Image
             src="/Pulz-wheel.png"
             alt="Pulz Wheel"
@@ -61,12 +61,10 @@ export default function FortuneWheel() {
         </div>
       </button>
 
-      {/* Модалка */}
+      {/* Модалка с большим колесом */}
       {isOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm px-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 px-4 backdrop-blur-sm">
           <div className="w-full max-w-md rounded-3xl border border-red-900/70 bg-gradient-to-b from-[#12020a] via-black to-[#050509] p-5 shadow-[0_30px_80px_rgba(0,0,0,0.9)]">
-
-            {/* Header */}
             <div className="mb-4 flex items-center justify-between">
               <div>
                 <div className="text-xs font-semibold uppercase tracking-[0.2em] text-red-400">
@@ -76,7 +74,6 @@ export default function FortuneWheel() {
                   Первый спин — бесплатно.
                 </div>
               </div>
-
               <button
                 type="button"
                 onClick={closeWheel}
@@ -86,7 +83,6 @@ export default function FortuneWheel() {
               </button>
             </div>
 
-            {/* Большое колесо */}
             <div className="mb-4 flex flex-col items-center">
               <div className="relative h-52 w-52">
                 <div className="absolute inset-0 rounded-full bg-[radial-gradient(circle_at_50%_0%,rgba(248,113,113,0.6),transparent_60%)] opacity-80 blur-sm" />
@@ -96,16 +92,16 @@ export default function FortuneWheel() {
                   src="/Pulz-wheel.png"
                   alt="Pulz Wheel"
                   fill
-                  className={`object-contain ${isSpinning ? "animate-spin-slow" : ""}`}
+                  className={`object-contain ${
+                    isSpinning ? "animate-spin-slow" : ""
+                  }`}
                 />
 
-                {/* Стрелка */}
                 <div className="absolute -top-3 left-1/2 -translate-x-1/2">
                   <div className="h-6 w-4 origin-bottom rounded-b-full bg-amber-300 shadow-[0_0_10px_rgba(255,200,50,0.9)]" />
                 </div>
               </div>
 
-              {/* Кнопка "крутить" */}
               <button
                 type="button"
                 onClick={handleSpin}
@@ -115,9 +111,8 @@ export default function FortuneWheel() {
               </button>
             </div>
 
-            {/* Результат */}
             {result && (
-              <div className="mt-4 text-center text-sm text-slate-100">
+              <div className="mt-2 text-center text-sm text-slate-100">
                 Твой бонус: {result}
               </div>
             )}
