@@ -1,16 +1,14 @@
 "use client";
 
 import { useState } from "react";
+import Image from "next/image";
 
 const PRIZES = [
-  "+10 FS",
-  "+20 FS",
-  "+50% к депозиту",
-  "Cashback 5%",
-  "Без выигрыша",
-  "+100% к депозиту",
-  "+5 FS",
-  "Сюрприз-бонус",
+  "+10% к депозиту",
+  "20 фриспинов",
+  "Кэшбек 5%",
+  "x2 к выигрышу",
+  "Бонус-сюрприз",
 ];
 
 export default function FortuneWheel() {
@@ -18,102 +16,57 @@ export default function FortuneWheel() {
   const [isSpinning, setIsSpinning] = useState(false);
   const [result, setResult] = useState<string | null>(null);
 
-  function openWheel() {
-    if (isSpinning) return;
-    setIsOpen(true);
+  const openWheel = () => {
     setResult(null);
-  }
+    setIsOpen(true);
+  };
 
-  function closeWheel() {
-    setIsOpen(false);
-    setIsSpinning(false);
-  }
-
-  function handleSpin() {
+  const closeWheel = () => {
     if (isSpinning) return;
+    setIsOpen(false);
+  };
+
+  const handleSpin = () => {
+    if (isSpinning) return;
+
     setIsSpinning(true);
+    setResult(null);
+
+    const prize = PRIZES[Math.floor(Math.random() * PRIZES.length)];
 
     setTimeout(() => {
-      const prize = PRIZES[Math.floor(Math.random() * PRIZES.length)];
-      setResult(prize);
       setIsSpinning(false);
+      setResult(prize);
     }, 2600);
-  }
+  };
 
   return (
     <>
-      {/* НИЖНИЙ ТАП-БАР С КОЛЕСОМ ВНУТРИ */}
-      <div className="fixed inset-x-0 bottom-0 z-40">
-        <div className="mx-auto max-w-md px-4 pb-2">
-          <div className="flex items-end justify-between rounded-t-3xl border-t border-slate-700 bg-[#171922]/95 px-3 pt-2 pb-3">
-            {/* Касса */}
-            <button
-              type="button"
-              className="flex flex-1 flex-col items-center gap-1 pr-3 border-r border-slate-700/60"
-            >
-              <span className="flex h-9 w-9 items-center justify-center rounded-2xl border border-slate-600 bg-slate-900/40">
-                💰
-              </span>
-              <span className="text-[11px] text-slate-100">Касса</span>
-            </button>
+      {/* МАЛЕНЬКОЕ КОЛЕСО В ЦЕНТРЕ ТАП-БАРА */}
+      <button
+        type="button"
+        onClick={openWheel}
+        aria-label="Pulz Wheel"
+        className="relative flex h-[120px] w-[120px] items-center justify-center"
+      >
+        {/* Глоу вокруг колеса */}
+        <span className="pointer-events-none absolute inset-[-22px] rounded-full bg-[radial-gradient(circle,rgba(248,113,113,0.75),transparent_62%)] opacity-80" />
 
-            {/* Вход */}
-            <button
-              type="button"
-              className="flex flex-1 flex-col items-center gap-1 px-3 border-r border-slate-700/60"
-            >
-              <span className="flex h-9 w-9 items-center justify-center rounded-2xl border border-slate-600 bg-slate-900/40">
-                👤
-              </span>
-              <span className="text-[11px] text-slate-100">Вход</span>
-            </button>
-
-            {/* ЦЕНТР — КОЛЕСО КАК ЧАСТЬ БАРА */}
-            <button
-              type="button"
-              onClick={openWheel}
-              className="flex flex-[1.4] translate-y-[-12px] flex-col items-center"
-            >
-              <div className="relative h-24 w-24">
-                {/* свечение */}
-                <div className="absolute inset-0 rounded-full bg-red-500/40 blur-xl" />
-                {/* само колесо */}
-                <div className="relative h-24 w-24 overflow-hidden rounded-full border border-red-500/70 bg-black">
-                  <img
-                    src="/Pulz-wheel.png"
-                    alt="Pulz Wheel"
-                    className={`h-full w-full object-cover ${
-                      isSpinning ? "animate-spin-slow" : ""
-                    }`}
-                  />
-                </div>
-              </div>
-            </button>
-
-            {/* Игры */}
-            <button
-              type="button"
-              className="flex flex-1 flex-col items-center gap-1 px-3 border-l border-slate-700/60"
-            >
-              <span className="flex h-9 w-9 items-center justify-center rounded-2xl border border-slate-600 bg-slate-900/40">
-                🎰
-              </span>
-              <span className="text-[11px] text-slate-100">Игры</span>
-            </button>
-
-            {/* Меню */}
-            <button
-              type="button"
-              className="flex flex-1 flex-col items-center gap-1 pl-3 border-l border-slate-700/60"
-            >
-              <span className="flex h-9 w-9 items-center justify-center rounded-2xl border border-slate-600 bg-slate-900/40">
-                ☰
-              </span>
-              <span className="text-[11px] text-slate-100">Меню</span>
-            </button>
-          </div>
-        </div>
-      </div>
+        {/* Само колесо-картинка */}
+        <span
+          className={`relative h-[90px] w-[90px] overflow-hidden rounded-full shadow-[0_0_28px_rgba(248,113,113,0.95)] ${
+            isSpinning ? "animate-spin-slow" : ""
+          }`}
+        >
+          <Image
+            src="/Pulz-wheel.png"
+            alt="Pulz Wheel"
+            fill
+            className="object-contain"
+            priority
+          />
+        </span>
+      </button>
 
       {/* МОДАЛКА С БОЛЬШИМ КОЛЕСОМ (как раньше) */}
       {isOpen && (
