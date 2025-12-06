@@ -36,24 +36,22 @@ export default function FortuneWheel() {
     }, 2500);
   };
 
-  // Если мы на странице игры — вообще ничего не рендерим
-  if (hideBottomBar) {
-    return null;
-  }
+  // На странице игры не показываем нижний бар вообще
+  if (hideBottomBar) return null;
 
   return (
     <>
-      {/* ===== НИЖНИЙ ТАП-БАР В СТИЛЕ КАЗИНО ===== */}
-      <nav className="fixed bottom-0 left-0 right-0 z-40 border-t border-slate-800/80 bg-[#050509]/95 backdrop-blur-xl">
-        <div className="mx-auto flex max-w-5xl items-center justify-between px-5 py-2.5">
+      {/* === НИЖНИЙ ТАП-БАР С КРУГЛЫМИ КНОПКАМИ === */}
+      <nav className="fixed inset-x-0 bottom-0 z-40 bg-[#050509]/95 backdrop-blur-2xl border-t border-red-900/40">
+        <div className="mx-auto flex max-w-md items-end justify-between px-5 py-2.5">
           {/* Касса */}
           <Link
             href="#"
-            className="flex flex-col items-center text-[11px] text-slate-300"
+            className="flex flex-col items-center text-[11px] text-slate-200"
           >
-            <div className="mb-1 flex h-11 w-11 items-center justify-center rounded-2xl border border-slate-700/70 bg-slate-950/80 shadow-[0_0_18px_rgba(15,23,42,0.9)]">
-              {/* минималистичная «купюра» */}
-              <div className="h-4 w-6 rounded-md border border-emerald-400/70" />
+            <div className="relative mb-1 flex h-12 w-12 items-center justify-center rounded-full bg-gradient-to-b from-slate-800 via-slate-950 to-black shadow-[0_0_20px_rgba(15,23,42,0.9)]">
+              <div className="absolute inset-0 rounded-full border border-slate-500/70" />
+              <div className="relative h-4 w-6 rounded-md bg-gradient-to-r from-emerald-400 to-lime-300 shadow-[0_0_12px_rgba(74,222,128,0.8)]" />
             </div>
             <span>Касса</span>
           </Link>
@@ -61,11 +59,14 @@ export default function FortuneWheel() {
           {/* Вход */}
           <Link
             href="#"
-            className="flex flex-col items-center text-[11px] text-slate-300"
+            className="flex flex-col items-center text-[11px] text-slate-200"
           >
-            <div className="mb-1 flex h-11 w-11 items-center justify-center rounded-2xl border border-slate-700/70 bg-slate-950/80 shadow-[0_0_18px_rgba(15,23,42,0.9)]">
-              {/* силуэт пользователя */}
-              <div className="h-5 w-5 rounded-full border border-sky-400/80 border-b-transparent" />
+            <div className="relative mb-1 flex h-12 w-12 items-center justify-center rounded-full bg-gradient-to-b from-slate-800 via-slate-950 to-black shadow-[0_0_20px_rgba(15,23,42,0.9)]">
+              <div className="absolute inset-0 rounded-full border border-slate-500/70" />
+              <div className="relative flex flex-col items-center">
+                <div className="h-3.5 w-3.5 rounded-full border border-sky-300" />
+                <div className="mt-0.5 h-2 w-4 rounded-t-full border border-sky-300 border-t-0" />
+              </div>
             </div>
             <span>Вход</span>
           </Link>
@@ -74,11 +75,16 @@ export default function FortuneWheel() {
           <button
             type="button"
             onClick={openWheel}
-            className="flex flex-col items-center text-[11px] text-red-100"
+            className="flex -translate-y-1 flex-col items-center text-[11px] text-red-100"
           >
-            <div className="mb-1 relative flex h-12 w-12 items-center justify-center rounded-full bg-gradient-to-b from-red-500 via-red-400 to-amber-300 shadow-[0_0_30px_rgba(248,113,113,0.9)]">
+            <div className="relative mb-1 flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-b from-red-500 via-red-400 to-amber-300 shadow-[0_0_35px_rgba(248,113,113,0.9)]">
+              {/* внешний обод */}
               <div className="absolute inset-0 rounded-full border border-red-900/70" />
-              {/* стилизованная молния PULZ */}
+              {/* вращающееся кольцо */}
+              <div className="absolute inset-[6px] rounded-full border border-red-300/70 bg-[conic-gradient(from_0deg,#fecaca,#fb923c,#fed7aa,#fecaca)] animate-spin-slow" />
+              {/* центр */}
+              <div className="absolute inset-[14px] rounded-full bg-slate-950/95" />
+              {/* молния */}
               <div className="relative h-5 w-3 -skew-x-6 bg-gradient-to-b from-yellow-300 to-orange-500 clip-path-[polygon(50%_0%,0%_55%,35%_55%,10%_100%,100%_40%,65%_40%,90%_0%)]" />
             </div>
             <span className="font-semibold">Pulz Wheel</span>
@@ -87,14 +93,14 @@ export default function FortuneWheel() {
           {/* Игры */}
           <Link
             href="/games"
-            className="flex flex-col items-center text-[11px] text-slate-300"
+            className="flex flex-col items-center text-[11px] text-slate-200"
           >
-            <div className="mb-1 flex h-11 w-11 items-center justify-center rounded-2xl border border-slate-700/70 bg-slate-950/80 shadow-[0_0_18px_rgba(15,23,42,0.9)]">
-              {/* «слот» */}
-              <div className="flex h-4 w-6 items-center justify-between rounded-md border border-pink-400/80 px-1">
-                <span className="h-2 w-1 rounded-sm bg-pink-400/80" />
-                <span className="h-2 w-1 rounded-sm bg-amber-300/90" />
-                <span className="h-2 w-1 rounded-sm bg-emerald-300/90" />
+            <div className="relative mb-1 flex h-12 w-12 items-center justify-center rounded-full bg-gradient-to-b from-slate-800 via-slate-950 to-black shadow-[0_0_20px_rgba(15,23,42,0.9)]">
+              <div className="absolute inset-0 rounded-full border border-slate-500/70" />
+              <div className="relative flex h-4 w-6 items-center justify-between rounded-md bg-gradient-to-r from-fuchsia-500 to-amber-400 px-1">
+                <span className="h-2 w-1 rounded-sm bg-white/90" />
+                <span className="h-2 w-1 rounded-sm bg-white/90" />
+                <span className="h-2 w-1 rounded-sm bg-white/90" />
               </div>
             </div>
             <span>Игры</span>
@@ -103,14 +109,14 @@ export default function FortuneWheel() {
           {/* Меню */}
           <button
             type="button"
-            className="flex flex-col items-center text-[11px] text-slate-300"
+            className="flex flex-col items-center text-[11px] text-slate-200"
           >
-            <div className="mb-1 flex h-11 w-11 items-center justify-center rounded-2xl border border-slate-700/70 bg-slate-950/80 shadow-[0_0_18px_rgba(15,23,42,0.9)]">
-              {/* три полоски меню */}
-              <div className="space-y-0.5">
-                <span className="block h-[2px] w-5 rounded-full bg-slate-200" />
-                <span className="block h-[2px] w-5 rounded-full bg-slate-200/80" />
-                <span className="block h-[2px] w-5 rounded-full bg-slate-200/60" />
+            <div className="relative mb-1 flex h-12 w-12 items-center justify-center rounded-full bg-gradient-to-b from-slate-800 via-slate-950 to-black shadow-[0_0_20px_rgba(15,23,42,0.9)]">
+              <div className="absolute inset-0 rounded-full border border-slate-500/70" />
+              <div className="relative space-y-0.5">
+                <span className="block h-[2px] w-5 rounded-full bg-slate-100" />
+                <span className="block h-[2px] w-5 rounded-full bg-slate-100/80" />
+                <span className="block h-[2px] w-5 rounded-full bg-slate-100/60" />
               </div>
             </div>
             <span>Меню</span>
@@ -118,7 +124,7 @@ export default function FortuneWheel() {
         </div>
       </nav>
 
-      {/* ===== МОДАЛКА С БОЛЬШИМ КОЛЕСОМ ===== */}
+      {/* === МОДАЛКА С БОЛЬШИМ КОЛЕСОМ (как у тебя было) === */}
       {isOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 px-4 backdrop-blur-sm">
           <div className="w-full max-w-md rounded-3xl border border-red-900/70 bg-gradient-to-b from-[#12020a] via-black to-[#050509] p-5 shadow-[0_30px_80px_rgba(0,0,0,0.9)]">
@@ -158,6 +164,7 @@ export default function FortuneWheel() {
                 >
                   {isSpinning ? "Крутим..." : "Крутить"}
                 </button>
+                {/* стрелка */}
                 <div className="absolute -top-2 left-1/2 -translate-x-1/2">
                   <div className="h-5 w-3 origin-bottom rounded-b-full bg-amber-300 shadow-[0_0_10px_rgba(251,191,36,0.9)]" />
                 </div>
