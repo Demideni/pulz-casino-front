@@ -2,6 +2,12 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+const TOP_BANNERS = [
+  "/banners/welcome-500.png",
+  "/banners/cashback.png",
+  "/banners/vip.png",
+];
+
 
 type HeroBanner = {
   id: string;
@@ -204,6 +210,24 @@ export default function HomePage() {
             Все игры
           </Link>
         </div>
+              {/* TOP баннеры, как у JetTon */}
+      <div className="-mx-4 mb-6 px-4">
+        <div className="flex snap-x snap-mandatory gap-3 overflow-x-auto">
+          {TOP_BANNERS.map((src, index) => (
+            <div
+              key={index}
+              className="snap-center min-w-full"
+            >
+              <img
+                src={src}
+                alt={`Pulz promo ${index + 1}`}
+                className="h-[190px] w-full rounded-3xl object-cover shadow-[0_0_40px_rgba(248,113,113,0.4)]"
+              />
+            </div>
+          ))}
+        </div>
+      </div>
+
 
         {/* горизонтальный скролл, как на JetTon */}
         <div className="-mx-4 overflow-x-auto px-4">
