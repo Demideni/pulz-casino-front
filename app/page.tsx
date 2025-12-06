@@ -5,22 +5,6 @@ import BannerCarousel from "@/components/BannerCarousel";
 
 const POPULAR_GAMES = [
   {
-    id: "gates-of-olympus",
-    name: "Gates of Olympus",
-    provider: "Pragmatic Play",
-    rtp: "96.5%",
-    tag: "ТОП СЛОТ",
-    image: "/games/gates.png", // добавь PNG позже
-  },
-  {
-    id: "sweet-bonanza",
-    name: "Sweet Bonanza",
-    provider: "Pragmatic Play",
-    rtp: "96.4%",
-    tag: "ПОПУЛЯРНЫЙ",
-    image: "/games/sweet.png", // добавь PNG позже
-  },
-  {
     id: "robinzon-island",
     name: "RobinZON Island",
     provider: "Pulz Originals",
@@ -33,7 +17,8 @@ const POPULAR_GAMES = [
 export default function HomePage() {
   return (
     <div className="space-y-8 pb-6">
-      {/* 1. Большой баннер */}
+
+      {/* 1. Большой верхний баннер */}
       <section className="px-4">
         <BannerCarousel />
       </section>
@@ -41,7 +26,6 @@ export default function HomePage() {
       {/* 2. Два бонусных блока */}
       <section className="px-4">
         <div className="flex gap-3">
-          {/* Бонус без депозита */}
           <div className="flex-1 rounded-3xl border border-red-900/30 bg-gradient-to-br from-[#220811] via-[#0a0712] to-[#050509] p-4 shadow-[0_0_25px_rgba(15,23,42,0.9)]">
             <div className="mb-1 text-[11px] font-semibold uppercase tracking-[0.2em] text-red-300">
               ДО 100 FS
@@ -54,7 +38,6 @@ export default function HomePage() {
             </p>
           </div>
 
-          {/* Турбо-спины */}
           <div className="flex-1 rounded-3xl border border-fuchsia-900/30 bg-gradient-to-br from-[#18061b] via-[#080713] to-[#050509] p-4 shadow-[0_0_25px_rgba(15,23,42,0.9)]">
             <div className="mb-1 text-[11px] font-semibold uppercase tracking-[0.2em] text-fuchsia-300">
               ЕЖЕДНЕВНО
@@ -81,7 +64,7 @@ export default function HomePage() {
           </Link>
         </div>
 
-        {/* Горизонтальный скролл с карточками игр */}
+        {/* Горизонтальный скролл */}
         <div className="-mx-4 overflow-x-auto px-4 pb-2">
           <div className="flex gap-4">
             {POPULAR_GAMES.map((game) => (
@@ -90,7 +73,7 @@ export default function HomePage() {
                 href={`/games/${game.id}`}
                 className="group relative w-[170px] flex-shrink-0 rounded-3xl overflow-hidden bg-[#0f0f17] border border-slate-800/60 shadow-[0_0_20px_rgba(0,0,0,0.4)] transition-all"
               >
-                {/* картинка игры */}
+                {/* Картинка игры */}
                 <div className="h-[105px] w-full overflow-hidden">
                   <Image
                     src={game.image}
@@ -103,12 +86,10 @@ export default function HomePage() {
 
                 {/* Нижняя панель */}
                 <div className="p-3 space-y-1">
-                  {/* Название */}
                   <div className="text-sm font-semibold text-slate-100">
                     {game.name}
                   </div>
 
-                  {/* Provider + RTP */}
                   <div className="flex items-center justify-between">
                     <span className="text-slate-400 text-[11px]">
                       {game.provider}
@@ -118,7 +99,6 @@ export default function HomePage() {
                     </span>
                   </div>
 
-                  {/* Тег */}
                   <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-red-300">
                     {game.tag}
                   </div>
@@ -128,6 +108,7 @@ export default function HomePage() {
           </div>
         </div>
       </section>
+
     </div>
   );
 }
