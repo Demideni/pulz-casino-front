@@ -20,19 +20,6 @@ export default function BottomNav() {
             px-2 pb-3 pt-4
           "
         >
-          {/* дуга, которая обнимает колесо (имитация JetTon) */}
-          <div
-            className="
-              pointer-events-none
-              absolute -top-8 left-1/2
-              h-16 w-44
-              -translate-x-1/2
-              rounded-t-[999px]
-              
-            
-              bg-[#11141f]/95
-            "
-          />
 
           {/* Касса */}
           <NavButton href="/cashier" label="Касса" first />
