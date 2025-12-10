@@ -79,7 +79,7 @@ export default function HomePage() {
                   <Image
                     src={game.image}
                     alt={game.name}
-                    width={340}
+                    width={160}
                     height={220}
                     className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
                   />
