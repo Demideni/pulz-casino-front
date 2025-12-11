@@ -197,10 +197,14 @@ radial-gradient(circle at 100% 0%, rgba(56,189,248,0.45), transparent 55%),
   isolation: isolate;
   overflow: hidden;
   background:
-    radial-gradient(circle at 0% 0%, rgba(37,99,235,0.55), transparent 55%),
-    radial-gradient(circle at 100% 0%, rgba(56,189,248,0.45), transparent 55%),
-    radial-gradient(circle at 50% 140%, rgba(15,23,42,0.95), #020617);
+    /* уменьшаем яркость левого синего пятна */
+    radial-gradient(circle at 0% 0%, rgba(37,99,235,0.25), transparent 55%),
+    /* уменьшаем яркость правого голубого пятна */
+    radial-gradient(circle at 100% 0%, rgba(56,189,248,0.22), transparent 55%),
+    /* делаем основной фон намного темнее */
+    radial-gradient(circle at 50% 140%, rgba(11,17,28,0.98), #01040a);
 }
+
 
 /* слой звёзд */
 .pulz-animated-bg::before {
