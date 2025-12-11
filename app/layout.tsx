@@ -8,7 +8,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="ru" className="bg-black text-slate-100">
       <body className="bg-black text-slate-100 antialiased">
-        <div className="flex min-h-screen flex-col">
+        <div className="pulz-animated-bg flex min-h-screen flex-col">
           {/* TOP BAR */}
           <header className="sticky top-0 z-30 border-b border-slate-900/60 bg-black/90 backdrop-blur">
             <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3">
