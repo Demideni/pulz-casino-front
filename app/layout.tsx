@@ -15,9 +15,9 @@ export default function RootLayout({ children }: { children: ReactNode }) {
               {/* Логотип слева */}
               <Link href="/" className="flex items-center gap-2">
                 <img
-                  src="/pulz-logo-light.PNG"
+                  src="/pulz-logo-dark.PNG"
                   alt="Pulz Casino"
-                  className="h-7 w-auto md:h-8"
+                  className="h-12 w-auto md:h-8"
                 />
               </Link>
 
@@ -49,9 +49,9 @@ export default function RootLayout({ children }: { children: ReactNode }) {
             <div className="mx-auto grid max-w-6xl gap-6 px-4 py-6 text-xs text-slate-400 md:grid-cols-4">
               <div>
                 <img
-                  src="/pulz-logo-light.PNG"
+                  src="/pulz-logo-dark.PNG"
                   alt="Pulz Casino"
-                  className="h-7 w-auto"
+                  className="h-12 w-auto"
                 />
                 <p className="text-[11px] leading-snug text-slate-500">
                   Pulz — онлайн-казино с дерзким красно-чёрным стилем и честными
