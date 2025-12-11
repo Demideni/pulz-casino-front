@@ -71,7 +71,7 @@ export default function HomePage() {
               <Link
                 key={game.id}
                 href={`/game/${game.id}`}
-                className="group relative min-w-[160px] overflow-hidden rounded-xl bg-slate-900"
+                className="group relative min-w-[80px] overflow-hidden rounded-xl bg-slate-900"
               >
                 <Image
                   src={game.image}
