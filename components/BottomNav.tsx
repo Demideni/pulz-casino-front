@@ -36,27 +36,24 @@ export default function BottomNav() {
           {/* Меню */}
           <NavButton href="/menu" label="Меню" />
 
-          {/* САМО КОЛЕСО — центр, вытащено из бара примерно на 60% */}
-          <button
-            type="button"
-            onClick={() => setOpen(true)}
-            className="
-              absolute
-              -top-4 left-1/2
-              flex h-26 w-26 -translate-x-1/2
-              items-center justify-center
-              rounded-full
-              bg-[radial-gradient(circle_at_30%_0%,rgba(250,250,250,0.35),transparent_55%),radial-gradient(circle_at_70%_120%,rgba(34,197,94,0.7),transparent_60%)]
-              shadow-[0_0_40px_rgba(34,197,94,0.9)]
-            "
-          >
-<img
-  src="/Pulz-wheel.png"
-  alt="Pulz Wheel"
-  className="pulz-wheel-animated"
-/>
+{/* САМО КОЛЕСО — центр, без старой зелёной оболочки */}
+<button
+  type="button"
+  onClick={() => setOpen(true)}
+  className="
+    absolute
+    -top-8 left-1/2
+    -translate-x-1/2
+    flex items-center justify-center
+  "
+>
+  <img
+    src="/Pulz-wheel.png"
+    alt="Pulz Wheel"
+    className="pulz-wheel-animated"
+  />
+</button>
 
-          </button>
         </nav>
       </div>
 
