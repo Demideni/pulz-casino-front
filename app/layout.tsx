@@ -41,7 +41,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
           </header>
 
           {/* КОНТЕНТ СТРАНИЦЫ */}
-          <main className="mx-auto flex w-full max-w-6xl flex-1 flex-col px-0 pb-32 pt-1">
+          <main className="mx-auto flex w-full max-w-6xl flex-1 flex-col px-0 pb-32 pt-0">
             {children}
           </main>
 
