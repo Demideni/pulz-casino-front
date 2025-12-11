@@ -176,8 +176,8 @@ body {
 
 /* animated wheel button in bottom nav */
 .pulz-wheel-animated {
-  width: 130px;
-  height: 130px;
+  width: 160px;
+  height: 160px;
   border-radius: 9999px;
   object-fit: contain;
   animation: pulz-wheel-spin 1.8s cubic-bezier(0.45, 0, 0.2, 1) infinite;
