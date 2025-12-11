@@ -10,14 +10,14 @@ export default function BottomNav() {
   return (
     <>
       {/* снизу по центру, как системный таб-бар */}
-      <div className="pointer-events-none fixed inset-x-0 bottom-0 z-40 flex justify-center pb-3">
+      <div className="pointer-events-none fixed inset-x-0 bottom-0 z-40 flex justify-center">
         <nav
           className="
             pointer-events-auto
             relative flex w-full max-w-xl items-end justify-between
             rounded-t-[28px]
             bg-[#11141f]/95
-            px-2 pb-3 pt-4
+            px-2 pt-4
           "
         >
 
@@ -42,7 +42,7 @@ export default function BottomNav() {
   onClick={() => setOpen(true)}
   className="
     absolute
-    -top-8 left-1/2
+    -top-1 left-1/2
     -translate-x-1/2
     flex items-center justify-center
   "
