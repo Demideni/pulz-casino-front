@@ -40,7 +40,7 @@ export default function GameDetailsPage({ params }: Props) {
           </div>
           <Link
             href="/games"
-            className="rounded-full border border-slate-700 bg-slate-900/70 px-4 py-1.5 text-xs text-slate-200 hover:border-red-500 hover:text-white"
+            className="rounded-full border border-slate-700 bg-slate-900/70 px-4 py-1.5 text-xs text-slate-200 hover:border-blue-500 hover:text-white"
           >
             ← Назад к каталогу
           </Link>
@@ -63,7 +63,7 @@ export default function GameDetailsPage({ params }: Props) {
       <div className="relative z-10 flex items-center justify-between px-4 pt-4 pb-2 bg-gradient-to-b from-black via-black/70 to-transparent">
         <Link
           href="/games"
-          className="rounded-full border border-slate-700 bg-black/70 px-4 py-1.5 text-xs font-medium text-slate-100 hover:border-red-500 hover:bg-black"
+          className="rounded-full border border-slate-700 bg-black/70 px-4 py-1.5 text-xs font-medium text-slate-100 hover:border-blue-500 hover:bg-black"
         >
           ← Выйти из игры
         </Link>

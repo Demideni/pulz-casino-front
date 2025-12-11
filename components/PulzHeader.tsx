@@ -56,7 +56,7 @@ export default function PulzHeader() {
           <button className="hidden rounded-full border border-white/20 bg-black/40 px-3 py-1 text-xs text-slate-100 hover:bg-black/70 sm:inline">
             Войти
           </button>
-          <button className="rounded-full bg-pulzRed px-3 py-1 text-xs font-semibold text-white shadow-[0_0_20px_rgba(248,113,113,0.7)] hover:brightness-110">
+          <button className="rounded-full bg-pulzRed px-3 py-1 text-xs font-semibold text-white shadow-[0_0_20px_rgba(59,130,246,0.7)] hover:brightness-110">
             Регистрация
           </button>
         </div>

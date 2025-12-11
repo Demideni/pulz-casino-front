@@ -7,7 +7,7 @@ export default function BonusesPage() {
       subtitle="Демо‑экран бонусной системы: welcome‑пак, кэшбэк, турниры. Логика бонусов будет жить на бэкенде."
     >
       <div className="grid gap-4 md:grid-cols-3 text-sm">
-        <div className="space-y-2 rounded-2xl border border-pulzRed/60 bg-gradient-to-b from-pulzRed/25 to-black/90 p-4">
+        <div className="space-y-2 rounded-2xl border border-pulzBlue/60 bg-gradient-to-b from-pulzBlue/25 to-black/90 p-4">
           <p className="text-[10px] uppercase tracking-[0.25em] text-slate-200">
             Welcome‑пак
           </p>

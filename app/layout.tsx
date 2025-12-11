@@ -32,7 +32,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
                 </Link>
                 <Link
                   href="/register"
-                  className="rounded-full bg-red-600 px-6 py-1.5 text-sm font-semibold text-white shadow-[0_0_30px_rgba(248,113,113,0.8)] hover:bg-red-500"
+                  className="rounded-full bg-blue-600 px-6 py-1.5 text-sm font-semibold text-white shadow-[0_0_30px_rgba(59,130,246,0.8)] hover:bg-blue-500"
                 >
                   Регистрация
                 </Link>

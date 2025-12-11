@@ -42,7 +42,7 @@ export default function BottomNav() {
   onClick={() => setOpen(true)}
   className="
     absolute
-    -top-3 left-1/2
+    -top-6 left-1/2
     -translate-x-1/2
     flex items-center justify-center
   "

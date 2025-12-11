@@ -12,7 +12,7 @@ export default function PartnersPage() {
 
       <div className="grid gap-4 md:grid-cols-3 text-sm">
         <div className="rounded-2xl border border-slate-800 bg-slate-950/80 p-4">
-          <div className="text-xs text-red-300">RevShare</div>
+          <div className="text-xs text-blue-300">RevShare</div>
           <div className="mt-1 text-sm font-semibold text-slate-50">
             До 50% пожизненно
           </div>
@@ -21,7 +21,7 @@ export default function PartnersPage() {
           </p>
         </div>
         <div className="rounded-2xl border border-slate-800 bg-slate-950/80 p-4">
-          <div className="text-xs text-red-300">CPA / гибрид</div>
+          <div className="text-xs text-blue-300">CPA / гибрид</div>
           <div className="mt-1 text-sm font-semibold text-slate-50">
             Индивидуальные офферы
           </div>
@@ -30,7 +30,7 @@ export default function PartnersPage() {
           </p>
         </div>
         <div className="rounded-2xl border border-slate-800 bg-slate-950/80 p-4">
-          <div className="text-xs text-red-300">Поддержка</div>
+          <div className="text-xs text-blue-300">Поддержка</div>
           <div className="mt-1 text-sm font-semibold text-slate-50">
             Личный менеджер
           </div>
@@ -40,12 +40,12 @@ export default function PartnersPage() {
         </div>
       </div>
 
-      <div className="rounded-2xl border border-red-900/60 bg-black/60 p-4 text-sm text-slate-200">
+      <div className="rounded-2xl border border-blue-900/60 bg-black/60 p-4 text-sm text-slate-200">
         Пишите в Telegram:{" "}
         <a
           href="https://t.me/wynixhr"
           target="_blank"
-          className="font-semibold text-red-400 hover:text-red-300"
+          className="font-semibold text-blue-400 hover:text-blue-300"
         >
           @wynixhr
         </a>{" "}

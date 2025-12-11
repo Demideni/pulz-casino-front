@@ -20,7 +20,7 @@ export default function BannerCarousel() {
   }, []);
 
   return (
-    <div className="relative w-full overflow-hidden rounded-2xl border border-red-900/30 shadow-[0_0_35px_rgba(248,113,113,0.25)]">
+    <div className="relative w-full overflow-hidden rounded-2xl border border-blue-900/30 shadow-[0_0_35px_rgba(59,130,246,0.25)]">
       <Image
         src={banners[index]}
         width={1440}
@@ -35,7 +35,7 @@ export default function BannerCarousel() {
           <span
             key={i}
             className={`h-2 w-6 rounded-full transition-all ${
-              i === index ? "bg-red-500" : "bg-slate-700/70"
+              i === index ? "bg-blue-500" : "bg-slate-700/70"
             }`}
           />
         ))}

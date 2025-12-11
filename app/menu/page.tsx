@@ -7,7 +7,7 @@ export default function MenuPage() {
   return (
     <div className="mx-auto flex max-w-lg flex-col gap-6">
       <div>
-        <div className="text-[11px] uppercase tracking-[0.3em] text-red-400">
+        <div className="text-[11px] uppercase tracking-[0.3em] text-blue-400">
           Pulz menu
         </div>
         <h1 className="mt-1 text-2xl font-semibold text-slate-50">

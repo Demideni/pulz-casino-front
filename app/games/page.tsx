@@ -155,14 +155,14 @@ export default function GamesPage() {
               key={g.id}
               type="button"
               onClick={() => setOpenedGame(g)}
-              className="group flex flex-col overflow-hidden rounded-3xl border border-slate-800/80 bg-gradient-to-br from-slate-950 via-black to-[#1a0207] shadow-[0_0_25px_rgba(15,23,42,0.8)] hover:border-red-500/80 hover:shadow-[0_0_45px_rgba(248,113,113,0.6)]"
+              className="group flex flex-col overflow-hidden rounded-3xl border border-slate-800/80 bg-gradient-to-br from-slate-950 via-black to-[#1a0207] shadow-[0_0_25px_rgba(15,23,42,0.8)] hover:border-blue-500/80 hover:shadow-[0_0_45px_rgba(59,130,246,0.6)]"
             >
               <div className="relative h-40 overflow-hidden">
-                <div className="absolute inset-0 bg-gradient-to-tr from-red-700/40 via-black to-slate-900" />
+                <div className="absolute inset-0 bg-gradient-to-tr from-blue-700/40 via-black to-slate-900" />
                 <div className="absolute inset-0 flex items-center justify-center text-sm font-semibold text-slate-100">
                   {g.name}
                 </div>
-                <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(248,113,113,0.55),transparent_55%)] opacity-0 transition-opacity group-hover:opacity-100" />
+                <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(59,130,246,0.55),transparent_55%)] opacity-0 transition-opacity group-hover:opacity-100" />
               </div>
 
               <div className="space-y-2 p-4 text-left">
@@ -197,14 +197,14 @@ export default function GamesPage() {
                     </span>
                   </span>
                   {g.isPulzOriginal && (
-                    <span className="rounded-full bg-red-600/80 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-white">
+                    <span className="rounded-full bg-blue-600/80 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-white">
                       Pulz Originals
                     </span>
                   )}
                 </div>
 
                 <div className="pt-1">
-                  <span className="inline-flex items-center justify-center rounded-full bg-red-600 px-3 py-1 text-[11px] font-semibold text-white shadow-[0_0_18px_rgba(248,113,113,0.65)] group-hover:bg-red-500">
+                  <span className="inline-flex items-center justify-center rounded-full bg-blue-600 px-3 py-1 text-[11px] font-semibold text-white shadow-[0_0_18px_rgba(59,130,246,0.65)] group-hover:bg-blue-500">
                     Открыть демо
                   </span>
                 </div>
@@ -226,7 +226,7 @@ export default function GamesPage() {
                     {openedGame.name}
                   </h2>
                   {openedGame.isPulzOriginal && (
-                    <span className="rounded-full bg-red-600/80 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-white">
+                    <span className="rounded-full bg-blue-600/80 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-white">
                       Pulz Originals
                     </span>
                   )}
@@ -241,7 +241,7 @@ export default function GamesPage() {
               <button
                 type="button"
                 onClick={() => setOpenedGame(null)}
-                className="rounded-full border border-slate-700 bg-slate-900/70 px-3 py-1 text-xs text-slate-200 hover:border-red-500 hover:text-white"
+                className="rounded-full border border-slate-700 bg-slate-900/70 px-3 py-1 text-xs text-slate-200 hover:border-blue-500 hover:text-white"
               >
                 Закрыть
               </button>
@@ -258,7 +258,7 @@ export default function GamesPage() {
                   allowFullScreen
                 />
               ) : (
-                <div className="flex h-full w-full items-center justify-center bg-[radial-gradient(circle_at_top,_rgba(248,113,113,0.15),transparent_60%)]">
+                <div className="flex h-full w-full items-center justify-center bg-[radial-gradient(circle_at_top,_rgba(59,130,246,0.15),transparent_60%)]">
                   <p className="px-4 text-center text-sm text-slate-400">
                     Интеграция с провайдером для этой игры в процессе.
                     Сейчас доступен только макет.

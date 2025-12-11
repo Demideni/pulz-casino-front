@@ -7,7 +7,7 @@ export default function RegisterPage() {
   return (
     <div className="mx-auto flex max-w-md flex-col gap-6">
       <div>
-        <div className="text-[11px] uppercase tracking-[0.3em] text-red-400">
+        <div className="text-[11px] uppercase tracking-[0.3em] text-blue-400">
           Welcome bonus
         </div>
         <h1 className="mt-1 text-2xl font-semibold text-slate-50">
@@ -24,7 +24,7 @@ export default function RegisterPage() {
           <label className="text-xs text-slate-300">Email</label>
           <input
             type="email"
-            className="w-full rounded-xl border border-slate-800 bg-slate-950 px-3 py-2 text-sm text-slate-100 outline-none ring-red-500/0 focus:border-red-500/80 focus:ring-2 focus:ring-red-500/40"
+            className="w-full rounded-xl border border-slate-800 bg-slate-950 px-3 py-2 text-sm text-slate-100 outline-none ring-blue-500/0 focus:border-blue-500/80 focus:ring-2 focus:ring-blue-500/40"
             placeholder="you@example.com"
           />
         </div>
@@ -33,7 +33,7 @@ export default function RegisterPage() {
           <label className="text-xs text-slate-300">Пароль</label>
           <input
             type="password"
-            className="w-full rounded-xl border border-slate-800 bg-slate-950 px-3 py-2 text-sm text-slate-100 outline-none ring-red-500/0 focus:border-red-500/80 focus:ring-2 focus:ring-red-500/40"
+            className="w-full rounded-xl border border-slate-800 bg-slate-950 px-3 py-2 text-sm text-slate-100 outline-none ring-blue-500/0 focus:border-blue-500/80 focus:ring-2 focus:ring-blue-500/40"
             placeholder="Минимум 8 символов"
           />
         </div>
@@ -44,7 +44,7 @@ export default function RegisterPage() {
           </label>
           <input
             type="text"
-            className="w-full rounded-xl border border-slate-800 bg-slate-950 px-3 py-2 text-sm text-slate-100 outline-none ring-red-500/0 focus:border-red-500/80 focus:ring-2 focus:ring-red-500/40"
+            className="w-full rounded-xl border border-slate-800 bg-slate-950 px-3 py-2 text-sm text-slate-100 outline-none ring-blue-500/0 focus:border-blue-500/80 focus:ring-2 focus:ring-blue-500/40"
             placeholder="PULZ100"
           />
         </div>
@@ -58,14 +58,14 @@ export default function RegisterPage() {
 
         <button
           type="button"
-          className="mt-2 w-full rounded-full bg-red-600 py-2 text-sm font-semibold text-white shadow-[0_0_25px_rgba(248,113,113,0.9)] hover:bg-red-500"
+          className="mt-2 w-full rounded-full bg-blue-600 py-2 text-sm font-semibold text-white shadow-[0_0_25px_rgba(59,130,246,0.9)] hover:bg-blue-500"
         >
           Зарегистрироваться
         </button>
 
         <p className="pt-1 text-xs text-slate-400">
           Уже есть аккаунт?{" "}
-          <a href="/login" className="text-red-400 hover:text-red-300">
+          <a href="/login" className="text-blue-400 hover:text-blue-300">
             Войти
           </a>
         </p>

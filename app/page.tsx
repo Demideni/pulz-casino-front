@@ -26,8 +26,8 @@ export default function HomePage() {
       <section className="px-4">
         <div className="flex gap-3">
           {/* Бонус без депозита */}
-          <div className="flex-1 rounded-3xl border border-red-900/30 bg-gradient-to-br from-[#220811] via-[#0a0712] to-[#050509] p-4 shadow-[0_0_25px_rgba(15,23,42,0.9)]">
-            <div className="mb-1 text-[11px] font-semibold uppercase tracking-[0.2em] text-red-300">
+          <div className="flex-1 rounded-3xl border border-blue-900/30 bg-gradient-to-br from-[#220811] via-[#0a0712] to-[#050509] p-4 shadow-[0_0_25px_rgba(15,23,42,0.9)]">
+            <div className="mb-1 text-[11px] font-semibold uppercase tracking-[0.2em] text-blue-300">
               ДО 100 FS
             </div>
             <div className="text-sm font-semibold text-slate-50">
@@ -59,7 +59,7 @@ export default function HomePage() {
           <h2 className="text-lg font-semibold">Популярные игры</h2>
           <Link
             href="/games"
-            className="text-xs font-medium text-red-300 hover:text-red-200"
+            className="text-xs font-medium text-blue-300 hover:text-blue-200"
           >
             Все игры
           </Link>
@@ -72,7 +72,7 @@ export default function HomePage() {
               <Link
                 key={game.id}
                 href={`/games/${game.id}`}
-                className="group relative min-w-[170px] max-w-[210px] flex-1 overflow-hidden rounded-3xl border border-slate-800/80 bg-gradient-to-br from-[#050509] via-[#12030b] to-[#050509] p-0 shadow-[0_0_25px_rgba(15,23,42,0.8)] transition-all hover:border-red-500/70 hover:shadow-[0_0_35px_rgba(248,113,113,0.5)]"
+                className="group relative min-w-[170px] max-w-[210px] flex-1 overflow-hidden rounded-3xl border border-slate-800/80 bg-gradient-to-br from-[#050509] via-[#12030b] to-[#050509] p-0 shadow-[0_0_25px_rgba(15,23,42,0.8)] transition-all hover:border-blue-500/70 hover:shadow-[0_0_35px_rgba(59,130,246,0.5)]"
               >
                 {/* Картинка игры */}
                 <div className="h-[110px] w-full overflow-hidden rounded-t-3xl">
@@ -98,13 +98,13 @@ export default function HomePage() {
                     </span>
                   </div>
 
-                  <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-red-300">
+                  <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-blue-300">
                     {game.tag}
                   </div>
                 </div>
 
                 {/* Подсветка при ховере */}
-                <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_0%_0%,rgba(248,113,113,0.35),transparent_55%)] opacity-0 transition-opacity group-hover:opacity-100" />
+                <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_0%_0%,rgba(59,130,246,0.35),transparent_55%)] opacity-0 transition-opacity group-hover:opacity-100" />
               </Link>
             ))}
           </div>

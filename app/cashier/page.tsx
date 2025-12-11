@@ -25,7 +25,7 @@ export default function CashierPage() {
                 <option>Crypto — BTC</option>
               </select>
             </label>
-            <button className="mt-2 w-full rounded-full bg-pulzRed px-4 py-2 text-sm font-semibold text-white shadow-[0_0_20px_rgba(248,113,113,0.8)] hover:brightness-110">
+            <button className="mt-2 w-full rounded-full bg-pulzRed px-4 py-2 text-sm font-semibold text-white shadow-[0_0_20px_rgba(59,130,246,0.8)] hover:brightness-110">
               Смоделировать депозит
             </button>
             <p className="text-[11px] text-slate-400">
