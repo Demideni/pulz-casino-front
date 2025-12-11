@@ -132,3 +132,59 @@ body {
     transform: rotate(360deg);
   }
 }
+
+/* === Pulz neon mascot & logo animations === */
+
+.pulz-mascot-glow img {
+  display: block;
+  max-width: 100%;
+  filter: drop-shadow(0 0 18px #1e90ff);
+  animation: pulz-mascot-glow 2.2s ease-in-out infinite;
+}
+
+@keyframes pulz-mascot-glow {
+  0%, 100% {
+    filter: drop-shadow(0 0 10px #1e90ff);
+    transform: scale(1);
+  }
+  50% {
+    filter: drop-shadow(0 0 26px #4aa3ff);
+    transform: scale(1.03);
+  }
+}
+
+/* pulsing logo in the header */
+.pulz-logo-animated {
+  filter: drop-shadow(0 0 10px #1e90ff);
+  animation: pulz-logo-pulse 2.8s ease-in-out infinite;
+}
+
+@keyframes pulz-logo-pulse {
+  0%, 100% {
+    transform: scale(1);
+    filter: drop-shadow(0 0 8px #1e90ff);
+  }
+  40% {
+    transform: scale(1.04);
+    filter: drop-shadow(0 0 20px #4aa3ff);
+  }
+  70% {
+    transform: scale(1.02);
+    filter: drop-shadow(0 0 14px #1e90ff);
+  }
+}
+
+/* animated wheel button in bottom nav */
+.pulz-wheel-animated {
+  width: 72px;
+  height: 72px;
+  border-radius: 9999px;
+  object-fit: contain;
+  animation: pulz-wheel-spin 1.8s cubic-bezier(0.45, 0, 0.2, 1) infinite;
+}
+
+@keyframes pulz-wheel-spin {
+  0%   { transform: rotate(0deg); }
+  70%  { transform: rotate(330deg); }
+  100% { transform: rotate(360deg); }
+}

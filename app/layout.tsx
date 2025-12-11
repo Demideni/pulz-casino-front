@@ -14,11 +14,12 @@ export default function RootLayout({ children }: { children: ReactNode }) {
             <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3">
               {/* Логотип слева */}
               <Link href="/" className="flex items-center gap-2">
-                <img
-                  src="/pulz-logo-dark.PNG"
-                  alt="Pulz Casino"
-                  className="h-24 w-auto md:h-8"
-                />
+<img
+  src="/pulz-logo-dark.PNG"
+  alt="Pulz Casino"
+  className="pulz-logo-animated h-8 w-auto"
+/>
+
               </Link>
 
               {/* Кнопки Вход / Регистрация справа */}

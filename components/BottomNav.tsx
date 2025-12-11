@@ -50,11 +50,12 @@ export default function BottomNav() {
               shadow-[0_0_40px_rgba(34,197,94,0.9)]
             "
           >
-            <img
-              src="/Pulz-wheel.png"
-              alt="Pulz Wheel"
-              className="h-24 w-24 rounded-full object-contain"
-            />
+<img
+  src="/Pulz-wheel.png"
+  alt="Pulz Wheel"
+  className="pulz-wheel-animated"
+/>
+
           </button>
         </nav>
       </div>
