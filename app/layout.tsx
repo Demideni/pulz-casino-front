@@ -41,13 +41,13 @@ export default function RootLayout({ children }: { children: ReactNode }) {
           </header>
 
           {/* КОНТЕНТ СТРАНИЦЫ */}
-          <main className="mx-auto flex w-full max-w-6xl flex-1 flex-col px-0 pb-32 pt-4">
+          <main className="mx-auto flex w-full max-w-6xl flex-1 flex-col px-0 pb-32 pt-1">
             {children}
           </main>
 
           {/* FOOTER */}
           <footer className="border-t border-slate-800/60 bg-black/80">
-            <div className="mx-auto grid max-w-6xl gap-6 px-4 py-6 text-xs text-slate-400 md:grid-cols-4">
+            <div className="mx-auto grid max-w-6xl gap-4 px-4 py-3 text-xs text-slate-400 md:grid-cols-4">
               <div>
                 <img
                   src="/pulz-logo-dark.PNG"
