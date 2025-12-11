@@ -17,7 +17,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
                 <img
                   src="/pulz-logo-dark.PNG"
                   alt="Pulz Casino"
-                  className="h-12 w-auto md:h-8"
+                  className="h-24 w-auto md:h-8"
                 />
               </Link>
 
