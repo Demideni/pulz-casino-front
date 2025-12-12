@@ -73,7 +73,7 @@ export default function HomePage() {
 <Link
   key={game.id}
   href={`/games/${game.id}`}
-  className="group relative w-[80px] overflow-hidden rounded-3xl bg-slate-900/80 border border-slate-800/80 hover:border-blue-500/70 hover:shadow-[0_0_35px_rgba(59,130,246,0.5)]"
+  className="group relative w-[100px] overflow-hidden rounded-3xl bg-slate-900/80 border border-slate-800/80 hover:border-blue-500/70 hover:shadow-[0_0_35px_rgba(59,130,246,0.5)]"
 >
 
                 <Image
