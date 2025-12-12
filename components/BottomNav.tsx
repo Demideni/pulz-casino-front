@@ -22,7 +22,7 @@ export default function BottomNav() {
 
   return (
     <>
-      {/* снизу по центру, как системный таб-бар */}
+      {/* Тап-бар снизу */}
       <div className="pointer-events-none fixed inset-x-0 bottom-0 z-40 flex justify-center pb-0">
         <nav
           className="
@@ -34,7 +34,7 @@ export default function BottomNav() {
             backdrop-blur-lg
           "
         >
-          {/* Касса — остаётся обычной страницей */}
+          {/* Касса */}
           <NavLink href="/cashier" label="Касса" first />
 
           {/* Вход / Регистрация — bottom sheet */}
@@ -53,7 +53,7 @@ export default function BottomNav() {
           {/* Пустое место под колесо */}
           <div className="w-[96px]" />
 
-          {/* Игры — обычная страница */}
+          {/* Игры */}
           <NavLink href="/games" label="Игры" />
 
           {/* Меню — bottom sheet */}
@@ -86,12 +86,12 @@ export default function BottomNav() {
         </nav>
       </div>
 
-      {/* Модалка большого колеса */}
+      {/* Большое колесо */}
       {openWheel && (
         <FortuneWheelModal open={openWheel} onClose={() => setOpenWheel(false)} />
       )}
 
-      {/* Bottom-sheet авторизации (вход/регистрация) */}
+      {/* Bottom-sheet авторизации (Вход / Регистрация) */}
       {openAuth && (
         <div
           className="
@@ -108,7 +108,7 @@ export default function BottomNav() {
             "
             onClick={(e) => e.stopPropagation()}
           >
-            {/* Переключатель Вход / Регистрация */}
+            {/* Табы Вход / Регистрация */}
             <div className="mb-3 flex items-center gap-2 text-[11px] font-semibold">
               <button
                 type="button"
@@ -139,7 +139,7 @@ export default function BottomNav() {
         </div>
       )}
 
-      {/* Bottom-sheet меню */}
+      {/* Bottom-sheet МЕНЮ с талисманом наверху */}
       {openMenu && (
         <div
           className="
@@ -151,30 +151,80 @@ export default function BottomNav() {
           <div
             className="
               pulz-sheet
-              w-full max-w-lg rounded-t-3xl border border-slate-800/80
-              bg-slate-950/95 px-4 pt-4 pb-6
+              relative w-full max-w-lg rounded-t-3xl border border-slate-800/80
+              bg-slate-950/95 px-4 pt-6 pb-6
             "
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="mb-3 flex items-center justify-between">
-              <span className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">
-                Меню Pulz
-              </span>
+            {/* Талисман, лежащий сверху */}
+            <div className="pointer-events-none absolute -top-10 left-1/2 -translate-x-1/2">
+              <Image
+                src="/mascot/pulz-mascot.png"
+                alt="Pulz Mascot"
+                width={80}
+                height={80}
+                className="drop-shadow-[0_0_25px_rgba(37,99,235,0.9)]"
+              />
+            </div>
+
+            {/* Заголовок меню */}
+            <div className="mb-4 mt-2 flex items-center justify-between">
+              <div className="flex flex-col">
+                <span className="text-[11px] font-semibold uppercase tracking-[0.22em] text-blue-300">
+                  PULZ MENU
+                </span>
+                <span className="text-sm text-slate-300">
+                  Управляй аккаунтом, бонусами и VIP-статусом.
+                </span>
+              </div>
               <button
                 type="button"
-                className="text-[11px] text-slate-400 hover:text-slate-200"
+                className="rounded-full border border-slate-700/80 bg-slate-900/80 px-2 py-1 text-[11px] text-slate-400 hover:text-slate-200"
                 onClick={() => setOpenMenu(false)}
               >
                 Закрыть
               </button>
             </div>
 
-            <div className="space-y-2 text-sm text-slate-100">
-              <MenuItem href="/profile" label="Профиль" />
-              <MenuItem href="/vip" label="VIP-программа" />
-              <MenuItem href="/promo" label="Бонусы и акции" />
-              <MenuItem href="/help" label="Поддержка" />
-              <MenuItem href="/terms" label="Условия и политика" last />
+            {/* Плитки меню */}
+            <div className="grid grid-cols-2 gap-2 text-sm text-slate-100">
+              <MenuItem
+                href="/profile"
+                label="Профиль"
+                subtitle="Баланс, данные, настройки"
+                icon="👤"
+              />
+              <MenuItem
+                href="/vip"
+                label="VIP-программа"
+                subtitle="Уровни, кешбэк, привилегии"
+                icon="💎"
+              />
+              <MenuItem
+                href="/promo"
+                label="Бонусы и акции"
+                subtitle="Welcome, крипто-бонусы"
+                icon="🎁"
+              />
+              <MenuItem
+                href="/transactions"
+                label="История"
+                subtitle="Депозиты и выводы"
+                icon="📜"
+              />
+              <MenuItem
+                href="/help"
+                label="Поддержка"
+                subtitle="FAQ и чат"
+                icon="💬"
+              />
+              <MenuItem
+                href="/terms"
+                label="Правила"
+                subtitle="Условия и политика"
+                icon="⚖️"
+                last
+              />
             </div>
           </div>
         </div>
@@ -227,6 +277,8 @@ function NavIcon({ src, alt }: { src?: string; alt: string }) {
   );
 }
 
+/* --- Контент bottom-sheet Вход --- */
+
 function LoginSheetContent() {
   return (
     <form className="space-y-3 text-xs">
@@ -274,6 +326,8 @@ function LoginSheetContent() {
     </form>
   );
 }
+
+/* --- Контент bottom-sheet Регистрация --- */
 
 function RegisterSheetContent() {
   return (
@@ -334,27 +388,39 @@ function RegisterSheetContent() {
   );
 }
 
+/* --- Плитка пункта меню --- */
+
 function MenuItem({
   href,
   label,
+  subtitle,
+  icon,
   last,
 }: {
   href: string;
   label: string;
+  subtitle: string;
+  icon: string;
   last?: boolean;
 }) {
   return (
     <Link
       href={href}
       className={`
-        flex items-center justify-between rounded-2xl border
-        border-slate-800/80 bg-slate-950/90 px-3 py-2 text-sm
+        flex flex-col gap-1 rounded-2xl border
+        border-slate-800/80 bg-slate-950/90 px-3 py-2.5
         hover:border-blue-500/70 hover:bg-blue-500/5
-        ${last ? "mt-2" : ""}
+        transition-all
+        ${last ? "col-span-2" : ""}
       `}
     >
-      <span>{label}</span>
-      <span className="text-[11px] text-slate-500">›</span>
+      <div className="flex items-center gap-2">
+        <div className="flex h-7 w-7 items-center justify-center rounded-xl bg-slate-900/90 text-lg">
+          <span>{icon}</span>
+        </div>
+        <span className="text-sm font-semibold text-slate-50">{label}</span>
+      </div>
+      <span className="text-[11px] text-slate-400">{subtitle}</span>
     </Link>
   );
 }

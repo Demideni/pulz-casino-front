@@ -2,8 +2,10 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 
 type Volatility = "low" | "medium" | "high";
+type Category = "slot" | "crash" | "live" | "original";
 
 type Game = {
   id: string;
@@ -11,18 +13,40 @@ type Game = {
   provider: string;
   rtp: number;
   volatility: Volatility;
-  category: "slot" | "crash" | "live";
+  category: Category;
   isPulzOriginal?: boolean;
+  isNew?: boolean;
+  isHot?: boolean;
 };
 
-const games: Game[] = [
+const GAMES: Game[] = [
   {
-    id: "robinzon",
+    id: "robinzon-island",
     name: "RobinzON Island",
     provider: "Pulz Originals",
     rtp: 97.2,
     volatility: "medium",
+    category: "original",
+    isPulzOriginal: true,
+    isHot: true,
+  },
+  {
+    id: "sweet-lava-bonanza",
+    name: "Sweet Lava Bonanza",
+    provider: "Pulz Originals",
+    rtp: 96.8,
+    volatility: "high",
     category: "slot",
+    isPulzOriginal: true,
+    isNew: true,
+  },
+  {
+    id: "pulz-crash",
+    name: "Pulz Crash X",
+    provider: "Pulz Originals",
+    rtp: 97.0,
+    volatility: "high",
+    category: "crash",
     isPulzOriginal: true,
   },
   {
@@ -59,6 +83,14 @@ const games: Game[] = [
   },
 ];
 
+const CATEGORY_FILTERS: { id: "all" | Category; label: string }[] = [
+  { id: "all", label: "Все игры" },
+  { id: "original", label: "Pulz Originals" },
+  { id: "slot", label: "Слоты" },
+  { id: "crash", label: "Crash" },
+  { id: "live", label: "Live" },
+];
+
 function formatVolatility(v: Volatility) {
   if (v === "low") return "Низкая";
   if (v === "medium") return "Средняя";
@@ -66,216 +98,170 @@ function formatVolatility(v: Volatility) {
 }
 
 export default function GamesPage() {
-  const [providerFilter, setProviderFilter] = useState<string>("all");
-  const [rtpFilter, setRtpFilter] = useState<string>("all");
-  const [categoryFilter, setCategoryFilter] = useState<string>("all");
-  const [openedGame, setOpenedGame] = useState<Game | null>(null);
+  const [category, setCategory] = useState<"all" | Category>("all");
+  const [search, setSearch] = useState("");
 
-  const providers = useMemo(
-    () => Array.from(new Set(games.map((g) => g.provider))),
-    []
-  );
-
-  const filtered = useMemo(() => {
-    return games.filter((g) => {
-      if (providerFilter !== "all" && g.provider !== providerFilter) {
-        return false;
-      }
-      if (categoryFilter !== "all" && g.category !== categoryFilter) {
-        return false;
-      }
-      if (rtpFilter === "97" && g.rtp < 97) return false;
-      if (rtpFilter === "96" && (g.rtp < 96 || g.rtp >= 97)) return false;
-      if (rtpFilter === "below96" && g.rtp >= 96) return false;
-      return true;
+  const filteredGames = useMemo(() => {
+    return GAMES.filter((g) => {
+      if (category !== "all" && g.category !== category) return false;
+      if (!search.trim()) return true;
+      const q = search.toLowerCase();
+      return (
+        g.name.toLowerCase().includes(q) ||
+        g.provider.toLowerCase().includes(q)
+      );
     });
-  }, [providerFilter, rtpFilter, categoryFilter]);
+  }, [category, search]);
 
   return (
-    <>
-      {/* Шапка страницы */}
-      <div className="space-y-6">
-        <header className="flex flex-wrap items-end justify-between gap-3">
-          <div>
-            <h1 className="text-xl font-semibold text-slate-50">
-              Каталог игр
-            </h1>
-            <p className="text-sm text-slate-400">
-              Фильтры по провайдеру, RTP, волатильности и категории. Пока игры
-              демо, позже подставим реальные API провайдеров.
-            </p>
+    <div className="px-4 pb-6 pt-4 space-y-4">
+      {/* Шапка */}
+      <header className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+        <div>
+          <h1 className="text-xl font-semibold text-slate-50">Игры Pulz</h1>
+          <p className="mt-1 text-xs text-slate-400">
+            Слоты, crash-игры и live-шоу в едином неоновом стиле. RobinzON и
+            другие Pulz Originals скоро будут доступны.
+          </p>
+        </div>
+        <div className="flex flex-wrap items-center gap-2 text-[11px] text-slate-400">
+          <span className="rounded-full border border-blue-500/50 bg-blue-500/10 px-2 py-1 text-[10px] uppercase tracking-[0.16em] text-blue-200">
+            DEMO
+          </span>
+          <span>Сейчас все игры в демо-режиме.</span>
+        </div>
+      </header>
+
+      {/* Фильтры */}
+      <section className="space-y-3">
+        {/* Категории */}
+        <div className="flex gap-2 overflow-x-auto pb-1 text-[11px]">
+          {CATEGORY_FILTERS.map((cat) => {
+            const active = category === cat.id;
+            return (
+              <button
+                key={cat.id}
+                type="button"
+                onClick={() => setCategory(cat.id as any)}
+                className={`
+                  whitespace-nowrap rounded-full border px-3 py-1.5 uppercase tracking-[0.18em]
+                  ${
+                    active
+                      ? "border-blue-500/80 bg-blue-600 text-slate-50 shadow-[0_0_20px_rgba(37,99,235,0.9)]"
+                      : "border-slate-700/80 bg-slate-900/80 text-slate-300 hover:border-blue-500/60 hover:bg-blue-500/5"
+                  }
+                `}
+              >
+                {cat.label}
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Поиск */}
+        <div className="flex items-center gap-2 rounded-2xl border border-slate-700/80 bg-slate-950/90 px-3 py-2 text-sm text-slate-100">
+          <span className="text-[13px] text-slate-500">🔍</span>
+          <input
+            type="text"
+            placeholder="Поиск игры или провайдера..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="w-full bg-transparent text-sm outline-none placeholder:text-slate-500"
+          />
+        </div>
+      </section>
+
+      {/* Сетка игр */}
+      <section>
+        {filteredGames.length === 0 ? (
+          <div className="rounded-3xl border border-slate-800/80 bg-slate-950/90 px-4 py-6 text-center text-sm text-slate-400">
+            Ничего не найдено. Попробуй изменить фильтры или поиск.
           </div>
-
-          {/* Фильтры */}
-          <div className="flex flex-wrap items-center gap-2 text-xs">
-            {/* Провайдер */}
-            <select
-              className="rounded-full border border-slate-700/80 bg-slate-900/70 px-3 py-2 text-xs"
-              value={providerFilter}
-              onChange={(e) => setProviderFilter(e.target.value)}
-            >
-              <option value="all">Все провайдеры</option>
-              {providers.map((p) => (
-                <option key={p} value={p}>
-                  {p}
-                </option>
-              ))}
-            </select>
-
-            {/* RTP */}
-            <select
-              className="rounded-full border border-slate-700/80 bg-slate-900/70 px-3 py-2 text-xs"
-              value={rtpFilter}
-              onChange={(e) => setRtpFilter(e.target.value)}
-            >
-              <option value="all">RTP: все</option>
-              <option value="97">97%+</option>
-              <option value="96">96–97%</option>
-              <option value="below96">Меньше 96%</option>
-            </select>
-
-            {/* Категория */}
-            <select
-              className="rounded-full border border-slate-700/80 bg-slate-900/70 px-3 py-2 text-xs"
-              value={categoryFilter}
-              onChange={(e) => setCategoryFilter(e.target.value)}
-            >
-              <option value="all">Все категории</option>
-              <option value="slot">Слоты</option>
-              <option value="crash">Crash / Aviator</option>
-              <option value="live">Live</option>
-            </select>
+        ) : (
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">
+            {filteredGames.map((game) => (
+              <GameCard key={game.id} game={game} />
+            ))}
           </div>
-        </header>
+        )}
+      </section>
+    </div>
+  );
+}
 
-        {/* Сетка игр */}
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {filtered.map((g) => (
-            <button
-              key={g.id}
-              type="button"
-              onClick={() => setOpenedGame(g)}
-              className="group flex flex-col overflow-hidden rounded-3xl border border-slate-800/80 bg-gradient-to-br from-slate-950 via-black to-[#1a0207] shadow-[0_0_25px_rgba(15,23,42,0.8)] hover:border-blue-500/80 hover:shadow-[0_0_45px_rgba(59,130,246,0.6)]"
-            >
-              <div className="relative h-40 overflow-hidden">
-                <div className="absolute inset-0 bg-gradient-to-tr from-blue-700/40 via-black to-slate-900" />
-                <div className="absolute inset-0 flex items-center justify-center text-sm font-semibold text-slate-100">
-                  {g.name}
-                </div>
-                <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(59,130,246,0.55),transparent_55%)] opacity-0 transition-opacity group-hover:opacity-100" />
-              </div>
+function GameCard({ game }: { game: Game }) {
+  const href = `/games/${game.id}`;
+  // Пока что используем один арт RobinzON как заглушку
+  const imageSrc = "/games/robinzon.png";
 
-              <div className="space-y-2 p-4 text-left">
-                <div className="flex items-center justify-between text-xs">
-                  <span className="font-semibold text-slate-50">
-                    {g.name}
-                  </span>
-                  <span className="rounded-full bg-slate-900/80 px-2 py-0.5 text-[10px] text-slate-400">
-                    {g.provider}
-                  </span>
-                </div>
+  return (
+    <Link
+      href={href}
+      className="
+        group relative flex flex-col overflow-hidden rounded-3xl
+        border border-slate-800/80 bg-slate-950/80
+        hover:border-blue-500/80 hover:bg-blue-500/5
+        hover:shadow-[0_0_30px_rgba(37,99,235,0.7)]
+        transition-all
+      "
+    >
+      {/* Картинка */}
+      <div className="relative h-24 w-full overflow-hidden rounded-2xl">
+        <Image
+          src={imageSrc}
+          alt={game.name}
+          fill
+          className="object-cover transition-transform duration-300 group-hover:scale-105"
+        />
 
-                <div className="flex items-center justify-between text-[11px] text-slate-400">
-                  <span>
-                    RTP{" "}
-                    <span className="text-slate-100">
-                      {g.rtp.toFixed(1)}%
-                    </span>
-                  </span>
-                  <span>Волатильность: {formatVolatility(g.volatility)}</span>
-                </div>
-
-                <div className="flex items-center justify-between text-[11px] text-slate-400">
-                  <span>
-                    Категория{" "}
-                    <span className="text-slate-100">
-                      {g.category === "slot"
-                        ? "Слот"
-                        : g.category === "crash"
-                        ? "Crash / Aviator"
-                        : "Live"}
-                    </span>
-                  </span>
-                  {g.isPulzOriginal && (
-                    <span className="rounded-full bg-blue-600/80 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-white">
-                      Pulz Originals
-                    </span>
-                  )}
-                </div>
-
-                <div className="pt-1">
-                  <span className="inline-flex items-center justify-center rounded-full bg-blue-600 px-3 py-1 text-[11px] font-semibold text-white shadow-[0_0_18px_rgba(59,130,246,0.65)] group-hover:bg-blue-500">
-                    Открыть демо
-                  </span>
-                </div>
-              </div>
-            </button>
-          ))}
+        {/* Теги вверху */}
+        <div className="absolute left-1.5 top-1.5 flex flex-wrap gap-1 text-[9px]">
+          {game.isPulzOriginal && (
+            <span className="rounded-full bg-blue-600/90 px-2 py-0.5 font-semibold text-slate-50 shadow-[0_0_10px_rgba(37,99,235,0.8)]">
+              Pulz
+            </span>
+          )}
+          {game.isNew && (
+            <span className="rounded-full bg-emerald-500/90 px-2 py-0.5 font-semibold text-slate-50">
+              NEW
+            </span>
+          )}
+          {game.isHot && (
+            <span className="rounded-full bg-pink-600/90 px-2 py-0.5 font-semibold text-slate-50">
+              HOT
+            </span>
+          )}
         </div>
       </div>
 
-      {/* Фуллскрин-модалка с игрой */}
-      {openedGame && (
-        <div className="fixed inset-0 z-40 bg-black/90 backdrop-blur-sm">
-          <div className="flex h-full flex-col md:mx-4 md:my-6 md:overflow-hidden md:rounded-3xl md:border md:border-slate-800 md:bg-gradient-to-b md:from-[#050509] md:via-black md:to-[#050509] md:shadow-[0_0_55px_rgba(0,0,0,1)]">
-            {/* Header модалки */}
-            <div className="flex items-center justify-between gap-3 border-b border-slate-800/80 bg-black/70 px-4 py-3">
-              <div>
-                <div className="flex items-center gap-2">
-                  <h2 className="text-sm font-semibold text-slate-50">
-                    {openedGame.name}
-                  </h2>
-                  {openedGame.isPulzOriginal && (
-                    <span className="rounded-full bg-blue-600/80 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-white">
-                      Pulz Originals
-                    </span>
-                  )}
-                </div>
-                <p className="text-[11px] text-slate-400">
-                  Провайдер: {openedGame.provider} · RTP{" "}
-                  {openedGame.rtp.toFixed(1)}% · Волатильность{" "}
-                  {formatVolatility(openedGame.volatility)}
-                </p>
-              </div>
-
-              <button
-                type="button"
-                onClick={() => setOpenedGame(null)}
-                className="rounded-full border border-slate-700 bg-slate-900/70 px-3 py-1 text-xs text-slate-200 hover:border-blue-500 hover:text-white"
-              >
-                Закрыть
-              </button>
-            </div>
-
-            {/* Контент: iframe на весь экран */}
-            <div className="flex-1 overflow-hidden bg-black">
-              {openedGame.id === "robinzon" ? (
-                <iframe
-                  src="https://robinson-game-1.onrender.com"
-                  title="RobinzON Island — Pulz Originals"
-                  className="h-full w-full border-0"
-                  loading="lazy"
-                  allowFullScreen
-                />
-              ) : (
-                <div className="flex h-full w-full items-center justify-center bg-[radial-gradient(circle_at_top,_rgba(59,130,246,0.15),transparent_60%)]">
-                  <p className="px-4 text-center text-sm text-slate-400">
-                    Интеграция с провайдером для этой игры в процессе.
-                    Сейчас доступен только макет.
-                  </p>
-                </div>
-              )}
-            </div>
-
-            {/* Низ модалки */}
-            <div className="border-t border-slate-800/80 bg-black/80 px-4 py-2 text-[10px] text-slate-500">
-              Это демо-режим без реальных денег и лицензии. Для реальных ставок
-              нужна полноценная платформа, лицензия и интеграция провайдеров
-              (SlotMatrix, Spribe, Pragmatic и др.).
-            </div>
-          </div>
+      {/* Текстовая часть */}
+      <div className="space-y-1 px-2.5 pb-2 pt-2">
+        <div className="text-[13px] font-semibold text-slate-50 line-clamp-1">
+          {game.name}
         </div>
-      )}
-    </>
+        <div className="text-[11px] text-slate-400 line-clamp-1">
+          {game.provider}
+        </div>
+
+        <div className="mt-1 flex items-center justify-between text-[10px] text-slate-400">
+          <span className="rounded-full bg-slate-900/80 px-2 py-0.5">
+            RTP: {game.rtp.toFixed(1)}%
+          </span>
+          <span className="rounded-full bg-slate-900/80 px-2 py-0.5">
+            Волатильность: {formatVolatility(game.volatility)}
+          </span>
+        </div>
+      </div>
+
+      {/* Невидимый градиент при наведении */}
+      <div
+        className="
+          pointer-events-none absolute inset-0
+          bg-gradient-to-t from-blue-500/20 via-transparent to-transparent
+          opacity-0 transition-opacity duration-300
+          group-hover:opacity-100
+        "
+      />
+    </Link>
   );
 }
