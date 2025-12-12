@@ -25,34 +25,36 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* 2. Два маленьких бонусных блока */}
-      <section className="px-4">
-        <div className="flex gap-3">
-          <div className="flex-1 rounded-3xl border border-blue-900/30 bg-gradient-to-br from-blue-900/30 to-blue-900/10 p-4">
-            <div className="mb-1 text-[11px] font-semibold uppercase tracking-[0.2em] text-blue-400">
-              ДО 100 FS
-            </div>
-            <div className="text-sm font-semibold text-slate-50">
-              Бонус без депозита
-            </div>
-            <div className="mt-1 text-[12px] text-slate-400">
-              Фриспины за регистрацию.
-            </div>
-          </div>
+{/* 2. Два промо-баннера под каруселью */}
+<section className="px-4">
+  <div className="flex gap-3">
 
-          <div className="flex-1 rounded-3xl border border-pink-900/30 bg-gradient-to-br from-pink-900/30 to-pink-900/10 p-4">
-            <div className="mb-1 text-[11px] font-semibold uppercase tracking-[0.2em] text-pink-400">
-              ЕЖЕДНЕВНО
-            </div>
-            <div className="text-sm font-semibold text-slate-50">
-              Турбо-спины
-            </div>
-            <div className="mt-1 text-[12px] text-slate-400">
-              Ежедневные миссии и гонки.
-            </div>
-          </div>
-        </div>
-      </section>
+    {/* Баннер: Join Pulz Free Spins */}
+    <div className="flex-1 overflow-hidden rounded-3xl border border-slate-800/80 bg-slate-950/80">
+      <Image
+        src="/banners/join-pulz-free-spins.png"
+        alt="Join Pulz — Free Spins"
+        width={640}
+        height={360}
+        className="h-full w-full object-cover"
+        priority
+      />
+    </div>
+
+    {/* Баннер: Feel the Pulse */}
+    <div className="flex-1 overflow-hidden rounded-3xl border border-slate-800/80 bg-slate-950/80">
+      <Image
+        src="/banners/hero-feel-the-pulse.png"
+        alt="Feel the Pulse. Win Bigger."
+        width={640}
+        height={360}
+        className="h-full w-full object-cover"
+      />
+    </div>
+
+  </div>
+</section>
+
 
       {/* 3. Популярные игры */}
       <section className="px-4">
@@ -68,11 +70,12 @@ export default function HomePage() {
         <div className="mt-4">
           <div className="flex gap-4 overflow-x-auto pb-2">
             {POPULAR_GAMES.map((game) => (
-              <Link
-                key={game.id}
-                href={`/game/${game.id}`}
-                className="group relative min-w-[80px] overflow-hidden rounded-xl bg-slate-900"
-              >
+<Link
+  key={game.id}
+  href={`/games/${game.id}`}
+  className="group relative w-[80px] overflow-hidden rounded-3xl bg-slate-900/80 border border-slate-800/80 hover:border-blue-500/70 hover:shadow-[0_0_35px_rgba(59,130,246,0.5)]"
+>
+
                 <Image
                   src={game.image}
                   alt={game.name}

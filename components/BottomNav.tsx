@@ -18,7 +18,7 @@ export default function BottomNav() {
   return (
     <>
       {/* снизу по центру, как системный таб-бар */}
-      <div className="pointer-events-none fixed inset-x-0 bottom-0 z-40 flex justify-center pb-1">
+      <div className="pointer-events-none fixed inset-x-0 bottom-0 z-40 flex justify-center pb-0">
         <nav
           className="
             pointer-events-auto
