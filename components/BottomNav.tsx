@@ -149,7 +149,7 @@ export default function BottomNav() {
           onClick={() => setOpenMenu(false)}
         >
             {/* Талисман, лежащий сверху */}
-  <div className="pointer-events-none absolute -top-16 left-1/2 -translate-x-1/2 w-full flex justify-center">
+  <div className="pointer-events-none absolute -top-4 left-1/2 -translate-x-1/2 w-full flex justify-center">
     <Image
       src="/mascot/pulz-mascot.png"
       alt="Pulz Mascot"
@@ -171,7 +171,7 @@ export default function BottomNav() {
       className="
         pulz-sheet
         relative w-full max-w-lg rounded-t-3xl border border-slate-800/80
-        bg-slate-950/95 px-4 pt-16 pb-6
+        bg-slate-950/95 px-4 pt-2 pb-6
       "
       onClick={(e) => e.stopPropagation()}
     ></div>
