@@ -148,38 +148,27 @@ export default function BottomNav() {
           "
           onClick={() => setOpenMenu(false)}
         >
-{/* Талисман над меню */}
-<div className="absolute left-1/2 -top-12 -translate-x-1/2 z-[60] pointer-events-none">
-  <Image
-    src="/mascot/pulz-mascot.png"
-    alt="Pulz Mascot"
-    width={420}
-    height={180}
-    className="drop-shadow-[0_0_25px_rgba(37,99,235,0.9)]"
-  />
-</div>
-
-{/* Меню */}
-<div
-  className="
-    pulz-sheet
-    relative w-full max-w-lg rounded-t-3xl border border-slate-800/80
-    bg-slate-950/95 px-4 pt-12 pb-6
-    z-[50]
-  "
-  onClick={(e) => e.stopPropagation()}
->
-
-
-        {/* Сам блок меню */}
-<div
+    <div
       className="
         pulz-sheet
         relative w-full max-w-lg rounded-t-3xl border border-slate-800/80
-        bg-slate-950/95 px-4 pt-2 pb-6
+        bg-slate-950/95 px-4 pt-4 pb-6
       "
       onClick={(e) => e.stopPropagation()}
-    ></div>
+    >
+      {/* Талисман в шапке меню */}
+      <div className="flex justify-center pt-2 pb-3 pointer-events-none">
+        <Image
+          src="/mascot/pulz-mascot.png"
+          alt="Pulz Mascot"
+          width={420}
+          height={180}
+          className="drop-shadow-[0_0_25px_rgba(37,99,235,0.9)]"
+        />
+      </div>
+
+
+
 
             {/* Заголовок меню */}
             <div className="mb-4 mt-2 flex items-center justify-between">
