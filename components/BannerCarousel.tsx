@@ -1,42 +1,63 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Image from "next/image";
-import { useState, useEffect } from "react";
 
-const banners = [
-  "/banners/banner1.png",
-  "/banners/banner2.png",
+const BANNERS = [
+  {
+    src: "/banners/join-pulz-free-spins.png",
+    alt: "Join Pulz — Free Spins",
+  },
+  {
+    src: "/banners/hero-feel-the-pulse.png",
+    alt: "Feel the Pulse. Win Bigger.",
+  },
 ];
 
 export default function BannerCarousel() {
   const [index, setIndex] = useState(0);
 
+  // авто-переключение каждые 6 сек
   useEffect(() => {
-    const timer = setInterval(() => {
-      setIndex((prev) => (prev + 1) % banners.length);
-    }, 4000);
-
-    return () => clearInterval(timer);
+    const id = setInterval(() => {
+      setIndex((prev) => (prev + 1) % BANNERS.length);
+    }, 6000);
+    return () => clearInterval(id);
   }, []);
 
-  return (
-    <div className="relative w-full overflow-hidden rounded-2xl border border-blue-900/30 shadow-[0_0_35px_rgba(59,130,246,0.25)]">
-      <Image
-        src={banners[index]}
-        width={1440}
-        height={540}
-        alt="Banner"
-        className="h-auto w-full object-cover"
-        priority
-      />
+  const goTo = (i: number) => setIndex(i);
 
-      <div className="absolute bottom-3 left-0 right-0 flex items-center justify-center gap-2">
-        {banners.map((_, i) => (
-          <span
+  return (
+    <div className="relative w-full overflow-hidden rounded-none">
+      {/* Лента баннеров */}
+      <div
+        className="flex transition-transform duration-500 ease-out"
+        style={{ transform: `translateX(-${index * 100}%)` }}
+      >
+        {BANNERS.map((banner, i) => (
+          <div key={i} className="w-full shrink-0">
+            <Image
+              src={banner.src}
+              alt={banner.alt}
+              width={1920}
+              height={720}
+              className="h-auto w-full object-cover"
+              priority={i === 0}
+            />
+          </div>
+        ))}
+      </div>
+
+      {/* Индикаторы снизу */}
+      <div className="absolute bottom-3 left-1/2 flex -translate-x-1/2 gap-2">
+        {BANNERS.map((_, i) => (
+          <button
             key={i}
-            className={`h-2 w-6 rounded-full transition-all ${
-              i === index ? "bg-blue-500" : "bg-slate-700/70"
-            }`}
+            onClick={() => goTo(i)}
+            className={`
+              h-1.5 w-6 rounded-full transition-all
+              ${i === index ? "bg-blue-500" : "bg-slate-600/70"}
+            `}
           />
         ))}
       </div>

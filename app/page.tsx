@@ -19,10 +19,8 @@ export default function HomePage() {
     <div className="space-y-4 pb-4">
 
       {/* 1. Большой верхний баннер-карусель */}
-      <section className="px-4">
-        <div className="-mx-4">
+      <section className="px-0">
           <BannerCarousel />
-        </div>
       </section>
 
 {/* 2. Два промо-баннера под каруселью */}
