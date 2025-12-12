@@ -30,7 +30,7 @@ export default function HomePage() {
     {/* Баннер: Join Pulz Free Spins */}
     <div className="flex-1 overflow-hidden rounded-3xl border border-slate-800/80 bg-slate-950/80">
       <Image
-        src="/banners/join-pulz-free-spins.png"
+        src="/banners/banner1.png"
         alt="Join Pulz — Free Spins"
         width={640}
         height={360}
@@ -42,7 +42,7 @@ export default function HomePage() {
     {/* Баннер: Feel the Pulse */}
     <div className="flex-1 overflow-hidden rounded-3xl border border-slate-800/80 bg-slate-950/80">
       <Image
-        src="/banners/hero-feel-the-pulse.png"
+        src="/banners/banner2.png"
         alt="Feel the Pulse. Win Bigger."
         width={640}
         height={360}
