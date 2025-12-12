@@ -161,8 +161,8 @@ export default function BottomNav() {
               <Image
                 src="/mascot/pulz-mascot.png"
                 alt="Pulz Mascot"
-                width={80}
-                height={80}
+                width={600}
+                height={200}
                 className="drop-shadow-[0_0_25px_rgba(37,99,235,0.9)]"
               />
             </div>
