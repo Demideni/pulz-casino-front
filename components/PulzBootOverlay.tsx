@@ -18,9 +18,9 @@ export default function PulzBootOverlay() {
       setShow(true);
       setPhase(1);
 
-      const t1 = setTimeout(() => setPhase(2), 600);
-      const t2 = setTimeout(() => setPhase(3), 950);
-      const t3 = setTimeout(() => setShow(false), 1500);
+      const t1 = setTimeout(() => setPhase(2), 1100);
+      const t2 = setTimeout(() => setPhase(3), 1600);
+      const t3 = setTimeout(() => setShow(false), 2000);
 
       return () => {
         clearTimeout(t1);
