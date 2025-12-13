@@ -3,23 +3,26 @@ import "./globals.css";
 import type { ReactNode } from "react";
 import Link from "next/link";
 import BottomNav from "@/components/BottomNav";
+import PulzBootOverlay from "@/components/PulzBootOverlay"; // ✅ добавили
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="ru" className="bg-black text-slate-100">
       <body className="bg-black text-slate-100 antialiased">
+        {/* ✅ фирменная загрузка (overlay) */}
+        <PulzBootOverlay />
+
         <div className="pulz-animated-bg flex min-h-screen flex-col">
           {/* TOP BAR */}
           <header className="sticky top-0 z-30 border-b border-slate-900/60 bg-black/90 backdrop-blur">
             <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3">
               {/* Логотип слева */}
               <Link href="/" className="flex items-center gap-2">
-<img
-  src="/pulz-logo-dark.PNG"
-  alt="Pulz Casino"
-  className="pulz-logo-animated h-24 w-auto"
-/>
-
+                <img
+                  src="/pulz-logo-dark.PNG"
+                  alt="Pulz Casino"
+                  className="pulz-logo-animated h-24 w-auto"
+                />
               </Link>
 
               {/* Кнопки Вход / Регистрация справа */}
@@ -60,9 +63,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
                 </p>
               </div>
               <div>
-                <div className="mb-1 font-semibold text-slate-200">
-                  Компания
-                </div>
+                <div className="mb-1 font-semibold text-slate-200">Компания</div>
                 <ul className="space-y-1">
                   <li>
                     <Link href="/about" className="hover:text-slate-100">
@@ -77,9 +78,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
                 </ul>
               </div>
               <div>
-                <div className="mb-1 font-semibold text-slate-200">
-                  Помощь
-                </div>
+                <div className="mb-1 font-semibold text-slate-200">Помощь</div>
                 <ul className="space-y-1">
                   <li>
                     <Link href="/status" className="hover:text-slate-100">
@@ -92,9 +91,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
                 </ul>
               </div>
               <div>
-                <div className="mb-1 font-semibold text-slate-200">
-                  Контакты
-                </div>
+                <div className="mb-1 font-semibold text-slate-200">Контакты</div>
                 <ul className="space-y-1">
                   <li>support@pulz.casino</li>
                   <li>Чат 24/7 (в разработке)</li>
