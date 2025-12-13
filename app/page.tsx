@@ -6,7 +6,7 @@ import BannerCarousel from "@/components/BannerCarousel";
 const POPULAR_GAMES = [
   {
     id: "robinzon-island",
-    name: "RobinZON Island",
+    name: "ROBINSON",
     provider: "Pulz Originals",
     rtp: "97.2%",
     tag: "EXCLUSIVE",
