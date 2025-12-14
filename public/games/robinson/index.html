@@ -776,7 +776,6 @@
     const multiplierEl=document.getElementById("multiplier");
     const statusEl=document.getElementById("status-text");
     const toastEl=document.getElementById("toast");
-    // Status helper: writes to top status text and/or toast (no recursion)
     function setStatus(msg){
       if(statusEl){ statusEl.textContent = msg; }
       if(toastEl){
@@ -786,6 +785,7 @@
         setStatus._t = setTimeout(()=>toastEl.classList.remove("show"), 1400);
       }
     }
+
     function safeOn(el,evt,fn){ if(el) el.addEventListener(evt,fn); }
 
 const startBtn=document.getElementById("start-round-btn");
