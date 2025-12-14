@@ -679,6 +679,7 @@
   
   <!-- Status toast -->
   <div id="toast" aria-live="polite"></div>
+  <div id="multiplier" style="display:none">1.00x</div>
 <!-- Нижний Pulz-бар -->
   <div id="bottom-ui">
     <div class="pulz-bar">
@@ -1113,7 +1114,7 @@ function resetRound(){
       skidActive=false;
       skidTime=0;
 
-      multiplierEl.textContent="1.00x";
+      if (multiplierEl) multiplierEl.textContent="1.00x";
 
       // стартовые бонусы чуть вокруг траектории
       const baseX=w*0.55;
@@ -1624,7 +1625,7 @@ if (!mainIsland || mainIsland.x < -300) {
 
         if(o.type==="bird"){
           multiplier=Math.max(multiplier*0.25,0.25);
-          multiplierEl.textContent=multiplier.toFixed(2)+"x";
+          if (multiplierEl) multiplierEl.textContent=multiplier.toFixed(2)+"x";
           setStatus("Птица! Множитель сильно снижен");
           gravity=Math.min(getGravity()*1.4,GRAVITY_BASE*3);
           robinson.vy+=60;
@@ -1636,7 +1637,7 @@ if (!mainIsland || mainIsland.x < -300) {
         if(o.type==="bonus"){
           const val=parseInt(o.kind.slice(1));
           multiplier*=val;
-          multiplierEl.textContent=multiplier.toFixed(2)+"x";
+          if (multiplierEl) multiplierEl.textContent=multiplier.toFixed(2)+"x";
           setStatus("Бонус "+o.kind+"!");
           robinson.vy=-200;
           gravity=Math.max(getGravity()*0.85,GRAVITY_BASE*0.7);
