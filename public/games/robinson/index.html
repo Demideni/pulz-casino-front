@@ -704,28 +704,7 @@
       <button class="pulz-pill" id="bet-plus" aria-label="Bet plus">+</button>
     </div>
   </div>
-<div class="bottom-value" id="balance-bottom">0.00</div>
-    </div>
-
-    <button id="start-round-btn">▶</button>
-
-    <div class="bottom-item" id="bottom-bet">
-      <div class="bottom-label">Bet</div>
-      <div class="bottom-value" id="bet-bottom">1.00</div>
-    </div>
-
-    <div class="bottom-item" id="speed-control">
-      <div class="bottom-label">Speed</div>
-      <div class="bottom-value" id="speed-value">Medium</div>
-    </div>
-
-    <div class="bottom-item" id="auto-toggle">
-      <div class="bottom-label">Auto</div>
-      <div class="bottom-value" id="auto-status">Off</div>
-    </div>
-  </div>
-
-  <div id="canvas-container">
+<div id="canvas-container">
     <canvas id="game"></canvas>
   </div>
 
@@ -1153,11 +1132,7 @@ function resetRound(){
         });
       });
     }
-else{
-        profileNameEl.textContent = "Гость";
-        if(profileChip) profileChip.classList.add("guest");
-      }
-    }
+
 
 
     function updateBalanceUI(){
@@ -1766,24 +1741,6 @@ if (!mainIsland || mainIsland.x < -300) {
         ctx.fillRect(0,0,w,h);
       }
     }
-      ctx.lineTo(w+40,h);
-      ctx.lineTo(-40,h);
-      ctx.closePath();
-      const g=ctx.createLinearGradient(0,baseY,0,h);
-      g.addColorStop(0,"rgba(0,180,220,.98)");
-      g.addColorStop(0.4,"rgba(0,120,200,.98)");
-      g.addColorStop(1,"rgba(0,50,110,1)");
-      ctx.fillStyle=g;
-      ctx.fill();
-
-      ctx.globalAlpha=0.18;
-      ctx.fillStyle="#ffffff";
-      for(let x=0;x<w;x+=90){
-        const yy=baseY-6+Math.sin(time*2+x*0.08)*3;
-        ctx.fillRect(x,yy,60,2);
-      }
-      ctx.restore();
-    }
 
     function drawSplash(){
       const h=canvas.height/window.devicePixelRatio;
@@ -2024,7 +1981,6 @@ if (!mainIsland || mainIsland.x < -300) {
       }
 
       drawBackground();
-      drawWaterRegion();
       drawObjects();
       drawHero();
       drawWinAboveHero();
