@@ -776,9 +776,15 @@
     const multiplierEl=document.getElementById("multiplier");
     const statusEl=document.getElementById("status-text");
     const toastEl=document.getElementById("toast");
+    // Status helper: writes to top status text and/or toast (no recursion)
     function setStatus(msg){
-      if(statusEl){ setStatus(msg); }
-      if(toastEl){ toastEl.textContent=msg; toastEl.classList.add("show"); clearTimeout(setStatus._t); setStatus._t=setTimeout(()=>toastEl.classList.remove("show"),1400); }
+      if(statusEl){ statusEl.textContent = msg; }
+      if(toastEl){
+        toastEl.textContent = msg;
+        toastEl.classList.add("show");
+        clearTimeout(setStatus._t);
+        setStatus._t = setTimeout(()=>toastEl.classList.remove("show"), 1400);
+      }
     }
     function safeOn(el,evt,fn){ if(el) el.addEventListener(evt,fn); }
 
