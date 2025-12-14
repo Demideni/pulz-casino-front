@@ -5,9 +5,7 @@
   <title>Робинзон — игра</title>
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <meta name="theme-color" content="#021824" />
-  <!-- Telegram WebApp SDK -->
-  <script src="https://telegram.org/js/telegram-web-app.js"></script>
-  <style>
+<style>
     *{box-sizing:border-box;margin:0;padding:0}
 
     html,body{
@@ -530,7 +528,133 @@
       font-size:13px;
     }
 
-  </style>
+  
+/* ===== PULZ OVERRIDES ===== */
+html,body{
+  background: radial-gradient(circle at 30% 10%, #0b1a2b 0%, #050509 55%, #050509 100%);
+}
+#bottom-ui{
+  position:absolute;left:0;right:0;bottom:0;
+  z-index:2000;
+  display:none;
+  align-items:center;
+  justify-content:center;
+  padding:10px 12px calc(10px + env(safe-area-inset-bottom,0px));
+  background:transparent;
+}
+#status-toast{
+  position:absolute;
+  left:12px; right:12px;
+  bottom:calc(110px + env(safe-area-inset-bottom,0px));
+  text-align:center;
+  font-size:13px;
+  color:rgba(230,245,255,.92);
+  text-shadow:0 2px 12px rgba(60,170,255,.25), 0 2px 8px rgba(0,0,0,.8);
+  opacity:.95;
+  pointer-events:none;
+}
+.pulz-bar{
+  width:min(620px, 100%);
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+  padding:10px 12px;
+  border-radius:22px;
+  background:linear-gradient(180deg, rgba(6,10,18,.92), rgba(2,3,8,.92));
+  border:1px solid rgba(80,160,255,.22);
+  box-shadow:
+    0 -18px 60px rgba(0,0,0,.85),
+    0 0 22px rgba(40,140,255,.18);
+  backdrop-filter: blur(16px);
+}
+.pulz-stat{
+  min-width:92px;
+  padding:10px 12px;
+  border-radius:16px;
+  background:rgba(7,12,22,.72);
+  border:1px solid rgba(90,170,255,.18);
+  box-shadow: 0 0 18px rgba(40,140,255,.10);
+  user-select:none;
+}
+.pulz-click{ cursor:pointer; }
+.pulz-label{
+  font-size:10px;
+  letter-spacing:.14em;
+  opacity:.75;
+  color:rgba(210,235,255,.95);
+}
+.pulz-value{
+  margin-top:2px;
+  font-size:18px;
+  font-weight:800;
+  color:#ffffff;
+  text-shadow:
+    0 0 10px rgba(70,170,255,.45),
+    0 0 22px rgba(70,170,255,.25);
+}
+.pulz-pill{
+  width:44px;height:44px;
+  border-radius:14px;
+  border:1px solid rgba(90,170,255,.22);
+  background:linear-gradient(180deg, rgba(10,18,35,.9), rgba(6,10,18,.9));
+  color:#eaf6ff;
+  font-size:22px;
+  font-weight:900;
+  cursor:pointer;
+  box-shadow:
+    0 0 18px rgba(40,140,255,.18),
+    inset 0 0 0 1px rgba(255,255,255,.05);
+  transition: transform .08s ease, filter .12s ease;
+}
+.pulz-pill:active{ transform: scale(.96); }
+.pulz-play{
+  width:88px;height:88px;
+  border-radius:999px;
+  border:2px solid rgba(120,200,255,.55);
+  background:
+    radial-gradient(circle at 30% 25%, rgba(255,255,255,.22), transparent 40%),
+    radial-gradient(circle at 50% 55%, rgba(60,170,255,.35), rgba(2,6,18,.95) 62%);
+  box-shadow:
+    0 0 28px rgba(60,170,255,.35),
+    0 0 60px rgba(60,170,255,.18),
+    inset 0 0 0 1px rgba(255,255,255,.06);
+  cursor:pointer;
+  position:relative;
+  outline:none;
+}
+.pulz-play::before{
+  content:"";
+  position:absolute;
+  left:52%;
+  top:50%;
+  transform:translate(-45%,-50%);
+  width:0;height:0;
+  border-top:14px solid transparent;
+  border-bottom:14px solid transparent;
+  border-left:22px solid rgba(235,250,255,.98);
+  filter: drop-shadow(0 0 10px rgba(60,170,255,.55));
+}
+.pulz-play::after{
+  content:"";
+  position:absolute; inset:-10px;
+  border-radius:999px;
+  border:2px solid rgba(60,170,255,.28);
+  box-shadow:0 0 26px rgba(60,170,255,.22);
+  animation:pulzPulse 1.35s ease-in-out infinite;
+}
+.pulz-play:disabled{ opacity:.45; cursor:default; }
+.pulz-play:disabled::after{ animation:none; opacity:0; }
+@keyframes pulzPulse{
+  0%{ transform:scale(1); opacity:.9; }
+  55%{ transform:scale(1.06); opacity:.25; }
+  100%{ transform:scale(1); opacity:.9; }
+}
+
+/* hide top/menu remnants if any */
+#ui, #menu-panel { display:none !important; }
+
+</style>
 </head>
 <body>
   <!-- Заставка (только картинка) -->
@@ -538,80 +662,40 @@
     <div id="splash-inner"></div>
   </div>
 
-  <!-- Верхний UI -->
-  <div id="ui">
-    <div id="ui-top">
-      <div id="logo">Робинзон</div>
-      <div id="auth-panel">
-        <button id="menu-btn" aria-label="Меню"></button>
-      </div>
-    </div>
-    <div id="stats">
-      <div>Множитель: <span id="multiplier">1.00x</span></div>
-    </div>
-    <div id="status-text">Сделай ставку, выбери скорость и нажми ▶</div>
-  </div>
-
-  <!-- Центрированное меню -->
-  <div id="menu-panel">
-    <div id="menu-inner">
-      <div id="menu-title">Меню</div>
-      <button id="menu-close">Закрыть</button>
-    </div>
-  </div>
-
-  <!-- Нижнее табло -->
+  <!-- Нижний бар Pulz -->
   <div id="bottom-ui">
-    <div class="bottom-item" id="bottom-balance">
-      <div class="bottom-label">Balance</div>
-      <div class="bottom-value" id="balance-bottom">0.00</div>
+    <div class="pulz-bar">
+      <div class="pulz-stat" id="bottom-balance">
+        <div class="pulz-label">BALANCE</div>
+        <div class="pulz-value" id="balance-bottom">0.00</div>
+      </div>
+
+      <button class="pulz-pill" id="bet-minus" aria-label="Decrease bet">−</button>
+
+      <div class="pulz-stat pulz-click" id="bottom-bet" role="button" aria-label="Bet">
+        <div class="pulz-label">BET</div>
+        <div class="pulz-value" id="bet-bottom">1.00</div>
+      </div>
+
+      <button class="pulz-play" id="start-round-btn" aria-label="Play"></button>
+
+      <div class="pulz-stat pulz-click" id="speed-control" role="button" aria-label="Speed">
+        <div class="pulz-label">SPEED</div>
+        <div class="pulz-value" id="speed-value">Medium</div>
+      </div>
+
+      <button class="pulz-pill" id="bet-plus" aria-label="Increase bet">+</button>
     </div>
 
-    <button id="start-round-btn">▶</button>
-
-    <div class="bottom-item" id="bottom-bet">
-      <div class="bottom-label">Bet</div>
-      <div class="bottom-value" id="bet-bottom">1.00</div>
-    </div>
-
-    <div class="bottom-item" id="speed-control">
-      <div class="bottom-label">Speed</div>
-      <div class="bottom-value" id="speed-value">Medium</div>
-    </div>
-
-    <div class="bottom-item" id="auto-toggle">
-      <div class="bottom-label">Auto</div>
-      <div class="bottom-value" id="auto-status">Off</div>
-    </div>
+    <div id="status-toast" aria-live="polite"></div>
   </div>
 
-  <div id="canvas-container">
+<div id="canvas-container">
     <canvas id="game"></canvas>
   </div>
 
-  <!-- Модальное окно профиля -->
-
-  <!-- Модальное окно депозита -->
-
-      <div id="deposit-error" class="modal-error"></div>
-
-      <button id="deposit-close-btn" class="modal-close-btn">
-        Закрыть
-      </button>
-    </div>
-  </div>
-
-  <!-- Модальное окно вывода -->
-
-      <div id="withdraw-error" class="modal-error"></div>
-
-      <button id="withdraw-close-btn" class="modal-close-btn">
-        Закрыть
-      </button>
-    </div>
-  </div>
-
   <!-- Модалка выбора ставки -->
+<!-- Модалка выбора ставки -->
   <div id="bet-modal">
     <div class="modal-backdrop"></div>
     <div class="modal-dialog">
@@ -653,25 +737,18 @@
     const canvas=document.getElementById("game");
     const ctx=canvas.getContext("2d");
 
-    const multiplierEl=document.getElementById("multiplier");
-    const statusEl=document.getElementById("status-text");
+    const multiplierEl=null;
+    const statusEl=document.getElementById("status-toast");
     const startBtn=document.getElementById("start-round-btn");
-    const balanceEl=document.getElementById("balance");
+    const balanceEl=null;
     const balanceBottomEl=document.getElementById("balance-bottom");
     const betBottomEl=document.getElementById("bet-bottom");
-const autoToggleEl=document.getElementById("auto-toggle");
-    const autoStatusEl=document.getElementById("auto-status");
 
     const speedControlEl=document.getElementById("speed-control");
     const speedValueEl=document.getElementById("speed-value");
 
     const splash=document.getElementById("splash");
     const bottomUi=document.getElementById("bottom-ui");
-
-    const menuBtn=document.getElementById("menu-btn");
-    const menuPanel=document.getElementById("menu-panel");
-    const menuInner=document.getElementById("menu-inner");
-const menuCloseBtn=document.getElementById("menu-close");
     // Bet modal
 
     // Bet modal
@@ -1016,22 +1093,32 @@ function resetRound(){
       if(balanceBottomEl) balanceBottomEl.textContent=userBalance.toFixed(2);
 }
 
-    // -------- МЕНЮ --------
+    // (menu removed)
+    // ---- BET +/- (Pulz bar) ----
+    const betMinusBtn = document.getElementById("bet-minus");
+    const betPlusBtn  = document.getElementById("bet-plus");
+    function clampBet(v){
+      const min=1, max=1000;
+      v = Number(v);
+      if(!Number.isFinite(v)) v=min;
+      return Math.max(min, Math.min(max, v));
+    }
+    if(betMinusBtn){
+      betMinusBtn.addEventListener("click", ()=>{
+        baseBet = clampBet(baseBet - 1);
+        if(betBottomEl) betBottomEl.textContent = baseBet.toFixed(2);
+      });
+    }
+    if(betPlusBtn){
+      betPlusBtn.addEventListener("click", ()=>{
+        baseBet = clampBet(baseBet + 1);
+        if(betBottomEl) betBottomEl.textContent = baseBet.toFixed(2);
+      });
+    }
 
-    // -------- МЕНЮ --------
-    menuBtn.addEventListener("click",e=>{
-      e.stopPropagation();
-      menuPanel.classList.add("open");
-    });
-    menuCloseBtn.addEventListener("click",()=>{
-      menuPanel.classList.remove("open");
-    });
-    menuPanel.addEventListener("click",(e)=>{
-      if(e.target === menuPanel){
-        menuPanel.classList.remove("open");
-      }
-    });
-// ---- BET MODAL ----
+
+
+    // ---- BET MODAL ----
     function openBetModal(){
       let closest = betOptions[0];
       let minDiff = Infinity;
@@ -1090,13 +1177,9 @@ function resetRound(){
     speedControlEl.addEventListener("click",cycleSpeed);
     updateSpeedUI();
 
-    // ---- AUTO PLAY ----
-    autoToggleEl.addEventListener("click",()=>{
-      autoPlay=!autoPlay;
-      autoStatusEl.textContent=autoPlay?"On":"Off";
-    });
+    // (auto toggle UI removed; keep autoplay logic internal)
 
-    // ---- BIG WIN POPUP ----
+// ---- BIG WIN POPUP ----
     function showBigWin(winAmount,mult){
       let title="BIG WIN";
       if(mult>=500) title="EPIC WIN";
@@ -1399,7 +1482,7 @@ if (state === "skid") {
     if (t >= 1) {
         state = "lost";
         heroVisible = false;
-        createSplash(robinson.x, canvas.height * WATER_LINE_REL);
+        // water removed
         finishRound("lost");
         playSplashSound();
         vibrate(180);
@@ -1421,7 +1504,7 @@ if (state === "skid") {
         if(t>=1){
           state="lost";
           heroVisible=false;
-          createSplash(robinson.x,waterY);
+          // water removed
           playSplashSound();
           vibrate(220);
           finishRound("lost");
@@ -1577,17 +1660,11 @@ if (!mainIsland || mainIsland.x < -300) {
       }
 
 
-      // ---- WATER COLLISION ----
-      // Всегда топим Робинзона при касании воды
-      if (robinson.y + robinson.height / 2 >= waterY) {
+      // ---- FALL OUT (no water) ----
+      if (robinson.y - robinson.height / 2 > h + 80) {
         state = "lost";
-        statusEl.textContent = "Робинзон упал в воду";
-        startBtn.disabled = false;
-
-        if (!hasSplashed) {
-          createSplash(robinson.x, waterY);
-          hasSplashed = true;
-        }
+        statusEl && (statusEl.textContent = "Робинзон сорвался вниз");
+        startBtn && (startBtn.disabled = false);
 
         heroVisible = false;
         finishRound("lost");
@@ -1597,6 +1674,7 @@ if (!mainIsland || mainIsland.x < -300) {
         stopWindSound();
         return;
       }
+
 
 
       cameraY=-(robinson.y-h*0.55)*0.11;
@@ -1623,22 +1701,6 @@ if (!mainIsland || mainIsland.x < -300) {
         ctx.fillRect(0,0,w,h);
       }
     }
-
-    function drawWaterRegion(){
-      const w=canvas.width/window.devicePixelRatio;
-      const h=canvas.height/window.devicePixelRatio;
-      const worldWaterY=h*WATER_LINE_REL;
-      const viewOffsetY=-h*VIEW_OFFSET_REL;
-      const baseY=worldWaterY+cameraY+viewOffsetY;
-      const waveAmp=6,waveLen=80;
-
-      ctx.save();
-      ctx.beginPath();
-      ctx.moveTo(-40,baseY+Math.sin(time*2)*2);
-      for(let x=-40;x<=w+40;x+=20){
-        const y=baseY+Math.sin((x/waveLen)+time*2)*waveAmp;
-        ctx.lineTo(x,y);
-      }
       ctx.lineTo(w+40,h);
       ctx.lineTo(-40,h);
       ctx.closePath();
@@ -1897,7 +1959,6 @@ if (!mainIsland || mainIsland.x < -300) {
       }
 
       drawBackground();
-      drawWaterRegion();
       drawObjects();
       drawHero();
       drawWinAboveHero();
