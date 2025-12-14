@@ -4,6 +4,10 @@ import { useEffect } from "react";
 
 export default function RobinsonPage() {
   useEffect(() => {
+    // Fullscreen game page: prevent the site from scrolling under the iframe
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+
     // Мост казино → игра
     (window as any).PULZ_GAME = {
       getBalance: async () => {
@@ -34,13 +38,18 @@ export default function RobinsonPage() {
         return (await r.json()) as { balance: number; win: number };
       },
     };
+
+    return () => {
+      document.body.style.overflow = prevOverflow;
+    };
   }, []);
 
   return (
-    <div className="min-h-[100dvh] bg-[#050509]">
+    // Cover header/footer/bottom nav to make the game truly full-screen on mobile
+    <div className="fixed inset-0 z-[9999] bg-[#050509] overflow-hidden">
       <iframe
         src="/games/robinson/index.html"
-        className="h-[100dvh] w-full border-0"
+        className="h-full w-full border-0 block"
         allow="autoplay; clipboard-write"
       />
     </div>
