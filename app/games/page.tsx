@@ -30,7 +30,17 @@ const GAMES: Game[] = [
     isPulzOriginal: true,
     isHot: true,
   },
-  
+  {
+  id: "lego-candy-slots",
+  name: "Lego Candy Slots",
+  provider: "Pulz Originals",
+  rtp: 96.5,
+  volatility: "high",
+  category: "slot",
+  isPulzOriginal: true,
+  isNew: true,
+  isHot: true,
+},
   {
     id: "sweet-lava-bonanza",
     name: "Sweet Lava Bonanza",
