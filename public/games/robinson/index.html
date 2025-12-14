@@ -777,15 +777,14 @@
     const statusEl=document.getElementById("status-text");
     const toastEl=document.getElementById("toast");
     function setStatus(msg){
-      if(statusEl){ statusEl.textContent = msg; }
+      if(statusEl){ statusEl.textContent = msg || ""; }
       if(toastEl){
-        toastEl.textContent = msg;
+        toastEl.textContent = msg || "";
         toastEl.classList.add("show");
         clearTimeout(setStatus._t);
         setStatus._t = setTimeout(()=>toastEl.classList.remove("show"), 1400);
       }
     }
-
     function safeOn(el,evt,fn){ if(el) el.addEventListener(evt,fn); }
 
 const startBtn=document.getElementById("start-round-btn");
@@ -1241,9 +1240,9 @@ else{
     updateSpeedUI();
 
     // ---- AUTO PLAY ----
-    autoToggleEl.addEventListener("click",()=>{
+    safeOn(autoToggleEl,"click",()=>{
       autoPlay=!autoPlay;
-      autoStatusEl.textContent=autoPlay?"On":"Off";
+      if(autoStatusEl) autoStatusEl.textContent = autoPlay ? "On" : "Off";
     });
 
     // ---- BIG WIN POPUP ----
