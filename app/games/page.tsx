@@ -30,6 +30,7 @@ const GAMES: Game[] = [
     isPulzOriginal: true,
     isHot: true,
   },
+  
   {
     id: "sweet-lava-bonanza",
     name: "Sweet Lava Bonanza",
