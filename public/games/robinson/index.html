@@ -5,7 +5,9 @@
   <title>Робинзон — игра</title>
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <meta name="theme-color" content="#021824" />
-<style>
+  <!-- Telegram WebApp SDK -->
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <style>
     *{box-sizing:border-box;margin:0;padding:0}
 
     html,body{
@@ -529,10 +531,29 @@
     }
 
   
-/* ===== PULZ OVERRIDES ===== */
-html,body{
-  background: radial-gradient(circle at 30% 10%, #0b1a2b 0%, #050509 55%, #050509 100%);
+/* ===== PULZ CLEAN UI OVERRIDES ===== */
+#ui, #menu-panel { display:none !important; }
+#toast{
+  position:absolute;
+  left:50%;
+  bottom:140px;
+  transform:translateX(-50%);
+  max-width:min(520px, calc(100% - 24px));
+  padding:10px 14px;
+  border-radius:14px;
+  background:rgba(2,4,12,.72);
+  border:1px solid rgba(90,170,255,.18);
+  box-shadow:0 0 24px rgba(60,170,255,.15);
+  color:#eaf6ff;
+  font-weight:700;
+  letter-spacing:.02em;
+  text-align:center;
+  opacity:0;
+  pointer-events:none;
+  transition:opacity .18s ease, transform .18s ease;
 }
+#toast.show{ opacity:1; transform:translateX(-50%) translateY(-6px); }
+
 #bottom-ui{
   position:absolute;left:0;right:0;bottom:0;
   z-index:2000;
@@ -542,19 +563,9 @@ html,body{
   padding:10px 12px calc(10px + env(safe-area-inset-bottom,0px));
   background:transparent;
 }
-#status-toast{
-  position:absolute;
-  left:12px; right:12px;
-  bottom:calc(110px + env(safe-area-inset-bottom,0px));
-  text-align:center;
-  font-size:13px;
-  color:rgba(230,245,255,.92);
-  text-shadow:0 2px 12px rgba(60,170,255,.25), 0 2px 8px rgba(0,0,0,.8);
-  opacity:.95;
-  pointer-events:none;
-}
+
 .pulz-bar{
-  width:min(620px, 100%);
+  width:min(560px, 100%);
   display:flex;
   align-items:center;
   justify-content:space-between;
@@ -568,6 +579,7 @@ html,body{
     0 0 22px rgba(40,140,255,.18);
   backdrop-filter: blur(16px);
 }
+
 .pulz-stat{
   min-width:92px;
   padding:10px 12px;
@@ -578,21 +590,24 @@ html,body{
   user-select:none;
 }
 .pulz-click{ cursor:pointer; }
+
 .pulz-label{
   font-size:10px;
   letter-spacing:.14em;
   opacity:.75;
   color:rgba(210,235,255,.95);
 }
+
 .pulz-value{
   margin-top:2px;
   font-size:18px;
-  font-weight:800;
+  font-weight:900;
   color:#ffffff;
   text-shadow:
     0 0 10px rgba(70,170,255,.45),
     0 0 22px rgba(70,170,255,.25);
 }
+
 .pulz-pill{
   width:44px;height:44px;
   border-radius:14px;
@@ -608,6 +623,7 @@ html,body{
   transition: transform .08s ease, filter .12s ease;
 }
 .pulz-pill:active{ transform: scale(.96); }
+
 .pulz-play{
   width:88px;height:88px;
   border-radius:999px;
@@ -645,14 +661,12 @@ html,body{
 }
 .pulz-play:disabled{ opacity:.45; cursor:default; }
 .pulz-play:disabled::after{ animation:none; opacity:0; }
+
 @keyframes pulzPulse{
   0%{ transform:scale(1); opacity:.9; }
   55%{ transform:scale(1.06); opacity:.25; }
   100%{ transform:scale(1); opacity:.9; }
 }
-
-/* hide top/menu remnants if any */
-#ui, #menu-panel { display:none !important; }
 
 </style>
 </head>
@@ -662,40 +676,62 @@ html,body{
     <div id="splash-inner"></div>
   </div>
 
-  <!-- Нижний бар Pulz -->
+  
+  <!-- Status toast -->
+  <div id="toast" aria-live="polite"></div>
+<!-- Нижний Pulz-бар -->
   <div id="bottom-ui">
     <div class="pulz-bar">
-      <div class="pulz-stat" id="bottom-balance">
+      <div class="pulz-stat">
         <div class="pulz-label">BALANCE</div>
         <div class="pulz-value" id="balance-bottom">0.00</div>
       </div>
 
-      <button class="pulz-pill" id="bet-minus" aria-label="Decrease bet">−</button>
+      <button class="pulz-pill" id="bet-minus" aria-label="Bet minus">−</button>
 
-      <div class="pulz-stat pulz-click" id="bottom-bet" role="button" aria-label="Bet">
+      <div class="pulz-stat pulz-click" id="bottom-bet">
         <div class="pulz-label">BET</div>
         <div class="pulz-value" id="bet-bottom">1.00</div>
       </div>
 
       <button class="pulz-play" id="start-round-btn" aria-label="Play"></button>
 
-      <div class="pulz-stat pulz-click" id="speed-control" role="button" aria-label="Speed">
+      <div class="pulz-stat pulz-click" id="speed-control">
         <div class="pulz-label">SPEED</div>
         <div class="pulz-value" id="speed-value">Medium</div>
       </div>
 
-      <button class="pulz-pill" id="bet-plus" aria-label="Increase bet">+</button>
+      <button class="pulz-pill" id="bet-plus" aria-label="Bet plus">+</button>
+    </div>
+  </div>
+<div class="bottom-value" id="balance-bottom">0.00</div>
     </div>
 
-    <div id="status-toast" aria-live="polite"></div>
+    <button id="start-round-btn">▶</button>
+
+    <div class="bottom-item" id="bottom-bet">
+      <div class="bottom-label">Bet</div>
+      <div class="bottom-value" id="bet-bottom">1.00</div>
+    </div>
+
+    <div class="bottom-item" id="speed-control">
+      <div class="bottom-label">Speed</div>
+      <div class="bottom-value" id="speed-value">Medium</div>
+    </div>
+
+    <div class="bottom-item" id="auto-toggle">
+      <div class="bottom-label">Auto</div>
+      <div class="bottom-value" id="auto-status">Off</div>
+    </div>
   </div>
 
-<div id="canvas-container">
+  <div id="canvas-container">
     <canvas id="game"></canvas>
   </div>
 
+  <!-- Модальное окно профиля -->
+
   <!-- Модалка выбора ставки -->
-<!-- Модалка выбора ставки -->
   <div id="bet-modal">
     <div class="modal-backdrop"></div>
     <div class="modal-dialog">
@@ -737,18 +773,32 @@ html,body{
     const canvas=document.getElementById("game");
     const ctx=canvas.getContext("2d");
 
-    const multiplierEl=null;
-    const statusEl=document.getElementById("status-toast");
-    const startBtn=document.getElementById("start-round-btn");
-    const balanceEl=null;
+    const multiplierEl=document.getElementById("multiplier");
+    const statusEl=document.getElementById("status-text");
+    const toastEl=document.getElementById("toast");
+    function setStatus(msg){
+      if(statusEl){ setStatus(msg); }
+      if(toastEl){ toastEl.textContent=msg; toastEl.classList.add("show"); clearTimeout(setStatus._t); setStatus._t=setTimeout(()=>toastEl.classList.remove("show"),1400); }
+    }
+    function safeOn(el,evt,fn){ if(el) el.addEventListener(evt,fn); }
+
+const startBtn=document.getElementById("start-round-btn");
+    const balanceEl=document.getElementById("balance");
     const balanceBottomEl=document.getElementById("balance-bottom");
     const betBottomEl=document.getElementById("bet-bottom");
+const autoToggleEl=document.getElementById("auto-toggle");
+    const autoStatusEl=document.getElementById("auto-status");
 
     const speedControlEl=document.getElementById("speed-control");
     const speedValueEl=document.getElementById("speed-value");
 
     const splash=document.getElementById("splash");
     const bottomUi=document.getElementById("bottom-ui");
+
+    const menuBtn=document.getElementById("menu-btn");
+    const menuPanel=document.getElementById("menu-panel");
+    const menuInner=document.getElementById("menu-inner");
+const menuCloseBtn=document.getElementById("menu-close");
     // Bet modal
 
     // Bet modal
@@ -815,7 +865,7 @@ html,body{
         assets[key]=await loadImage(src).catch(()=>null);
       }
       allLoaded=true;
-      statusEl.textContent="Готово к игре";
+      setStatus("Готово к игре");
       await initFromCasino();
     })();
 
@@ -924,6 +974,19 @@ html,body{
     let lastTs;
     let multiplier;
     let baseBet=1;
+    const betMinusBtn=document.getElementById("bet-minus");
+    const betPlusBtn=document.getElementById("bet-plus");
+    function clampBet(v){ const min=1, max=1000; return Math.max(min, Math.min(max, v)); }
+    safeOn(betMinusBtn,"click",()=>{
+      baseBet=clampBet(baseBet-1);
+      if(betBottomEl) betBottomEl.textContent=baseBet.toFixed(2);
+      if(typeof updateMaxWinUI==="function") updateMaxWinUI();
+    });
+    safeOn(betPlusBtn,"click",()=>{
+      baseBet=clampBet(baseBet+1);
+      if(betBottomEl) betBottomEl.textContent=baseBet.toFixed(2);
+      if(typeof updateMaxWinUI==="function") updateMaxWinUI();
+    });
     let userBalance=100;
 
     
@@ -940,11 +1003,11 @@ async function initFromCasino(){
     const b = await PulzBridge.getBalance();
     userBalance = Number(b ?? 0);
     if(!Number.isFinite(userBalance)) userBalance = 0;
-    statusEl.textContent = "";
+    setStatus("");
   }catch(e){
     console.warn("Casino bridge not available, demo mode:", e);
     userBalance = 100;
-    statusEl.textContent = "Демо-режим";
+    setStatus("Демо-режим");
   }
   betBottomEl.textContent=baseBet.toFixed(2);
   updateBalanceUI();
@@ -1085,7 +1148,11 @@ function resetRound(){
         });
       });
     }
-
+else{
+        profileNameEl.textContent = "Гость";
+        if(profileChip) profileChip.classList.add("guest");
+      }
+    }
 
 
     function updateBalanceUI(){
@@ -1093,32 +1160,22 @@ function resetRound(){
       if(balanceBottomEl) balanceBottomEl.textContent=userBalance.toFixed(2);
 }
 
-    // (menu removed)
-    // ---- BET +/- (Pulz bar) ----
-    const betMinusBtn = document.getElementById("bet-minus");
-    const betPlusBtn  = document.getElementById("bet-plus");
-    function clampBet(v){
-      const min=1, max=1000;
-      v = Number(v);
-      if(!Number.isFinite(v)) v=min;
-      return Math.max(min, Math.min(max, v));
-    }
-    if(betMinusBtn){
-      betMinusBtn.addEventListener("click", ()=>{
-        baseBet = clampBet(baseBet - 1);
-        if(betBottomEl) betBottomEl.textContent = baseBet.toFixed(2);
-      });
-    }
-    if(betPlusBtn){
-      betPlusBtn.addEventListener("click", ()=>{
-        baseBet = clampBet(baseBet + 1);
-        if(betBottomEl) betBottomEl.textContent = baseBet.toFixed(2);
-      });
-    }
+    // -------- МЕНЮ --------
 
-
-
-    // ---- BET MODAL ----
+    // -------- МЕНЮ --------
+    safeOn(menuBtn, "click",e=>{
+      e.stopPropagation();
+      menuPanel.classList.add("open");
+    });
+    safeOn(menuCloseBtn, "click",()=>{
+      menuPanel.classList.remove("open");
+    });
+    safeOn(menuPanel, "click",(e)=>{
+      if(e.target === menuPanel){
+        menuPanel.classList.remove("open");
+      }
+    });
+// ---- BET MODAL ----
     function openBetModal(){
       let closest = betOptions[0];
       let minDiff = Infinity;
@@ -1143,7 +1200,7 @@ function resetRound(){
         opt.classList.add("selected");
       });
     });
-    betSaveBtn.addEventListener("click",()=>{
+    safeOn(betSaveBtn, "click",()=>{
       const selected = betOptions.find(o=>o.classList.contains("selected"));
       if(selected){
         const v = Number(selected.dataset.value);
@@ -1154,15 +1211,15 @@ function resetRound(){
       }
       closeBetModal();
     });
-    betCloseBtn.addEventListener("click",()=>{
+    safeOn(betCloseBtn, "click",()=>{
       closeBetModal();
     });
-    betModal.addEventListener("click",(e)=>{
+    safeOn(betModal, "click",(e)=>{
       if(e.target === betModal){
         closeBetModal();
       }
     });
-    document.getElementById("bottom-bet").addEventListener("click",openBetModal);
+    { const _bb=document.getElementById("bottom-bet"); safeOn(_bb, "click",openBetModal); }
 
     // ---- SPEED CONTROL ----
 
@@ -1172,14 +1229,18 @@ function resetRound(){
       if(speedIndex>=SPEED_MODES.length) speedIndex=0;
       updateSpeedUI();
       gravity=getGravity();
-      statusEl.textContent=`Скорость: ${SPEED_MODES[speedIndex].name}`;
+      setStatus(`Скорость: ${SPEED_MODES[speedIndex].name}`);
     }
-    speedControlEl.addEventListener("click",cycleSpeed);
+    safeOn(speedControlEl, "click",cycleSpeed);
     updateSpeedUI();
 
-    // (auto toggle UI removed; keep autoplay logic internal)
+    // ---- AUTO PLAY ----
+    autoToggleEl.addEventListener("click",()=>{
+      autoPlay=!autoPlay;
+      autoStatusEl.textContent=autoPlay?"On":"Off";
+    });
 
-// ---- BIG WIN POPUP ----
+    // ---- BIG WIN POPUP ----
     function showBigWin(winAmount,mult){
       let title="BIG WIN";
       if(mult>=500) title="EPIC WIN";
@@ -1196,8 +1257,8 @@ function resetRound(){
     function hideBigWin(){
       bigwinOverlay.classList.remove("show");
     }
-    bigwinCloseBtn.addEventListener("click",hideBigWin);
-    bigwinOverlay.addEventListener("click",(e)=>{
+    safeOn(bigwinCloseBtn, "click",hideBigWin);
+    safeOn(bigwinOverlay, "click",(e)=>{
       if(e.target===bigwinOverlay) hideBigWin();
     });
 
@@ -1207,7 +1268,7 @@ function resetRound(){
 
   try {
     if (!PulzBridge) {
-      statusEl.textContent = "Нет связи с казино";
+      setStatus("Нет связи с казино");
       return;
     }
 
@@ -1226,16 +1287,16 @@ function resetRound(){
 
     resetRound();
     state = "flying";
-    statusEl.textContent = "Робинзон в полёте...";
+    setStatus("Робинзон в полёте...");
     startBtn.disabled = true;
 
   } catch (err) {
     console.error("startRound error:", err);
-    statusEl.textContent = "Ставка не принята";
+    setStatus("Ставка не принята");
   }
 }
 
-    startBtn.addEventListener("click",()=>{
+    safeOn(startBtn, "click",()=>{
       if(state==="idle"||state==="won"||state==="lost"){
         startRound();
       }
@@ -1482,7 +1543,7 @@ if (state === "skid") {
     if (t >= 1) {
         state = "lost";
         heroVisible = false;
-        // water removed
+        createSplash(robinson.x, canvas.height * WATER_LINE_REL);
         finishRound("lost");
         playSplashSound();
         vibrate(180);
@@ -1504,7 +1565,7 @@ if (state === "skid") {
         if(t>=1){
           state="lost";
           heroVisible=false;
-          // water removed
+          createSplash(robinson.x,waterY);
           playSplashSound();
           vibrate(220);
           finishRound("lost");
@@ -1584,7 +1645,7 @@ if (!mainIsland || mainIsland.x < -300) {
         if(o.type==="bird"){
           multiplier=Math.max(multiplier*0.25,0.25);
           multiplierEl.textContent=multiplier.toFixed(2)+"x";
-          statusEl.textContent="Птица! Множитель сильно снижен";
+          setStatus("Птица! Множитель сильно снижен");
           gravity=Math.min(getGravity()*1.4,GRAVITY_BASE*3);
           robinson.vy+=60;
           o._dead=true;
@@ -1596,7 +1657,7 @@ if (!mainIsland || mainIsland.x < -300) {
           const val=parseInt(o.kind.slice(1));
           multiplier*=val;
           multiplierEl.textContent=multiplier.toFixed(2)+"x";
-          statusEl.textContent="Бонус "+o.kind+"!";
+          setStatus("Бонус "+o.kind+"!");
           robinson.vy=-200;
           gravity=Math.max(getGravity()*0.85,GRAVITY_BASE*0.7);
           bonusPulse=0.25;
@@ -1629,7 +1690,7 @@ if (!mainIsland || mainIsland.x < -300) {
           if (r < 0.3) {
             // Win
             state = "won";
-            statusEl.textContent = "Победа! Робинзон приземлился на остров";
+            setStatus("Победа! Робинзон приземлился на остров");
             winAnimTime = 0;
             finishRound("won");
             playWinSound();
@@ -1643,14 +1704,14 @@ if (!mainIsland || mainIsland.x < -300) {
             skidDuration = 1.0;
             skidStartY = robinson.y - 20;
             skidEndY = waterY - robinson.height * 0.3;
-            statusEl.textContent = "Почти приземлился... и соскользнул!";
+            setStatus("Почти приземлился... и соскользнул!");
             playWhooshSound();
             vibrate([60,60,120]);
           } else if (r < 0.85) {
             // NEAR MISS — рядом с островом
             nearMissActive = true;
             nearMissTime = 0;
-            statusEl.textContent = "Почти попал! Совсем рядом с островом";
+            setStatus("Почти попал! Совсем рядом с островом");
             playWhooshSound();
             vibrate(60);
           } else {
@@ -1663,8 +1724,8 @@ if (!mainIsland || mainIsland.x < -300) {
       // ---- FALL OUT (no water) ----
       if (robinson.y - robinson.height / 2 > h + 80) {
         state = "lost";
-        statusEl && (statusEl.textContent = "Робинзон сорвался вниз");
-        startBtn && (startBtn.disabled = false);
+        setStatus("Робинзон сорвался вниз");
+        if(startBtn) startBtn.disabled = false;
 
         heroVisible = false;
         finishRound("lost");
@@ -1674,7 +1735,6 @@ if (!mainIsland || mainIsland.x < -300) {
         stopWindSound();
         return;
       }
-
 
 
       cameraY=-(robinson.y-h*0.55)*0.11;
@@ -1959,6 +2019,7 @@ if (!mainIsland || mainIsland.x < -300) {
       }
 
       drawBackground();
+      drawWaterRegion();
       drawObjects();
       drawHero();
       drawWinAboveHero();
