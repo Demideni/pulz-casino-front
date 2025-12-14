@@ -21,7 +21,7 @@ type Game = {
 
 const GAMES: Game[] = [
   {
-    id: "robinzon-island",
+    id: "robinson",
     name: "ROBINSON",
     provider: "Pulz Originals",
     rtp: 97.2,

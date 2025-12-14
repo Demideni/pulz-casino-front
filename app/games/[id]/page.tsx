@@ -1,5 +1,6 @@
 // app/games/[id]/page.tsx
 import Link from "next/link";
+import { redirect } from "next/navigation";
 
 type Props = {
   params: { id: string };
@@ -22,6 +23,12 @@ const GAME_URLS: Record<string, string> = {
 export default function GameDetailsPage({ params }: Props) {
   const rawId = params.id;
   const id = rawId.toLowerCase();
+
+  // RobinzON теперь живёт внутри казино: /games/robinson
+  if (id === "robinzon-island" || id === "robinson" || id === "robinzon") {
+    redirect("/games/robinson");
+  }
+
 
   const name = NAMES[id] ?? "Игра Pulz";
   const gameUrl = GAME_URLS[id];
