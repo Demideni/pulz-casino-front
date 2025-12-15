@@ -241,39 +241,43 @@
   }
 
   // inner bg inside the board area (under symbols)
-  function drawInnerSlotBG(){
-    const bw = COLS*cell + (COLS-1)*pad;
-    const bh = ROWS*cell + (ROWS-1)*pad;
-    const x = leftX;
-    const y = topY;
+function drawInnerSlotBG(){
+  const bw = COLS*cell + (COLS-1)*pad;
+  const bh = ROWS*cell + (ROWS-1)*pad;
+  const x = leftX;
+  const y = topY;
 
-    ctx.save();
+  ctx.save();
 
-    if(INNER_BG_IMG){
-      ctx.globalAlpha = 0.98;
-      ctx.drawImage(INNER_BG_IMG, x, y, bw, bh);
-    } else {
-      // fallback: subtle glossy dark panel (safe)
-      const g = ctx.createLinearGradient(0, y, 0, y + bh);
-      g.addColorStop(0, "rgba(0,0,0,0.22)");
-      g.addColorStop(0.45, "rgba(0,0,0,0.10)");
-      g.addColorStop(1, "rgba(0,0,0,0.34)");
-      ctx.fillStyle = g;
-      ctx.fillRect(x, y, bw, bh);
-
-      // faint noise dots
-      ctx.globalAlpha = 0.06;
-      ctx.fillStyle = "#ffffff";
-      for(let i=0;i<28;i++){
-        const xx = x + ((i*131) % Math.max(1,bw));
-        const yy = y + ((i*197) % Math.max(1,bh));
-        ctx.fillRect(xx, yy, 1, 1);
-      }
-      ctx.globalAlpha = 1;
-    }
-
-    ctx.restore();
+  // 1) внутренний фон (если есть) — видно примерно на 30%
+  if(INNER_BG_IMG){
+    ctx.globalAlpha = 0.30;
+    ctx.drawImage(INNER_BG_IMG, x, y, bw, bh);
+    ctx.globalAlpha = 1;
   }
+
+  // 2) туман/плёнка (делает внутри “мягче” и темнее)
+  // оставляем ~30% видимости фона за счёт общей плотности
+  const fog = ctx.createLinearGradient(0, y, 0, y + bh);
+  fog.addColorStop(0,   "rgba(0,0,0,0.62)");
+  fog.addColorStop(0.45,"rgba(0,0,0,0.48)");
+  fog.addColorStop(1,   "rgba(0,0,0,0.66)");
+  ctx.fillStyle = fog;
+  ctx.fillRect(x, y, bw, bh);
+
+  // 3) лёгкая “молочная” дымка сверху (чтобы туман был заметен)
+  const milk = ctx.createRadialGradient(
+    x + bw*0.5, y + bh*0.35, 10,
+    x + bw*0.5, y + bh*0.55, Math.max(bw,bh)
+  );
+  milk.addColorStop(0, "rgba(255,255,255,0.08)");
+  milk.addColorStop(1, "rgba(255,255,255,0.00)");
+  ctx.fillStyle = milk;
+  ctx.fillRect(x, y, bw, bh);
+
+  ctx.restore();
+}
+
 
   // separators sit only in the gaps (pad), never over symbol art
   function drawCellSeparators(){
@@ -310,39 +314,40 @@
   }
 
   // custom frame (PNG) around the board; fallback to neon if missing
-  function drawFrame(){
-    const bw = COLS*cell + (COLS-1)*pad;
-    const bh = ROWS*cell + (ROWS-1)*pad;
+function drawFrame(){
+  const bw = COLS*cell + (COLS-1)*pad;
+  const bh = ROWS*cell + (ROWS-1)*pad;
 
-    // margin for the frame (keeps it outside symbols)
-    const m = Math.max(18, Math.floor(cell * 0.30));
-    const x = leftX - m;
-    const y = topY - m;
-    const w = bw + m*2;
-    const h = bh + m*2;
+  // БОЛЬШЕ отступ => рамка дальше от символов
+  const m = Math.max(26, Math.floor(cell * 0.42));
+  const x = leftX - m;
+  const y = topY - m;
+  const w = bw + m*2;
+  const h = bh + m*2;
 
-    if(FRAME_IMG){
-      ctx.save();
-      ctx.shadowColor = "rgba(59,130,246,0.42)";
-      ctx.shadowBlur = 22;
-      ctx.drawImage(FRAME_IMG, x, y, w, h);
-      ctx.restore();
-      return;
-    }
-
-    // fallback frame
+  if(FRAME_IMG){
     ctx.save();
-    ctx.shadowColor="rgba(59,130,246,0.55)";
-    ctx.shadowBlur=26;
-    ctx.strokeStyle="rgba(59,130,246,0.55)";
-    ctx.lineWidth=3;
-    roundRect(x,y,w,h,22); ctx.stroke();
+    ctx.shadowColor = "rgba(59,130,246,0.42)";
+    ctx.shadowBlur = 22;
+    ctx.drawImage(FRAME_IMG, x, y, w, h);
     ctx.restore();
-
-    ctx.strokeStyle="rgba(255,255,255,0.06)";
-    ctx.lineWidth=1;
-    roundRect(x,y,w,h,22); ctx.stroke();
+    return;
   }
+
+  // fallback frame
+  ctx.save();
+  ctx.shadowColor="rgba(59,130,246,0.55)";
+  ctx.shadowBlur=26;
+  ctx.strokeStyle="rgba(59,130,246,0.55)";
+  ctx.lineWidth=3;
+  roundRect(x,y,w,h,22); ctx.stroke();
+  ctx.restore();
+
+  ctx.strokeStyle="rgba(255,255,255,0.06)";
+  ctx.lineWidth=1;
+  roundRect(x,y,w,h,22); ctx.stroke();
+}
+
 
   function addPopup(x, y, text, dur = 900, kind="win"){
     popups.push({ x, y, text, t0: performance.now(), dur, kind });
@@ -420,44 +425,51 @@
     }
   }
 
-  function draw(){
-    drawBG();
-    drawInnerSlotBG();
-    drawCellSeparators();
-    drawFrame();
+function draw(){
+  drawBG();
 
-    // symbols
-    for(const c of grid){
-      if(!c.img) continue;
-      ctx.save();
-      ctx.shadowColor="rgba(59,130,246,0.28)";
-      ctx.shadowBlur=10;
-      ctx.drawImage(c.img,c.x,c.yAnim,cell,cell);
-      ctx.restore();
-    }
+  // РАМКА ПОД СИМВОЛАМИ (иначе она перекрывает арт)
+  drawFrame();
 
-    drawHighlights();
+  // внутренний фон + туман
+  drawInnerSlotBG();
 
-    // bombs
-    for(const b of bombs){
-      if(!b.img) continue;
-      ctx.save();
-      ctx.globalAlpha=b.alpha;
-      ctx.shadowColor="rgba(59,130,246,0.65)";
-      ctx.shadowBlur=16;
+  // разделители
+  drawCellSeparators();
 
-      const s = (b.scale ?? 1);
-      const sz = Math.floor(cell*0.92);
-      const cx = b.x + sz/2;
-      const cy = b.y + sz/2;
-      ctx.drawImage(b.img, cx - (sz*s)/2, cy - (sz*s)/2, sz*s, sz*s);
-
-      ctx.restore();
-    }
-
-    drawPopups();
-    requestAnimationFrame(draw);
+  // symbols
+  for(const c of grid){
+    if(!c.img) continue;
+    ctx.save();
+    ctx.shadowColor="rgba(59,130,246,0.28)";
+    ctx.shadowBlur=10;
+    ctx.drawImage(c.img,c.x,c.yAnim,cell,cell);
+    ctx.restore();
   }
+
+  drawHighlights();
+
+  // bombs
+  for(const b of bombs){
+    if(!b.img) continue;
+    ctx.save();
+    ctx.globalAlpha=b.alpha;
+    ctx.shadowColor="rgba(59,130,246,0.65)";
+    ctx.shadowBlur=16;
+
+    const s = (b.scale ?? 1);
+    const sz = Math.floor(cell*0.92);
+    const cx = b.x + sz/2;
+    const cy = b.y + sz/2;
+    ctx.drawImage(b.img, cx - (sz*s)/2, cy - (sz*s)/2, sz*s, sz*s);
+
+    ctx.restore();
+  }
+
+  drawPopups();
+  requestAnimationFrame(draw);
+}
+
 
   // --- Cluster logic ---
   function neighbors(idx){
