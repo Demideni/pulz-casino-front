@@ -81,22 +81,20 @@
     }
 
     /* START button (PNG from assets) */
-    #startBtn{
-      position:absolute;
-      left:50%;
-      bottom: calc(18px + env(safe-area-inset-bottom));
-      transform: translateX(-50%);
-      width: 96px;
-      height: 96px;
-      z-index: 100;
-      cursor:pointer;
-      pointer-events:auto;
-      -webkit-tap-highlight-color:transparent;
-      user-select:none;
-      -webkit-user-drag:none;
-      touch-action: manipulation;
-      filter: drop-shadow(0 14px 22px rgba(0,0,0,.55));
-    }
+#startBtn{
+  position:absolute;
+  left:50%;
+  bottom: calc(18px + env(safe-area-inset-bottom));
+  transform: translateX(-50%);
+  width: min(42vw, 170px);
+  height: min(42vw, 170px);
+  z-index: 100;
+  cursor:pointer;
+  -webkit-tap-highlight-color:transparent;
+  user-select:none;
+  filter: drop-shadow(0 14px 22px rgba(0,0,0,.55));
+}
+
 
     #startBtn:active{
       transform: translateX(-50%) scale(0.96);

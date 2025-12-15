@@ -115,7 +115,7 @@
     const safeTop=70;
 
     // Keep board above start button (matches index.html: 96px button + padding)
-    const safeBottom = 96 + 70;
+    const safeBottom = Math.min(innerWidth * 0.42, 170) + 70;
 
     const usableH=H-safeTop-safeBottom;
     const usableW=Math.min(W,520);
