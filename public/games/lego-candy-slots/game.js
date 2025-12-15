@@ -19,9 +19,41 @@
     tapbar: document.getElementById("tapbar"),
   };
 
+// --- START BUTTON (PNG only) / hide tapbar ---
+// Place your button here: public/games/lego-candy-slots/assets/ui/btn-start.png
+const START_BTN_SRC = "./assets/ui/btn-start.png";
+function getBtnSize(){
+  // responsive size that feels premium on phones
+  const W = window.innerWidth || 390;
+  return Math.round(Math.min(220, Math.max(150, W * 0.38)));
+}
+function layoutStartButton(){
+  if(!ui.spinBtn) return;
+  const size = getBtnSize();
+  // Hide any tapbar if present (we keep only the button)
+  if(ui.tapbar) ui.tapbar.style.display = "none";
+  ui.spinBtn.style.position = "fixed";
+  ui.spinBtn.style.left = "50%";
+  ui.spinBtn.style.bottom = "calc(18px + env(safe-area-inset-bottom))";
+  ui.spinBtn.style.transform = "translateX(-50%)";
+  ui.spinBtn.style.width = size + "px";
+  ui.spinBtn.style.height = size + "px";
+  ui.spinBtn.style.border = "none";
+  ui.spinBtn.style.padding = "0";
+  ui.spinBtn.style.margin = "0";
+  ui.spinBtn.style.borderRadius = "999px";
+  ui.spinBtn.style.background = `url('${START_BTN_SRC}') center/contain no-repeat`;
+  ui.spinBtn.style.backgroundColor = "transparent";
+  ui.spinBtn.style.boxShadow = "0 10px 35px rgba(0,0,0,0.45)";
+  ui.spinBtn.style.touchAction = "manipulation";
+  ui.spinBtn.style.userSelect = "none";
+  ui.spinBtn.textContent = ""; // ensure no text label
+}
+
   // --- UI FX helpers (studs flash + button pulse) ---
   function flashTapbar(){
     if(!ui.tapbar) return;
+    if(ui.tapbar.style && ui.tapbar.style.display === 'none') return;
     ui.tapbar.classList.remove('flash');
     // force reflow so animation restarts
     void ui.tapbar.offsetWidth;
@@ -105,7 +137,8 @@
     ctx.setTransform(dpr,0,0,dpr,0,0);
     W=ww; H=hh;
 
-    const safeBottom=120, safeTop=70;
+    const safeTop=70;
+    const safeBottom = getBtnSize() + 60; // keep board above the start button
     const usableH=H-safeTop-safeBottom;
     const usableW=Math.min(W,520);
     cell=Math.floor(Math.min((usableW-24)/COLS,(usableH-24)/ROWS));
@@ -114,6 +147,8 @@
     const boardH=ROWS*cell+(ROWS-1)*pad;
     leftX=Math.floor((W-boardW)/2);
     topY=Math.floor(safeTop+(usableH-boardH)/2);
+
+    layoutStartButton();
 
     for(let r=0;r<ROWS;r++) for(let c=0;c<COLS;c++){
       const i=r*COLS+c;
