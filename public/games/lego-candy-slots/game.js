@@ -16,7 +16,25 @@
     buyModal: document.getElementById("buyModal"),
     cancelBuy: document.getElementById("cancelBuy"),
     confirmBuy: document.getElementById("confirmBuy"),
+    tapbar: document.getElementById("tapbar"),
   };
+
+  // --- UI FX helpers (studs flash + button pulse) ---
+  function flashTapbar(){
+    if(!ui.tapbar) return;
+    ui.tapbar.classList.remove('flash');
+    // force reflow so animation restarts
+    void ui.tapbar.offsetWidth;
+    ui.tapbar.classList.add('flash');
+    setTimeout(()=>ui.tapbar.classList.remove('flash'), 600);
+  }
+  function pulseSpinBtn(){
+    if(!ui.spinBtn) return;
+    ui.spinBtn.classList.remove('pulse');
+    void ui.spinBtn.offsetWidth;
+    ui.spinBtn.classList.add('pulse');
+    setTimeout(()=>ui.spinBtn.classList.remove('pulse'), 800);
+  }
 
   const COLS = 6, ROWS = 5, MIN_CLUSTER = 8;
   const BUY_BONUS_COST_MULT = 100;
@@ -401,6 +419,15 @@
 
     finalWin = Math.min(finalWin, bet*MAX_WIN_MULT);
     lastWin = finalWin;
+
+    // UI FX: flash bar on any win; pulse button on big wins
+    if(finalWin > 0){
+      flashTapbar();
+      const x = finalWin / Math.max(0.01, bet);
+      if(x >= 20) pulseSpinBtn();
+      if(x >= 60) setTimeout(pulseSpinBtn, 220);
+    }
+
     await creditWin(finalWin);
 
     if(isFS && !buyBonus){
