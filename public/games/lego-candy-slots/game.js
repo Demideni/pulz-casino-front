@@ -1,5 +1,11 @@
 // Lego Candy Slots — SB1000-like (cluster pays, cascades, bombs, FS)
-// FINAL SMART + FRAME: custom slot frame + inner bg + separators (safe responsive).
+// FINAL SMART + FRAME OVERLAY:
+// - Frame is drawn on TOP of symbols & fog
+// - Fog starts exactly at frame inner edges via FRAME_INSET_PX
+// - Inner BG inside window shows ~30%
+// - Responsive board fix preserved
+// - Pulz bridge intact, popups/multipliers/highlights preserved.
+
 (() => {
   const canvas = document.getElementById("c");
   const ctx = canvas.getContext("2d");
@@ -28,6 +34,8 @@
 
   // --- Gameplay constants ---
   const COLS = 6, ROWS = 5;
+
+  // Sweet Bonanza feel: clusters from 8+
   const MIN_CLUSTER = 8;
 
   const BUY_BONUS_COST_MULT = 100;
@@ -42,6 +50,10 @@
   // Smart win-shaping baseline (not too frequent)
   const BASE_SHAPE_CHANCE = 0.25;
   const FS_SHAPE_CHANCE   = 0.40;
+
+  // How deep the fog/inner window starts from board edge (matches frame inner edge)
+  // Подкрути 24..34 если надо идеально
+  const FRAME_INSET_PX = 28;
 
   function antiDryBoost(dry) {
     if (dry <= 1) return 0.0;
@@ -80,13 +92,14 @@
   // --- Assets ---
   const IMG = new Map();
 
-  let BG_IMG = null;         // ./assets/bg/bg-main.png
-  let FRAME_IMG = null;      // ./assets/ui/slot-frame.png
-  let INNER_BG_IMG = null;   // ./assets/ui/slot-inner-bg.png
+  // background behind everything (full screen)
+  let BG_IMG = null;
 
-  const BG_SRC = "./assets/bg/bg-main.png";
-  const FRAME_SRC = "./assets/ui/slot-frame.png";
-  const INNER_BG_SRC = "./assets/ui/slot-inner-bg.png";
+  // background inside the slot window (optional)
+  let INNER_BG_IMG = null;
+
+  // frame png (must be transparent center)
+  let FRAME_IMG = null;
 
   function loadImage(src){
     return new Promise((res,rej)=>{
@@ -104,22 +117,21 @@
     files.add(SCATTER.file);
     MULTI_BOMBS.forEach(b=>files.add(b.file));
 
-    // load symbols
     await Promise.all([...files].map(async f=>{
       IMG.set(f, await loadImage(base+f));
     }));
 
-    // background (safe)
-    try { BG_IMG = await loadImage(BG_SRC); }
-    catch(e){ BG_IMG = null; console.warn("BG image not loaded:", BG_SRC, e); }
+    // full background (screen)
+    try{ BG_IMG = await loadImage("./assets/bg/bg-main.png"); }
+    catch(e){ BG_IMG=null; console.warn("BG missing ./assets/bg/bg-main.png", e); }
 
-    // custom frame (safe)
-    try { FRAME_IMG = await loadImage(FRAME_SRC); }
-    catch(e){ FRAME_IMG = null; console.warn("FRAME image not loaded:", FRAME_SRC, e); }
+    // inner background (inside window) - optional
+    try{ INNER_BG_IMG = await loadImage("./assets/bg/slot-inner.png"); }
+    catch(e){ INNER_BG_IMG=null; }
 
-    // inner bg (safe)
-    try { INNER_BG_IMG = await loadImage(INNER_BG_SRC); }
-    catch(e){ INNER_BG_IMG = null; console.warn("INNER BG image not loaded:", INNER_BG_SRC, e); }
+    // frame png
+    try{ FRAME_IMG = await loadImage("./assets/ui/slot-frame.png"); }
+    catch(e){ FRAME_IMG=null; console.warn("FRAME missing ./assets/ui/slot-frame.png", e); }
   }
 
   function pickWeighted(list){
@@ -176,9 +188,8 @@
     const usableH = H - safeTop - safeBottom;
     const usableW = Math.min(W, 560);
 
+    // FIX: compute cell with pad included (prevents frame drifting offscreen)
     const PAD_RATIO = 0.12;
-
-    // compute cell with pad included (prevents overflow on wide/short screens)
     const cellW = Math.floor((usableW - 24) / (COLS + (COLS - 1) * PAD_RATIO));
     const cellH = Math.floor((usableH - 24) / (ROWS + (ROWS - 1) * PAD_RATIO));
 
@@ -210,7 +221,6 @@
     ctx.closePath();
   }
 
-  // --- BACKGROUND ---
   function drawBG(){
     if (BG_IMG){
       ctx.drawImage(BG_IMG, 0, 0, W, H);
@@ -222,132 +232,95 @@
       ctx.fillStyle=g; ctx.fillRect(0,0,W,H);
     }
 
-    // premium dark overlay for readability
+    // global readability fog on top of screen bg
     const fog = ctx.createLinearGradient(0,0,0,H);
-    fog.addColorStop(0,   "rgba(0,0,0,0.40)");
-    fog.addColorStop(0.35,"rgba(0,0,0,0.18)");
-    fog.addColorStop(1,   "rgba(0,0,0,0.58)");
+    fog.addColorStop(0,   "rgba(0,0,0,0.35)");
+    fog.addColorStop(0.45,"rgba(0,0,0,0.10)");
+    fog.addColorStop(1,   "rgba(0,0,0,0.55)");
     ctx.fillStyle = fog;
     ctx.fillRect(0,0,W,H);
-
-    // subtle stars
-    ctx.globalAlpha=0.10;
-    ctx.fillStyle="#e5e7eb";
-    for(let i=0;i<32;i++){
-      const x=(i*97)%W, y=(i*173)%H;
-      ctx.fillRect(x,y,1,1);
-    }
-    ctx.globalAlpha=1;
   }
 
-  // inner bg inside the board area (under symbols)
-function drawInnerSlotBG(){
-  const bw = COLS*cell + (COLS-1)*pad;
-  const bh = ROWS*cell + (ROWS-1)*pad;
-  const x = leftX;
-  const y = topY;
-
-  ctx.save();
-
-  // 1) внутренний фон (если есть) — видно примерно на 30%
-  if(INNER_BG_IMG){
-    ctx.globalAlpha = 0.30;
-    ctx.drawImage(INNER_BG_IMG, x, y, bw, bh);
-    ctx.globalAlpha = 1;
-  }
-
-  // 2) туман/плёнка (делает внутри “мягче” и темнее)
-  // оставляем ~30% видимости фона за счёт общей плотности
-  const fog = ctx.createLinearGradient(0, y, 0, y + bh);
-  fog.addColorStop(0,   "rgba(0,0,0,0.62)");
-  fog.addColorStop(0.45,"rgba(0,0,0,0.48)");
-  fog.addColorStop(1,   "rgba(0,0,0,0.66)");
-  ctx.fillStyle = fog;
-  ctx.fillRect(x, y, bw, bh);
-
-  // 3) лёгкая “молочная” дымка сверху (чтобы туман был заметен)
-  const milk = ctx.createRadialGradient(
-    x + bw*0.5, y + bh*0.35, 10,
-    x + bw*0.5, y + bh*0.55, Math.max(bw,bh)
-  );
-  milk.addColorStop(0, "rgba(255,255,255,0.08)");
-  milk.addColorStop(1, "rgba(255,255,255,0.00)");
-  ctx.fillStyle = milk;
-  ctx.fillRect(x, y, bw, bh);
-
-  ctx.restore();
-}
-
-
-  // separators sit only in the gaps (pad), never over symbol art
-  function drawCellSeparators(){
-    if(pad <= 0) return;
-
+  // Fog + inner bg ONLY inside the frame inner window (starts from inset)
+  function drawInnerSlotBG(){
     const bw = COLS*cell + (COLS-1)*pad;
     const bh = ROWS*cell + (ROWS-1)*pad;
 
+    const inset = FRAME_INSET_PX;
+    const x = leftX + inset;
+    const y = topY + inset;
+    const w = bw - inset*2;
+    const h = bh - inset*2;
+
+    if(w <= 10 || h <= 10) return;
+
     ctx.save();
-    ctx.globalAlpha = 0.20;
-    ctx.shadowColor = "rgba(59,130,246,0.30)";
-    ctx.shadowBlur = 10;
-    ctx.fillStyle = "rgba(59,130,246,0.18)";
 
-    // vertical gaps
-    for(let c=1;c<COLS;c++){
-      const x = leftX + c*cell + (c-1)*pad;
-      ctx.fillRect(x, topY, pad, bh);
-    }
-    // horizontal gaps
-    for(let r=1;r<ROWS;r++){
-      const y = topY + r*cell + (r-1)*pad;
-      ctx.fillRect(leftX, y, bw, pad);
+    // clip so nothing goes under frame edges
+    roundRect(x, y, w, h, Math.max(12, Math.floor(cell*0.18)));
+    ctx.clip();
+
+    // inner image ~30%
+    if(INNER_BG_IMG){
+      ctx.globalAlpha = 0.30;
+      ctx.drawImage(INNER_BG_IMG, x, y, w, h);
+      ctx.globalAlpha = 1;
     }
 
-    // small inner stroke around the whole grid (provider-ish)
-    ctx.globalAlpha = 0.14;
-    ctx.strokeStyle = "rgba(255,255,255,0.35)";
-    ctx.lineWidth = 1;
-    roundRect(leftX+1, topY+1, bw-2, bh-2, Math.max(10, Math.floor(cell*0.18)));
-    ctx.stroke();
+    // fog layer inside window
+    const fog = ctx.createLinearGradient(0, y, 0, y + h);
+    fog.addColorStop(0,   "rgba(0,0,0,0.55)");
+    fog.addColorStop(0.45,"rgba(0,0,0,0.42)");
+    fog.addColorStop(1,   "rgba(0,0,0,0.58)");
+    ctx.fillStyle = fog;
+    ctx.fillRect(x, y, w, h);
+
+    // milk haze
+    const milk = ctx.createRadialGradient(
+      x + w*0.5, y + h*0.35, 10,
+      x + w*0.5, y + h*0.55, Math.max(w,h)
+    );
+    milk.addColorStop(0, "rgba(255,255,255,0.07)");
+    milk.addColorStop(1, "rgba(255,255,255,0.00)");
+    ctx.fillStyle = milk;
+    ctx.fillRect(x, y, w, h);
 
     ctx.restore();
   }
 
-  // custom frame (PNG) around the board; fallback to neon if missing
-function drawFrame(){
-  const bw = COLS*cell + (COLS-1)*pad;
-  const bh = ROWS*cell + (ROWS-1)*pad;
+  function drawFrame(){
+    const bw = COLS*cell + (COLS-1)*pad;
+    const bh = ROWS*cell + (ROWS-1)*pad;
 
-  // БОЛЬШЕ отступ => рамка дальше от символов
-  const m = Math.max(26, Math.floor(cell * 0.42));
-  const x = leftX - m;
-  const y = topY - m;
-  const w = bw + m*2;
-  const h = bh + m*2;
+    // outer margin where we place the PNG frame
+    const m = Math.max(26, Math.floor(cell * 0.42));
+    const x = leftX - m;
+    const y = topY - m;
+    const w = bw + m*2;
+    const h = bh + m*2;
 
-  if(FRAME_IMG){
+    if(FRAME_IMG){
+      ctx.save();
+      ctx.shadowColor = "rgba(0,0,0,0.35)";
+      ctx.shadowBlur = 18;
+      ctx.drawImage(FRAME_IMG, x, y, w, h);
+      ctx.restore();
+      return;
+    }
+
+    // fallback frame if png missing
     ctx.save();
-    ctx.shadowColor = "rgba(59,130,246,0.42)";
-    ctx.shadowBlur = 22;
-    ctx.drawImage(FRAME_IMG, x, y, w, h);
+    ctx.shadowColor="rgba(59,130,246,0.55)";
+    ctx.shadowBlur=26;
+    ctx.strokeStyle="rgba(59,130,246,0.55)";
+    ctx.lineWidth=3;
+    roundRect(leftX-16, topY-16, bw+32, bh+32, 22); ctx.stroke();
     ctx.restore();
-    return;
+
+    ctx.strokeStyle="rgba(255,255,255,0.06)";
+    ctx.lineWidth=1;
+    roundRect(leftX-16, topY-16, bw+32, bh+32, 22); ctx.stroke();
   }
-
-  // fallback frame
-  ctx.save();
-  ctx.shadowColor="rgba(59,130,246,0.55)";
-  ctx.shadowBlur=26;
-  ctx.strokeStyle="rgba(59,130,246,0.55)";
-  ctx.lineWidth=3;
-  roundRect(x,y,w,h,22); ctx.stroke();
-  ctx.restore();
-
-  ctx.strokeStyle="rgba(255,255,255,0.06)";
-  ctx.lineWidth=1;
-  roundRect(x,y,w,h,22); ctx.stroke();
-}
-
 
   function addPopup(x, y, text, dur = 900, kind="win"){
     popups.push({ x, y, text, t0: performance.now(), dur, kind });
@@ -425,51 +398,48 @@ function drawFrame(){
     }
   }
 
-function draw(){
-  drawBG();
+  function draw(){
+    drawBG();
 
-  // РАМКА ПОД СИМВОЛАМИ (иначе она перекрывает арт)
-  drawFrame();
+    // inner window fog/bg under symbols (clipped to inset)
+    drawInnerSlotBG();
 
-  // внутренний фон + туман
-  drawInnerSlotBG();
+    // symbols
+    for(const c of grid){
+      if(!c.img) continue;
+      ctx.save();
+      ctx.shadowColor="rgba(59,130,246,0.28)";
+      ctx.shadowBlur=10;
+      ctx.drawImage(c.img,c.x,c.yAnim,cell,cell);
+      ctx.restore();
+    }
 
-  // разделители
-  drawCellSeparators();
+    drawHighlights();
 
-  // symbols
-  for(const c of grid){
-    if(!c.img) continue;
-    ctx.save();
-    ctx.shadowColor="rgba(59,130,246,0.28)";
-    ctx.shadowBlur=10;
-    ctx.drawImage(c.img,c.x,c.yAnim,cell,cell);
-    ctx.restore();
+    // bombs
+    for(const b of bombs){
+      if(!b.img) continue;
+      ctx.save();
+      ctx.globalAlpha=b.alpha;
+      ctx.shadowColor="rgba(59,130,246,0.65)";
+      ctx.shadowBlur=16;
+
+      const s = (b.scale ?? 1);
+      const sz = Math.floor(cell*0.92);
+      const cx = b.x + sz/2;
+      const cy = b.y + sz/2;
+      ctx.drawImage(b.img, cx - (sz*s)/2, cy - (sz*s)/2, sz*s, sz*s);
+
+      ctx.restore();
+    }
+
+    drawPopups();
+
+    // FRAME MUST BE ON TOP
+    drawFrame();
+
+    requestAnimationFrame(draw);
   }
-
-  drawHighlights();
-
-  // bombs
-  for(const b of bombs){
-    if(!b.img) continue;
-    ctx.save();
-    ctx.globalAlpha=b.alpha;
-    ctx.shadowColor="rgba(59,130,246,0.65)";
-    ctx.shadowBlur=16;
-
-    const s = (b.scale ?? 1);
-    const sz = Math.floor(cell*0.92);
-    const cx = b.x + sz/2;
-    const cy = b.y + sz/2;
-    ctx.drawImage(b.img, cx - (sz*s)/2, cy - (sz*s)/2, sz*s, sz*s);
-
-    ctx.restore();
-  }
-
-  drawPopups();
-  requestAnimationFrame(draw);
-}
-
 
   // --- Cluster logic ---
   function neighbors(idx){
