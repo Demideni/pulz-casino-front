@@ -1,5 +1,5 @@
 // Lego Candy Slots — SB1000-like (cluster pays, cascades, bombs, FS)
-// FINAL: azart win-shaping + perfect responsive board (no frame drift) + kept Pulz bridge + kept popups/multipliers/highlights.
+// FINAL SMART: Sweet-like threshold (8+), smart anti-dry (ramped), responsive fix, Pulz bridge intact, popups/multipliers/highlights preserved.
 (() => {
   const canvas = document.getElementById("c");
   const ctx = canvas.getContext("2d");
@@ -29,12 +29,8 @@
   // --- Gameplay constants ---
   const COLS = 6, ROWS = 5;
 
-  // Sweet-like cluster threshold
+  // Sweet Bonanza feel: clusters from 8+
   const MIN_CLUSTER = 8;
-
-  // AZART shaping: if random grid has no 8+ cluster, we force one with these chances
-  const BASE_WIN_CHANCE = 0.72;
-  const FS_WIN_CHANCE = 0.88;
 
   const BUY_BONUS_COST_MULT = 100;
   const FS_AWARD = 10;
@@ -44,6 +40,26 @@
   const SPIN_DROP_MS = 520;
   const CASCADE_DROP_MS = 420;
   const STAGGER_MS = 22;
+
+  // Smart win-shaping baseline (not too frequent)
+  const BASE_SHAPE_CHANCE = 0.42;
+  const FS_SHAPE_CHANCE   = 0.62;
+
+  // Smart anti-dry ramp (adds to shape chance by dry streak)
+  // 0-1: no boost, 2: small, 3: more, 4: strong, 5+: very strong
+  function antiDryBoost(dry) {
+    if (dry <= 1) return 0.0;
+    if (dry === 2) return 0.12;
+    if (dry === 3) return 0.22;
+    if (dry === 4) return 0.34;
+    if (dry === 5) return 0.46;
+    return 0.58; // 6+ almost guaranteed, but still not hard 100%
+  }
+
+  // cap final shape chance so it never becomes "always win"
+  function capChance(x) {
+    return Math.max(0, Math.min(0.92, x));
+  }
 
   const SYMBOLS = [
     { id: "low_blue",   file: "low_blue.png",   weight: 16, pay: [0,0,0,0,0,0,0, 0.2,0.3,0.4,0.6,0.9,1.2,1.6,2.0] },
@@ -107,10 +123,12 @@
   let isFS=false, fsLeft=0, fsMulti=1;
   let spinning=false;
 
-  let grid=[];        // {symId,img,x,y,yAnim}
-  let bombs=[];       // {x,y,img,mult,alpha,scale}
-  let popups=[];      // {x,y,text,t0,dur,kind}
-  let highlights=[];  // {idxs:Set<number>, t0, dur}
+  let dryStreak = 0; // counts spin results with finalWin==0 in BASE or FS
+
+  let grid=[];   // {symId,img,x,y,yAnim}
+  let bombs=[];  // {x,y,img,mult,alpha,scale}
+  let popups=[]; // {x,y,text,t0,dur,kind}
+  let highlights=[]; // {idxs:Set<number>, t0, dur}
 
   let W=0,H=0, cell=0, pad=0, topY=0, leftX=0;
 
@@ -137,9 +155,9 @@
     const safeBottom = getStartBtnHeight() + 80;
 
     const usableH = H - safeTop - safeBottom;
-    const usableW = Math.min(W, 560); // чуть шире на больших телефонах
+    const usableW = Math.min(W, 560);
 
-    // FIX: calculate cell WITH pad included, so frame never drifts offscreen
+    // FIX: compute cell with pad included (prevents frame drifting offscreen)
     const PAD_RATIO = 0.12;
     const cellW = Math.floor((usableW - 24) / (COLS + (COLS - 1) * PAD_RATIO));
     const cellH = Math.floor((usableH - 24) / (ROWS + (ROWS - 1) * PAD_RATIO));
@@ -147,11 +165,11 @@
     cell = Math.max(32, Math.min(cellW, cellH));
     pad  = Math.floor(cell * PAD_RATIO);
 
-    const boardW = COLS*cell + (COLS-1)*pad;
-    const boardH = ROWS*cell + (ROWS-1)*pad;
+    const boardW=COLS*cell+(COLS-1)*pad;
+    const boardH=ROWS*cell+(ROWS-1)*pad;
 
-    leftX = Math.floor((W - boardW) / 2);
-    topY  = Math.floor(safeTop + (usableH - boardH) / 2);
+    leftX=Math.floor((W-boardW)/2);
+    topY=Math.floor(safeTop+(usableH-boardH)/2);
 
     for(let r=0;r<ROWS;r++) for(let c=0;c<COLS;c++){
       const i=r*COLS+c;
@@ -312,7 +330,6 @@
     }
 
     drawPopups();
-
     requestAnimationFrame(draw);
   }
 
@@ -429,11 +446,24 @@
     return grid.reduce((a,c)=>a+(c.symId==="scatter"),0);
   }
 
-  // --- Sweet-style AZART shaping (force at least one 8+ sometimes) ---
-  function forceCluster8Plus(){
+  // --- Grid ---
+  function newGrid(){
+    grid.length=0;
+    for(let r=0;r<ROWS;r++) for(let c=0;c<COLS;c++){
+      const s=randomSymbol();
+      const x=leftX+c*(cell+pad), y=topY+r*(cell+pad);
+      const file = (s.id==="scatter") ? SCATTER.file : s.file;
+      grid.push({symId:s.id,img:IMG.get(file),x,y,yAnim:y});
+    }
+  }
+
+  // --- Sweet-style shaping: "force one 8+ cluster" (soft) ---
+  function forceCluster8PlusSoft(){
     const sym = SYMBOLS[Math.floor(Math.random() * SYMBOLS.length)];
-    // 2x4 (8) чаще, иногда 3x3 (9)
-    const w = (Math.random() < 0.70) ? 4 : 3;
+
+    // Prefer 2x4 (8) to avoid huge constant wins; sometimes 3x3 (9)
+    const roll = Math.random();
+    const w = (roll < 0.82) ? 4 : 3;
     const h = (w === 4) ? 2 : 3;
 
     const startC = Math.floor(Math.random() * (COLS - w + 1));
@@ -445,13 +475,6 @@
         grid[idx].symId = sym.id;
         grid[idx].img = IMG.get(sym.file);
       }
-    }
-  }
-
-  function generateSpinGridAzart(winChance){
-    newGrid();
-    if (findClusters().length === 0 && Math.random() < winChance) {
-      forceCluster8Plus();
     }
   }
 
@@ -536,17 +559,6 @@
     })));
   }
 
-  // --- Grid ---
-  function newGrid(){
-    grid.length=0;
-    for(let r=0;r<ROWS;r++) for(let c=0;c<COLS;c++){
-      const s=randomSymbol();
-      const x=leftX+c*(cell+pad), y=topY+r*(cell+pad);
-      const file = (s.id==="scatter") ? SCATTER.file : s.file;
-      grid.push({symId:s.id,img:IMG.get(file),x,y,yAnim:y});
-    }
-  }
-
   // --- Spin ---
   async function doSpin({buyBonus=false}={}){
     if(spinning) return;
@@ -566,8 +578,16 @@
       }
     }
 
-    // AZART: generate grid with shaping (Sweet-like feel)
-    generateSpinGridAzart(isFS ? FS_WIN_CHANCE : BASE_WIN_CHANCE);
+    // Build new grid, then (soft) shape only if it has no clusters
+    newGrid();
+
+    const baseChance = isFS ? FS_SHAPE_CHANCE : BASE_SHAPE_CHANCE;
+    const chance = capChance(baseChance + antiDryBoost(dryStreak));
+
+    if(findClusters().length === 0 && Math.random() < chance){
+      forceCluster8PlusSoft();
+    }
+
     await animateFullDrop();
 
     // Scatter triggers FS in base
@@ -626,7 +646,7 @@
       removeIndices(toRemove);
       collapseAndRefill();
 
-      // make cascades heavier (nicer feel)
+      // heavier cascades feel
       for(const c of grid) c.yAnim -= (cell+pad)*1.05;
 
       await animateCascadeDrop();
@@ -638,6 +658,10 @@
 
     finalWin = Math.min(finalWin, bet*MAX_WIN_MULT);
     lastWin = finalWin;
+
+    // smart anti-dry tracking
+    if(finalWin > 0.000001) dryStreak = 0;
+    else dryStreak = Math.min(9, dryStreak + 1);
 
     if(finalWin > 0){
       addPopup(W*0.5, topY - 42, `WIN +${finalWin.toFixed(2)}`, 1200, "total");
