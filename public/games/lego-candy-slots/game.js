@@ -42,21 +42,19 @@
   const STAGGER_MS = 22;
 
   // Smart win-shaping baseline (not too frequent)
-  const BASE_SHAPE_CHANCE = 0.42;
-  const FS_SHAPE_CHANCE   = 0.62;
+  const BASE_SHAPE_CHANCE = 0.25;
+  const FS_SHAPE_CHANCE   = 0.40;
 
   // Smart anti-dry ramp (adds to shape chance by dry streak)
-  // 0-1: no boost, 2: small, 3: more, 4: strong, 5+: very strong
   function antiDryBoost(dry) {
     if (dry <= 1) return 0.0;
     if (dry === 2) return 0.12;
     if (dry === 3) return 0.22;
     if (dry === 4) return 0.34;
     if (dry === 5) return 0.46;
-    return 0.58; // 6+ almost guaranteed, but still not hard 100%
+    return 0.58;
   }
 
-  // cap final shape chance so it never becomes "always win"
   function capChance(x) {
     return Math.max(0, Math.min(0.92, x));
   }
@@ -84,6 +82,8 @@
 
   // --- Assets ---
   const IMG = new Map();
+  let BG_IMG = null; // <-- ADD
+
   function loadImage(src){
     return new Promise((res,rej)=>{
       const i=new Image();
@@ -92,15 +92,26 @@
       i.src=src;
     });
   }
+
   async function loadAssets(){
     const base="./assets/symbols/";
     const files=new Set();
     SYMBOLS.forEach(s=>files.add(s.file));
     files.add(SCATTER.file);
     MULTI_BOMBS.forEach(b=>files.add(b.file));
+
+    // load symbols
     await Promise.all([...files].map(async f=>{
       IMG.set(f, await loadImage(base+f));
     }));
+
+    // load background (won't crash if missing)
+    try{
+      BG_IMG = await loadImage("./assets/bg/bg-main.png");
+    }catch(e){
+      BG_IMG = null;
+      console.warn("BG image not loaded: ./assets/bg/bg-main.png", e);
+    }
   }
 
   function pickWeighted(list){
@@ -123,12 +134,12 @@
   let isFS=false, fsLeft=0, fsMulti=1;
   let spinning=false;
 
-  let dryStreak = 0; // counts spin results with finalWin==0 in BASE or FS
+  let dryStreak = 0;
 
-  let grid=[];   // {symId,img,x,y,yAnim}
-  let bombs=[];  // {x,y,img,mult,alpha,scale}
-  let popups=[]; // {x,y,text,t0,dur,kind}
-  let highlights=[]; // {idxs:Set<number>, t0, dur}
+  let grid=[];
+  let bombs=[];
+  let popups=[];
+  let highlights=[];
 
   let W=0,H=0, cell=0, pad=0, topY=0, leftX=0;
 
@@ -157,7 +168,6 @@
     const usableH = H - safeTop - safeBottom;
     const usableW = Math.min(W, 560);
 
-    // FIX: compute cell with pad included (prevents frame drifting offscreen)
     const PAD_RATIO = 0.12;
     const cellW = Math.floor((usableW - 24) / (COLS + (COLS - 1) * PAD_RATIO));
     const cellH = Math.floor((usableH - 24) / (ROWS + (ROWS - 1) * PAD_RATIO));
@@ -190,15 +200,32 @@
     ctx.closePath();
   }
 
+  // --- BACKGROUND (REPLACED) ---
   function drawBG(){
-    const g=ctx.createRadialGradient(W*0.5,H*0.35,40,W*0.5,H*0.55,Math.max(W,H));
-    g.addColorStop(0,"rgba(59,130,246,0.14)");
-    g.addColorStop(0.45,"rgba(2,6,23,0.55)");
-    g.addColorStop(1,"rgba(0,0,0,0.95)");
-    ctx.fillStyle=g; ctx.fillRect(0,0,W,H);
+    // 1) draw image if present
+    if (BG_IMG){
+      ctx.drawImage(BG_IMG, 0, 0, W, H);
+    } else {
+      // fallback (old gradient)
+      const g=ctx.createRadialGradient(W*0.5,H*0.35,40,W*0.5,H*0.55,Math.max(W,H));
+      g.addColorStop(0,"rgba(59,130,246,0.14)");
+      g.addColorStop(0.45,"rgba(2,6,23,0.55)");
+      g.addColorStop(1,"rgba(0,0,0,0.95)");
+      ctx.fillStyle=g; ctx.fillRect(0,0,W,H);
+    }
 
-    ctx.globalAlpha=0.18; ctx.fillStyle="#e5e7eb";
-    for(let i=0;i<40;i++){
+    // 2) premium dark overlay for readability (like providers do)
+    const fog = ctx.createLinearGradient(0,0,0,H);
+    fog.addColorStop(0,   "rgba(0,0,0,0.40)");
+    fog.addColorStop(0.35,"rgba(0,0,0,0.18)");
+    fog.addColorStop(1,   "rgba(0,0,0,0.58)");
+    ctx.fillStyle = fog;
+    ctx.fillRect(0,0,W,H);
+
+    // 3) subtle stars (optional, safe even on image)
+    ctx.globalAlpha=0.10;
+    ctx.fillStyle="#e5e7eb";
+    for(let i=0;i<32;i++){
       const x=(i*97)%W, y=(i*173)%H;
       ctx.fillRect(x,y,1,1);
     }
@@ -460,8 +487,6 @@
   // --- Sweet-style shaping: "force one 8+ cluster" (soft) ---
   function forceCluster8PlusSoft(){
     const sym = SYMBOLS[Math.floor(Math.random() * SYMBOLS.length)];
-
-    // Prefer 2x4 (8) to avoid huge constant wins; sometimes 3x3 (9)
     const roll = Math.random();
     const w = (roll < 0.82) ? 4 : 3;
     const h = (w === 4) ? 2 : 3;
@@ -578,7 +603,6 @@
       }
     }
 
-    // Build new grid, then (soft) shape only if it has no clusters
     newGrid();
 
     const baseChance = isFS ? FS_SHAPE_CHANCE : BASE_SHAPE_CHANCE;
@@ -590,7 +614,6 @@
 
     await animateFullDrop();
 
-    // Scatter triggers FS in base
     if(!isFS && !buyBonus){
       const sc=countScatters();
       if(sc>=4){ isFS=true; fsLeft=FS_AWARD; fsMulti=1; }
@@ -646,7 +669,6 @@
       removeIndices(toRemove);
       collapseAndRefill();
 
-      // heavier cascades feel
       for(const c of grid) c.yAnim -= (cell+pad)*1.05;
 
       await animateCascadeDrop();
@@ -659,7 +681,6 @@
     finalWin = Math.min(finalWin, bet*MAX_WIN_MULT);
     lastWin = finalWin;
 
-    // smart anti-dry tracking
     if(finalWin > 0.000001) dryStreak = 0;
     else dryStreak = Math.min(9, dryStreak + 1);
 
