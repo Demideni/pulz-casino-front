@@ -1,5 +1,5 @@
 // Lego Candy Slots — SB1000-like (cluster pays, cascades, bombs, FS)
-// FINAL SMART: Sweet-like threshold (8+), smart anti-dry (ramped), responsive fix, Pulz bridge intact, popups/multipliers/highlights preserved.
+// FINAL SMART + FRAME: custom slot frame + inner bg + separators (safe responsive).
 (() => {
   const canvas = document.getElementById("c");
   const ctx = canvas.getContext("2d");
@@ -28,8 +28,6 @@
 
   // --- Gameplay constants ---
   const COLS = 6, ROWS = 5;
-
-  // Sweet Bonanza feel: clusters from 8+
   const MIN_CLUSTER = 8;
 
   const BUY_BONUS_COST_MULT = 100;
@@ -45,7 +43,6 @@
   const BASE_SHAPE_CHANCE = 0.25;
   const FS_SHAPE_CHANCE   = 0.40;
 
-  // Smart anti-dry ramp (adds to shape chance by dry streak)
   function antiDryBoost(dry) {
     if (dry <= 1) return 0.0;
     if (dry === 2) return 0.12;
@@ -82,7 +79,14 @@
 
   // --- Assets ---
   const IMG = new Map();
-  let BG_IMG = null; // <-- ADD
+
+  let BG_IMG = null;         // ./assets/bg/bg-main.png
+  let FRAME_IMG = null;      // ./assets/ui/slot-frame.png
+  let INNER_BG_IMG = null;   // ./assets/ui/slot-inner-bg.png
+
+  const BG_SRC = "./assets/bg/bg-main.png";
+  const FRAME_SRC = "./assets/ui/slot-frame.png";
+  const INNER_BG_SRC = "./assets/ui/slot-inner-bg.png";
 
   function loadImage(src){
     return new Promise((res,rej)=>{
@@ -105,13 +109,17 @@
       IMG.set(f, await loadImage(base+f));
     }));
 
-    // load background (won't crash if missing)
-    try{
-      BG_IMG = await loadImage("./assets/bg/bg-main.png");
-    }catch(e){
-      BG_IMG = null;
-      console.warn("BG image not loaded: ./assets/bg/bg-main.png", e);
-    }
+    // background (safe)
+    try { BG_IMG = await loadImage(BG_SRC); }
+    catch(e){ BG_IMG = null; console.warn("BG image not loaded:", BG_SRC, e); }
+
+    // custom frame (safe)
+    try { FRAME_IMG = await loadImage(FRAME_SRC); }
+    catch(e){ FRAME_IMG = null; console.warn("FRAME image not loaded:", FRAME_SRC, e); }
+
+    // inner bg (safe)
+    try { INNER_BG_IMG = await loadImage(INNER_BG_SRC); }
+    catch(e){ INNER_BG_IMG = null; console.warn("INNER BG image not loaded:", INNER_BG_SRC, e); }
   }
 
   function pickWeighted(list){
@@ -169,6 +177,8 @@
     const usableW = Math.min(W, 560);
 
     const PAD_RATIO = 0.12;
+
+    // compute cell with pad included (prevents overflow on wide/short screens)
     const cellW = Math.floor((usableW - 24) / (COLS + (COLS - 1) * PAD_RATIO));
     const cellH = Math.floor((usableH - 24) / (ROWS + (ROWS - 1) * PAD_RATIO));
 
@@ -200,13 +210,11 @@
     ctx.closePath();
   }
 
-  // --- BACKGROUND (REPLACED) ---
+  // --- BACKGROUND ---
   function drawBG(){
-    // 1) draw image if present
     if (BG_IMG){
       ctx.drawImage(BG_IMG, 0, 0, W, H);
     } else {
-      // fallback (old gradient)
       const g=ctx.createRadialGradient(W*0.5,H*0.35,40,W*0.5,H*0.55,Math.max(W,H));
       g.addColorStop(0,"rgba(59,130,246,0.14)");
       g.addColorStop(0.45,"rgba(2,6,23,0.55)");
@@ -214,7 +222,7 @@
       ctx.fillStyle=g; ctx.fillRect(0,0,W,H);
     }
 
-    // 2) premium dark overlay for readability (like providers do)
+    // premium dark overlay for readability
     const fog = ctx.createLinearGradient(0,0,0,H);
     fog.addColorStop(0,   "rgba(0,0,0,0.40)");
     fog.addColorStop(0.35,"rgba(0,0,0,0.18)");
@@ -222,7 +230,7 @@
     ctx.fillStyle = fog;
     ctx.fillRect(0,0,W,H);
 
-    // 3) subtle stars (optional, safe even on image)
+    // subtle stars
     ctx.globalAlpha=0.10;
     ctx.fillStyle="#e5e7eb";
     for(let i=0;i<32;i++){
@@ -232,10 +240,97 @@
     ctx.globalAlpha=1;
   }
 
-  function drawFrame(){
-    const bw=COLS*cell+(COLS-1)*pad, bh=ROWS*cell+(ROWS-1)*pad;
-    const x=leftX-16,y=topY-16,w=bw+32,h=bh+32;
+  // inner bg inside the board area (under symbols)
+  function drawInnerSlotBG(){
+    const bw = COLS*cell + (COLS-1)*pad;
+    const bh = ROWS*cell + (ROWS-1)*pad;
+    const x = leftX;
+    const y = topY;
 
+    ctx.save();
+
+    if(INNER_BG_IMG){
+      ctx.globalAlpha = 0.98;
+      ctx.drawImage(INNER_BG_IMG, x, y, bw, bh);
+    } else {
+      // fallback: subtle glossy dark panel (safe)
+      const g = ctx.createLinearGradient(0, y, 0, y + bh);
+      g.addColorStop(0, "rgba(0,0,0,0.22)");
+      g.addColorStop(0.45, "rgba(0,0,0,0.10)");
+      g.addColorStop(1, "rgba(0,0,0,0.34)");
+      ctx.fillStyle = g;
+      ctx.fillRect(x, y, bw, bh);
+
+      // faint noise dots
+      ctx.globalAlpha = 0.06;
+      ctx.fillStyle = "#ffffff";
+      for(let i=0;i<28;i++){
+        const xx = x + ((i*131) % Math.max(1,bw));
+        const yy = y + ((i*197) % Math.max(1,bh));
+        ctx.fillRect(xx, yy, 1, 1);
+      }
+      ctx.globalAlpha = 1;
+    }
+
+    ctx.restore();
+  }
+
+  // separators sit only in the gaps (pad), never over symbol art
+  function drawCellSeparators(){
+    if(pad <= 0) return;
+
+    const bw = COLS*cell + (COLS-1)*pad;
+    const bh = ROWS*cell + (ROWS-1)*pad;
+
+    ctx.save();
+    ctx.globalAlpha = 0.20;
+    ctx.shadowColor = "rgba(59,130,246,0.30)";
+    ctx.shadowBlur = 10;
+    ctx.fillStyle = "rgba(59,130,246,0.18)";
+
+    // vertical gaps
+    for(let c=1;c<COLS;c++){
+      const x = leftX + c*cell + (c-1)*pad;
+      ctx.fillRect(x, topY, pad, bh);
+    }
+    // horizontal gaps
+    for(let r=1;r<ROWS;r++){
+      const y = topY + r*cell + (r-1)*pad;
+      ctx.fillRect(leftX, y, bw, pad);
+    }
+
+    // small inner stroke around the whole grid (provider-ish)
+    ctx.globalAlpha = 0.14;
+    ctx.strokeStyle = "rgba(255,255,255,0.35)";
+    ctx.lineWidth = 1;
+    roundRect(leftX+1, topY+1, bw-2, bh-2, Math.max(10, Math.floor(cell*0.18)));
+    ctx.stroke();
+
+    ctx.restore();
+  }
+
+  // custom frame (PNG) around the board; fallback to neon if missing
+  function drawFrame(){
+    const bw = COLS*cell + (COLS-1)*pad;
+    const bh = ROWS*cell + (ROWS-1)*pad;
+
+    // margin for the frame (keeps it outside symbols)
+    const m = Math.max(18, Math.floor(cell * 0.30));
+    const x = leftX - m;
+    const y = topY - m;
+    const w = bw + m*2;
+    const h = bh + m*2;
+
+    if(FRAME_IMG){
+      ctx.save();
+      ctx.shadowColor = "rgba(59,130,246,0.42)";
+      ctx.shadowBlur = 22;
+      ctx.drawImage(FRAME_IMG, x, y, w, h);
+      ctx.restore();
+      return;
+    }
+
+    // fallback frame
     ctx.save();
     ctx.shadowColor="rgba(59,130,246,0.55)";
     ctx.shadowBlur=26;
@@ -327,8 +422,11 @@
 
   function draw(){
     drawBG();
+    drawInnerSlotBG();
+    drawCellSeparators();
     drawFrame();
 
+    // symbols
     for(const c of grid){
       if(!c.img) continue;
       ctx.save();
@@ -340,6 +438,7 @@
 
     drawHighlights();
 
+    // bombs
     for(const b of bombs){
       if(!b.img) continue;
       ctx.save();
