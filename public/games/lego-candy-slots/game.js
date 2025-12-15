@@ -53,7 +53,7 @@
 
   // How deep the fog/inner window starts from board edge (matches frame inner edge)
   // Подкрути 24..34 если надо идеально
-  const FRAME_INSET_PX = 28;
+  const FRAME_INSET_PX = 36;
 
   function antiDryBoost(dry) {
     if (dry <= 1) return 0.0;
