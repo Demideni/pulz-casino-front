@@ -1,5 +1,5 @@
 // Lego Candy Slots — SB1000-like (cluster pays, cascades, bombs, FS)
-// Restored: slower reels, visible wins, floating multipliers + win popups.
+// FINAL: azart win-shaping + perfect responsive board (no frame drift) + kept Pulz bridge + kept popups/multipliers/highlights.
 (() => {
   const canvas = document.getElementById("c");
   const ctx = canvas.getContext("2d");
@@ -11,9 +11,7 @@
     mode: document.getElementById("mode"),
     fs: document.getElementById("fs"),
     fsm: document.getElementById("fsm"),
-
     startBtn: document.getElementById("startBtn"),
-
     buyModal: document.getElementById("buyModal"),
     cancelBuy: document.getElementById("cancelBuy"),
     confirmBuy: document.getElementById("confirmBuy"),
@@ -29,15 +27,23 @@
   }
 
   // --- Gameplay constants ---
-  const COLS = 6, ROWS = 5, MIN_CLUSTER = 6; // was 8 -> too rare
+  const COLS = 6, ROWS = 5;
+
+  // Sweet-like cluster threshold
+  const MIN_CLUSTER = 8;
+
+  // AZART shaping: if random grid has no 8+ cluster, we force one with these chances
+  const BASE_WIN_CHANCE = 0.72;
+  const FS_WIN_CHANCE = 0.88;
+
   const BUY_BONUS_COST_MULT = 100;
   const FS_AWARD = 10;
   const MAX_WIN_MULT = 5000;
 
   // Slower by ~40%
-  const SPIN_DROP_MS = 520;     // was 360
-  const CASCADE_DROP_MS = 420;  // was 300
-  const STAGGER_MS = 22;        // was 16
+  const SPIN_DROP_MS = 520;
+  const CASCADE_DROP_MS = 420;
+  const STAGGER_MS = 22;
 
   const SYMBOLS = [
     { id: "low_blue",   file: "low_blue.png",   weight: 16, pay: [0,0,0,0,0,0,0, 0.2,0.3,0.4,0.6,0.9,1.2,1.6,2.0] },
@@ -87,6 +93,7 @@
     for(const it of list){ r -= (it.weight ?? it.w); if(r<=0) return it; }
     return list[list.length-1];
   }
+
   function randomSymbol(){
     const pool=[
       ...SYMBOLS.map(s=>({id:s.id,file:s.file,weight:s.weight})),
@@ -100,10 +107,10 @@
   let isFS=false, fsLeft=0, fsMulti=1;
   let spinning=false;
 
-  let grid=[];   // {symId,img,x,y,yAnim}
-  let bombs=[];  // {x,y,img,mult,alpha,scale}
-  let popups=[]; // {x,y,text,t0,dur,kind}
-  let highlights=[]; // {idxs:Set<number>, t0, dur}
+  let grid=[];        // {symId,img,x,y,yAnim}
+  let bombs=[];       // {x,y,img,mult,alpha,scale}
+  let popups=[];      // {x,y,text,t0,dur,kind}
+  let highlights=[];  // {idxs:Set<number>, t0, dur}
 
   let W=0,H=0, cell=0, pad=0, topY=0, leftX=0;
 
@@ -127,19 +134,24 @@
     W=ww; H=hh;
 
     const safeTop=70;
-    const safeBottom = getStartBtnHeight() + 80; // keep board above big button
+    const safeBottom = getStartBtnHeight() + 80;
 
-    const usableH=H-safeTop-safeBottom;
-    const usableW=Math.min(W,520);
+    const usableH = H - safeTop - safeBottom;
+    const usableW = Math.min(W, 560); // чуть шире на больших телефонах
 
-    cell=Math.floor(Math.min((usableW-24)/COLS,(usableH-24)/ROWS));
-    pad=Math.floor(cell*0.12);
+    // FIX: calculate cell WITH pad included, so frame never drifts offscreen
+    const PAD_RATIO = 0.12;
+    const cellW = Math.floor((usableW - 24) / (COLS + (COLS - 1) * PAD_RATIO));
+    const cellH = Math.floor((usableH - 24) / (ROWS + (ROWS - 1) * PAD_RATIO));
 
-    const boardW=COLS*cell+(COLS-1)*pad;
-    const boardH=ROWS*cell+(ROWS-1)*pad;
+    cell = Math.max(32, Math.min(cellW, cellH));
+    pad  = Math.floor(cell * PAD_RATIO);
 
-    leftX=Math.floor((W-boardW)/2);
-    topY=Math.floor(safeTop+(usableH-boardH)/2);
+    const boardW = COLS*cell + (COLS-1)*pad;
+    const boardH = ROWS*cell + (ROWS-1)*pad;
+
+    leftX = Math.floor((W - boardW) / 2);
+    topY  = Math.floor(safeTop + (usableH - boardH) / 2);
 
     for(let r=0;r<ROWS;r++) for(let c=0;c<COLS;c++){
       const i=r*COLS+c;
@@ -192,13 +204,6 @@
     roundRect(x,y,w,h,22); ctx.stroke();
   }
 
-  function cellCenter(idx){
-    const r=Math.floor(idx/COLS), c=idx%COLS;
-    const x=leftX+c*(cell+pad)+cell/2;
-    const y=topY+r*(cell+pad)+cell/2;
-    return {x,y};
-  }
-
   function addPopup(x, y, text, dur = 900, kind="win"){
     popups.push({ x, y, text, t0: performance.now(), dur, kind });
   }
@@ -212,7 +217,7 @@
     highlights = highlights.filter(h => now - h.t0 < h.dur);
 
     for(const h of highlights){
-      const t = (now - h.t0) / h.dur; // 0..1
+      const t = (now - h.t0) / h.dur;
       const a = (1 - t) * 0.45;
 
       ctx.save();
@@ -246,7 +251,6 @@
       ctx.save();
       ctx.globalAlpha = a;
 
-      // kind-based styling
       if(p.kind === "mult"){
         ctx.font = "900 20px system-ui, -apple-system, Segoe UI, Roboto, Arial";
         ctx.shadowColor = "rgba(59,130,246,0.80)";
@@ -280,7 +284,6 @@
     drawBG();
     drawFrame();
 
-    // symbols
     for(const c of grid){
       if(!c.img) continue;
       ctx.save();
@@ -290,10 +293,8 @@
       ctx.restore();
     }
 
-    // highlights over symbols
     drawHighlights();
 
-    // bombs (with scale)
     for(const b of bombs){
       if(!b.img) continue;
       ctx.save();
@@ -310,7 +311,6 @@
       ctx.restore();
     }
 
-    // floating texts
     drawPopups();
 
     requestAnimationFrame(draw);
@@ -429,6 +429,32 @@
     return grid.reduce((a,c)=>a+(c.symId==="scatter"),0);
   }
 
+  // --- Sweet-style AZART shaping (force at least one 8+ sometimes) ---
+  function forceCluster8Plus(){
+    const sym = SYMBOLS[Math.floor(Math.random() * SYMBOLS.length)];
+    // 2x4 (8) чаще, иногда 3x3 (9)
+    const w = (Math.random() < 0.70) ? 4 : 3;
+    const h = (w === 4) ? 2 : 3;
+
+    const startC = Math.floor(Math.random() * (COLS - w + 1));
+    const startR = Math.floor(Math.random() * (ROWS - h + 1));
+
+    for (let r = startR; r < startR + h; r++) {
+      for (let c = startC; c < startC + w; c++) {
+        const idx = r * COLS + c;
+        grid[idx].symId = sym.id;
+        grid[idx].img = IMG.get(sym.file);
+      }
+    }
+  }
+
+  function generateSpinGridAzart(winChance){
+    newGrid();
+    if (findClusters().length === 0 && Math.random() < winChance) {
+      forceCluster8Plus();
+    }
+  }
+
   // --- UI / Balance bridge ---
   function updateUI(){
     if(ui.bal) ui.bal.textContent=`$${balance.toFixed(2)}`;
@@ -502,7 +528,7 @@
       function tick(now){
         const t=Math.min(1,(now-start)/ms);
         b.alpha=t;
-        b.scale = 0.82 + 0.32 * (1 - Math.pow(1 - t, 3)); // up to ~1.14
+        b.scale = 0.82 + 0.32 * (1 - Math.pow(1 - t, 3));
         if(t<1) requestAnimationFrame(tick);
         else { b.scale = 1; res(); }
       }
@@ -516,7 +542,6 @@
     for(let r=0;r<ROWS;r++) for(let c=0;c<COLS;c++){
       const s=randomSymbol();
       const x=leftX+c*(cell+pad), y=topY+r*(cell+pad);
-      // ensure correct image for symbol id
       const file = (s.id==="scatter") ? SCATTER.file : s.file;
       grid.push({symId:s.id,img:IMG.get(file),x,y,yAnim:y});
     }
@@ -541,8 +566,8 @@
       }
     }
 
-    // Full drop every spin
-    newGrid();
+    // AZART: generate grid with shaping (Sweet-like feel)
+    generateSpinGridAzart(isFS ? FS_WIN_CHANCE : BASE_WIN_CHANCE);
     await animateFullDrop();
 
     // Scatter triggers FS in base
@@ -571,10 +596,8 @@
       }
 
       if(hi.size) addHighlight(hi, 420);
-
       totalSpinWin += cascadeWin;
 
-      // Show cascade popup near board center
       if(cascadeWin > 0){
         addPopup(
           leftX + (COLS*(cell+pad)-pad)/2,
@@ -585,14 +608,11 @@
         );
       }
 
-      // bombs + floating multipliers like in the “good old” version
       const picked = isFS ? spawnBombsFS() : maybeSpawnBombsBase();
       placeBombs(picked);
       await animateBombsIn();
 
-      // multiplier popups at bomb positions
       for(const b of bombs){
-        // center of bomb sprite
         const sz = Math.floor(cell*0.92);
         const cx = b.x + sz/2;
         const cy = b.y + sz/2;
@@ -603,12 +623,11 @@
       if(isFS) fsMulti += add;
       else totalSpinMult += add;
 
-      // cascade
       removeIndices(toRemove);
       collapseAndRefill();
 
-      // pre-drop offset (keeps “fall” feel)
-      for(const c of grid) c.yAnim -= (cell+pad)*0.85;
+      // make cascades heavier (nicer feel)
+      for(const c of grid) c.yAnim -= (cell+pad)*1.05;
 
       await animateCascadeDrop();
     }
@@ -622,7 +641,6 @@
 
     if(finalWin > 0){
       addPopup(W*0.5, topY - 42, `WIN +${finalWin.toFixed(2)}`, 1200, "total");
-
       const x = finalWin / Math.max(0.01, bet);
       if(x >= 20) pulseStartBtn();
       if(x >= 60) setTimeout(pulseStartBtn, 220);
