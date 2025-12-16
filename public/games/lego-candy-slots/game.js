@@ -1,11 +1,6 @@
-// Lego Candy Slots — SB1000-like (cluster pays, cascades, bombs, FS)
-// FINAL SMART + FRAME OVERLAY:
-// - Frame is drawn on TOP of symbols & fog
-// - Fog starts exactly at frame inner edges via FRAME_INSET_PX
-// - Inner BG inside window shows ~30%
-// - Responsive board fix preserved
-// - Pulz bridge intact, popups/multipliers/highlights preserved.
 
+// Lego Candy Slots — SB1000-like (cluster pays, cascades, bombs, FS)
+// Key UX fix: every spin animates full drop (no teleporting symbols).
 (() => {
   const canvas = document.getElementById("c");
   const ctx = canvas.getContext("2d");
@@ -17,56 +12,70 @@
     mode: document.getElementById("mode"),
     fs: document.getElementById("fs"),
     fsm: document.getElementById("fsm"),
-    startBtn: document.getElementById("startBtn"),
+    spinBtn: document.getElementById("spinBtn"),
     buyModal: document.getElementById("buyModal"),
     cancelBuy: document.getElementById("cancelBuy"),
     confirmBuy: document.getElementById("confirmBuy"),
+    tapbar: document.getElementById("tapbar"),
   };
 
-  // --- UI FX ---
-  function pulseStartBtn() {
-    if (!ui.startBtn) return;
-    ui.startBtn.classList.remove("pulse");
-    void ui.startBtn.offsetWidth;
-    ui.startBtn.classList.add("pulse");
-    setTimeout(() => ui.startBtn && ui.startBtn.classList.remove("pulse"), 800);
+// --- START BUTTON (PNG only) / hide tapbar ---
+// Place your button here: public/games/lego-candy-slots/assets/ui/btn-start.png
+const START_BTN_SRC = "./assets/ui/btn-start.png";
+function getBtnSize(){
+  // responsive size that feels premium on phones
+  const W = window.innerWidth || 390;
+  return Math.round(Math.min(220, Math.max(150, W * 0.38)));
+}
+function layoutStartButton(){
+  if(!ui.spinBtn) return;
+  const size = getBtnSize();
+  // Hide any tapbar if present (we keep only the button)
+  if(ui.tapbar) ui.tapbar.style.display = "none";
+  ui.spinBtn.style.position = "fixed";
+  ui.spinBtn.style.left = "50%";
+  ui.spinBtn.style.bottom = "calc(18px + env(safe-area-inset-bottom))";
+  ui.spinBtn.style.transform = "translateX(-50%)";
+  ui.spinBtn.style.width = size + "px";
+  ui.spinBtn.style.height = size + "px";
+  ui.spinBtn.style.border = "none";
+  ui.spinBtn.style.padding = "0";
+  ui.spinBtn.style.margin = "0";
+  ui.spinBtn.style.borderRadius = "999px";
+  ui.spinBtn.style.background = `url('${START_BTN_SRC}') center/contain no-repeat`;
+  ui.spinBtn.style.backgroundColor = "transparent";
+  ui.spinBtn.style.boxShadow = "0 10px 35px rgba(0,0,0,0.45)";
+  ui.spinBtn.style.touchAction = "manipulation";
+  ui.spinBtn.style.userSelect = "none";
+  ui.spinBtn.textContent = ""; // ensure no text label
+}
+
+  // --- UI FX helpers (studs flash + button pulse) ---
+  function flashTapbar(){
+    if(!ui.tapbar) return;
+    if(ui.tapbar.style && ui.tapbar.style.display === 'none') return;
+    ui.tapbar.classList.remove('flash');
+    // force reflow so animation restarts
+    void ui.tapbar.offsetWidth;
+    ui.tapbar.classList.add('flash');
+    setTimeout(()=>ui.tapbar.classList.remove('flash'), 600);
+  }
+  function pulseSpinBtn(){
+    if(!ui.spinBtn) return;
+    ui.spinBtn.classList.remove('pulse');
+    void ui.spinBtn.offsetWidth;
+    ui.spinBtn.classList.add('pulse');
+    setTimeout(()=>ui.spinBtn.classList.remove('pulse'), 800);
   }
 
-  // --- Gameplay constants ---
-  const COLS = 6, ROWS = 5;
-
-  // Sweet Bonanza feel: clusters from 8+
-  const MIN_CLUSTER = 8;
-
+  const COLS = 6, ROWS = 5, MIN_CLUSTER = 8;
   const BUY_BONUS_COST_MULT = 100;
   const FS_AWARD = 10;
   const MAX_WIN_MULT = 5000;
 
-  // Slower by ~40%
-  const SPIN_DROP_MS = 520;
-  const CASCADE_DROP_MS = 420;
-  const STAGGER_MS = 22;
-
-  // Smart win-shaping baseline (not too frequent)
-  const BASE_SHAPE_CHANCE = 0.25;
-  const FS_SHAPE_CHANCE   = 0.40;
-
-  // How deep the fog/inner window starts from board edge (matches frame inner edge)
-  // Подкрути 24..34 если надо идеально
-  const FRAME_INSET_PX = 36;
-
-  function antiDryBoost(dry) {
-    if (dry <= 1) return 0.0;
-    if (dry === 2) return 0.12;
-    if (dry === 3) return 0.22;
-    if (dry === 4) return 0.34;
-    if (dry === 5) return 0.46;
-    return 0.58;
-  }
-
-  function capChance(x) {
-    return Math.max(0, Math.min(0.92, x));
-  }
+  const SPIN_DROP_MS = 360;
+  const CASCADE_DROP_MS = 300;
+  const STAGGER_MS = 16;
 
   const SYMBOLS = [
     { id: "low_blue",   file: "low_blue.png",   weight: 16, pay: [0,0,0,0,0,0,0, 0.2,0.3,0.4,0.6,0.9,1.2,1.6,2.0] },
@@ -89,49 +98,15 @@
     { mult:100,file:"m_x100.png",w: 3 },
   ];
 
-  // --- Assets ---
   const IMG = new Map();
-
-  // background behind everything (full screen)
-  let BG_IMG = null;
-
-  // background inside the slot window (optional)
-  let INNER_BG_IMG = null;
-
-  // frame png (must be transparent center)
-  let FRAME_IMG = null;
-
-  function loadImage(src){
-    return new Promise((res,rej)=>{
-      const i=new Image();
-      i.onload=()=>res(i);
-      i.onerror=rej;
-      i.src=src;
-    });
-  }
-
+  function loadImage(src){ return new Promise((res,rej)=>{ const i=new Image(); i.onload=()=>res(i); i.onerror=rej; i.src=src; }); }
   async function loadAssets(){
     const base="./assets/symbols/";
     const files=new Set();
     SYMBOLS.forEach(s=>files.add(s.file));
     files.add(SCATTER.file);
     MULTI_BOMBS.forEach(b=>files.add(b.file));
-
-    await Promise.all([...files].map(async f=>{
-      IMG.set(f, await loadImage(base+f));
-    }));
-
-    // full background (screen)
-    try{ BG_IMG = await loadImage("./assets/bg/bg-main.png"); }
-    catch(e){ BG_IMG=null; console.warn("BG missing ./assets/bg/bg-main.png", e); }
-
-    // inner background (inside window) - optional
-    try{ INNER_BG_IMG = await loadImage("./assets/bg/slot-inner.png"); }
-    catch(e){ INNER_BG_IMG=null; }
-
-    // frame png
-    try{ FRAME_IMG = await loadImage("./assets/ui/slot-frame.png"); }
-    catch(e){ FRAME_IMG=null; console.warn("FRAME missing ./assets/ui/slot-frame.png", e); }
+    await Promise.all([...files].map(async f=>{ IMG.set(f, await loadImage(base+f)); }));
   }
 
   function pickWeighted(list){
@@ -140,67 +115,41 @@
     for(const it of list){ r -= (it.weight ?? it.w); if(r<=0) return it; }
     return list[list.length-1];
   }
-
   function randomSymbol(){
-    const pool=[
-      ...SYMBOLS.map(s=>({id:s.id,file:s.file,weight:s.weight})),
-      {id:SCATTER.id,file:SCATTER.file,weight:SCATTER.weight,isScatter:true}
-    ];
+    const pool=[...SYMBOLS.map(s=>({id:s.id,file:s.file,weight:s.weight})), {id:SCATTER.id,file:SCATTER.file,weight:SCATTER.weight,isScatter:true}];
     return pickWeighted(pool);
   }
 
-  // --- State ---
   let balance=0, bet=1, lastWin=0;
   let isFS=false, fsLeft=0, fsMulti=1;
   let spinning=false;
 
-  let dryStreak = 0;
-
-  let grid=[];
-  let bombs=[];
-  let popups=[];
-  let highlights=[];
+  let grid=[]; // {symId,img,x,y,yAnim}
+  let bombs=[]; // {x,y,img,mult,alpha}
 
   let W=0,H=0, cell=0, pad=0, topY=0, leftX=0;
-
-  // --- Layout ---
-  function getStartBtnHeight(){
-    if(!ui.startBtn) return 120;
-    const r = ui.startBtn.getBoundingClientRect();
-    return Math.max(96, Math.floor(r.height || 120));
-  }
+  let innerPad=24; // inner fog padding and frame inner edge
 
   function resize(){
     const dpr=Math.max(1, Math.min(2, window.devicePixelRatio||1));
     const ww=innerWidth, hh=innerHeight;
-
-    canvas.width=Math.floor(ww*dpr);
-    canvas.height=Math.floor(hh*dpr);
-    canvas.style.width=ww+"px";
-    canvas.style.height=hh+"px";
+    canvas.width=Math.floor(ww*dpr); canvas.height=Math.floor(hh*dpr);
+    canvas.style.width=ww+"px"; canvas.style.height=hh+"px";
     ctx.setTransform(dpr,0,0,dpr,0,0);
-
     W=ww; H=hh;
 
     const safeTop=70;
-    const safeBottom = getStartBtnHeight() + 80;
-
-    const usableH = H - safeTop - safeBottom;
-    const usableW = Math.min(W, 560);
-
-    // FIX: compute cell with pad included (prevents frame drifting offscreen)
-    const PAD_RATIO = 0.12;
-    const cellW = Math.floor((usableW - 24) / (COLS + (COLS - 1) * PAD_RATIO));
-    const cellH = Math.floor((usableH - 24) / (ROWS + (ROWS - 1) * PAD_RATIO));
-
-    cell = Math.max(32, Math.min(cellW, cellH));
-    pad  = Math.floor(cell * PAD_RATIO);
-
+    const safeBottom = getBtnSize() + 60; // keep board above the start button
+    const usableH=H-safeTop-safeBottom;
+    const usableW=Math.min(W,520);
+    cell=Math.floor(Math.min((usableW-24)/COLS,(usableH-24)/ROWS));
+    pad=Math.floor(cell*0.12);
     const boardW=COLS*cell+(COLS-1)*pad;
     const boardH=ROWS*cell+(ROWS-1)*pad;
-
     leftX=Math.floor((W-boardW)/2);
     topY=Math.floor(safeTop+(usableH-boardH)/2);
+
+    layoutStartButton();
 
     for(let r=0;r<ROWS;r++) for(let c=0;c<COLS;c++){
       const i=r*COLS+c;
@@ -210,7 +159,6 @@
     }
   }
 
-  // --- Draw helpers ---
   function roundRect(x,y,w,h,r){
     ctx.beginPath();
     ctx.moveTo(x+r,y);
@@ -222,226 +170,109 @@
   }
 
   function drawBG(){
-    if (BG_IMG){
-      ctx.drawImage(BG_IMG, 0, 0, W, H);
-    } else {
-      const g=ctx.createRadialGradient(W*0.5,H*0.35,40,W*0.5,H*0.55,Math.max(W,H));
-      g.addColorStop(0,"rgba(59,130,246,0.14)");
-      g.addColorStop(0.45,"rgba(2,6,23,0.55)");
-      g.addColorStop(1,"rgba(0,0,0,0.95)");
-      ctx.fillStyle=g; ctx.fillRect(0,0,W,H);
-    }
-
-    // global readability fog on top of screen bg
-    const fog = ctx.createLinearGradient(0,0,0,H);
-    fog.addColorStop(0,   "rgba(0,0,0,0.35)");
-    fog.addColorStop(0.45,"rgba(0,0,0,0.10)");
-    fog.addColorStop(1,   "rgba(0,0,0,0.55)");
-    ctx.fillStyle = fog;
-    ctx.fillRect(0,0,W,H);
-  }
-
-  // Fog + inner bg ONLY inside the frame inner window (starts from inset)
-  function drawInnerSlotBG(){
-    const bw = COLS*cell + (COLS-1)*pad;
-    const bh = ROWS*cell + (ROWS-1)*pad;
-
-    const inset = FRAME_INSET_PX;
-    const x = leftX + inset;
-    const y = topY + inset;
-    const w = bw - inset*2;
-    const h = bh - inset*2;
-
-    if(w <= 10 || h <= 10) return;
-
-    ctx.save();
-
-    // clip so nothing goes under frame edges
-    roundRect(x, y, w, h, Math.max(12, Math.floor(cell*0.18)));
-    ctx.clip();
-
-    // inner image ~30%
-    if(INNER_BG_IMG){
-      ctx.globalAlpha = 0.30;
-      ctx.drawImage(INNER_BG_IMG, x, y, w, h);
-      ctx.globalAlpha = 1;
-    }
-
-    // fog layer inside window
-    const fog = ctx.createLinearGradient(0, y, 0, y + h);
-    fog.addColorStop(0,   "rgba(0,0,0,0.55)");
-    fog.addColorStop(0.45,"rgba(0,0,0,0.42)");
-    fog.addColorStop(1,   "rgba(0,0,0,0.58)");
-    ctx.fillStyle = fog;
-    ctx.fillRect(x, y, w, h);
-
-    // milk haze
-    const milk = ctx.createRadialGradient(
-      x + w*0.5, y + h*0.35, 10,
-      x + w*0.5, y + h*0.55, Math.max(w,h)
-    );
-    milk.addColorStop(0, "rgba(255,255,255,0.07)");
-    milk.addColorStop(1, "rgba(255,255,255,0.00)");
-    ctx.fillStyle = milk;
-    ctx.fillRect(x, y, w, h);
-
-    ctx.restore();
+    const g=ctx.createRadialGradient(W*0.5,H*0.35,40,W*0.5,H*0.55,Math.max(W,H));
+    g.addColorStop(0,"rgba(59,130,246,0.14)");
+    g.addColorStop(0.45,"rgba(2,6,23,0.55)");
+    g.addColorStop(1,"rgba(0,0,0,0.95)");
+    ctx.fillStyle=g; ctx.fillRect(0,0,W,H);
+    ctx.globalAlpha=0.18; ctx.fillStyle="#e5e7eb";
+    for(let i=0;i<40;i++){ const x=(i*97)%W, y=(i*173)%H; ctx.fillRect(x,y,1,1); }
+    ctx.globalAlpha=1;
   }
 
   function drawFrame(){
-    const bw = COLS*cell + (COLS-1)*pad;
-    const bh = ROWS*cell + (ROWS-1)*pad;
+  // Procedural frame (no PNG). Frame is ALWAYS on top of fog + symbols.
+  const bw = COLS*cell + (COLS-1)*pad;
+  const bh = ROWS*cell + (ROWS-1)*pad;
 
-    // outer margin where we place the PNG frame
-    const m = Math.max(26, Math.floor(cell * 0.42));
-    const x = leftX - m;
-    const y = topY - m;
-    const w = bw + m*2;
-    const h = bh + m*2;
+  // Inner edge aligns with the fog area (innerPad)
+  const ix = leftX - innerPad;
+  const iy = topY  - innerPad;
+  const iw = bw + innerPad*2;
+  const ih = bh + innerPad*2;
 
-    if(FRAME_IMG){
-      ctx.save();
-      ctx.shadowColor = "rgba(0,0,0,0.35)";
-      ctx.shadowBlur = 18;
-      ctx.drawImage(FRAME_IMG, x, y, w, h);
-      ctx.restore();
-      return;
-    }
+  // Frame thickness around the fog area
+  const thick = Math.max(14, Math.floor(cell * 0.22));
+  const ox = ix - thick;
+  const oy = iy - thick;
+  const ow = iw + thick*2;
+  const oh = ih + thick*2;
 
-    // fallback frame if png missing
-    ctx.save();
-    ctx.shadowColor="rgba(59,130,246,0.55)";
-    ctx.shadowBlur=26;
-    ctx.strokeStyle="rgba(59,130,246,0.55)";
-    ctx.lineWidth=3;
-    roundRect(leftX-16, topY-16, bw+32, bh+32, 22); ctx.stroke();
-    ctx.restore();
+  const rOuter = Math.max(22, Math.floor(cell * 0.55));
+  const rInner = Math.max(18, Math.floor(cell * 0.45));
 
-    ctx.strokeStyle="rgba(255,255,255,0.06)";
-    ctx.lineWidth=1;
-    roundRect(leftX-16, topY-16, bw+32, bh+32, 22); ctx.stroke();
-  }
+  ctx.save();
+  ctx.shadowColor = "rgba(0,0,0,0.45)";
+  ctx.shadowBlur = 22;
 
-  function addPopup(x, y, text, dur = 900, kind="win"){
-    popups.push({ x, y, text, t0: performance.now(), dur, kind });
-  }
+  const grad = ctx.createLinearGradient(ox, oy, ox, oy+oh);
+  grad.addColorStop(0.00, "rgba(120,66,0,0.95)");
+  grad.addColorStop(0.32, "rgba(222,145,44,0.96)");
+  grad.addColorStop(0.62, "rgba(164,88,10,0.96)");
+  grad.addColorStop(1.00, "rgba(92,46,0,0.95)");
 
-  function addHighlight(idxs, dur=420){
-    highlights.push({ idxs, t0: performance.now(), dur });
-  }
+  ctx.fillStyle = grad;
+  ctx.beginPath();
+  roundRect(ox, oy, ow, oh, rOuter);
+  roundRect(ix, iy, iw, ih, rInner);
+  ctx.fill("evenodd");
 
-  function drawHighlights(){
-    const now = performance.now();
-    highlights = highlights.filter(h => now - h.t0 < h.dur);
+  // Inner highlight
+  ctx.shadowBlur = 0;
+  ctx.lineWidth = 2;
+  ctx.strokeStyle = "rgba(255,255,255,0.22)";
+  roundRect(ix+1, iy+1, iw-2, ih-2, rInner);
+  ctx.stroke();
 
-    for(const h of highlights){
-      const t = (now - h.t0) / h.dur;
-      const a = (1 - t) * 0.45;
+  // Outer subtle outline
+  ctx.lineWidth = 1;
+  ctx.strokeStyle = "rgba(0,0,0,0.35)";
+  roundRect(ox+0.5, oy+0.5, ow-1, oh-1, rOuter);
+  ctx.stroke();
 
-      ctx.save();
-      ctx.globalAlpha = a;
-      ctx.lineWidth = 3;
-      ctx.shadowColor = "rgba(59,130,246,0.85)";
-      ctx.shadowBlur = 18;
-      ctx.strokeStyle = "rgba(59,130,246,0.75)";
-
-      for(const idx of h.idxs){
-        const r=Math.floor(idx/COLS), c=idx%COLS;
-        const x=leftX+c*(cell+pad);
-        const y=topY+r*(cell+pad);
-        roundRect(x+4, y+4, cell-8, cell-8, 14);
-        ctx.stroke();
-      }
-      ctx.restore();
-    }
-  }
-
-  function drawPopups(){
-    const now = performance.now();
-    popups = popups.filter(p => now - p.t0 < p.dur);
-
-    for (const p of popups) {
-      const t = (now - p.t0) / p.dur;
-      const k = 1 - Math.pow(1 - Math.min(1, t), 3);
-      const y = p.y - 28 * k;
-      const a = 1 - t;
-
-      ctx.save();
-      ctx.globalAlpha = a;
-
-      if(p.kind === "mult"){
-        ctx.font = "900 20px system-ui, -apple-system, Segoe UI, Roboto, Arial";
-        ctx.shadowColor = "rgba(59,130,246,0.80)";
-        ctx.shadowBlur = 16;
-        ctx.fillStyle = "#eafff2";
-      } else if(p.kind === "total"){
-        ctx.font = "1000 28px system-ui, -apple-system, Segoe UI, Roboto, Arial";
-        ctx.shadowColor = "rgba(59,130,246,0.90)";
-        ctx.shadowBlur = 22;
-        ctx.fillStyle = "#ffffff";
-      } else {
-        ctx.font = "900 22px system-ui, -apple-system, Segoe UI, Roboto, Arial";
-        ctx.shadowColor = "rgba(59,130,246,0.70)";
-        ctx.shadowBlur = 16;
-        ctx.fillStyle = "#eafff2";
-      }
-
-      ctx.textAlign = "center";
-      ctx.textBaseline = "middle";
-
-      ctx.strokeStyle = "rgba(0,0,0,0.55)";
-      ctx.lineWidth = 5;
-      ctx.strokeText(p.text, p.x, y);
-      ctx.fillText(p.text, p.x, y);
-
-      ctx.restore();
-    }
-  }
+  ctx.restore();
+}
 
   function draw(){
-    drawBG();
+  drawBG();
+  drawInnerSlotBG();
+  drawCellSeparators();
 
-    // inner window fog/bg under symbols (clipped to inset)
-    drawInnerSlotBG();
-
-    // symbols
-    for(const c of grid){
-      if(!c.img) continue;
-      ctx.save();
-      ctx.shadowColor="rgba(59,130,246,0.28)";
-      ctx.shadowBlur=10;
-      ctx.drawImage(c.img,c.x,c.yAnim,cell,cell);
-      ctx.restore();
-    }
-
-    drawHighlights();
-
-    // bombs
-    for(const b of bombs){
-      if(!b.img) continue;
-      ctx.save();
-      ctx.globalAlpha=b.alpha;
-      ctx.shadowColor="rgba(59,130,246,0.65)";
-      ctx.shadowBlur=16;
-
-      const s = (b.scale ?? 1);
-      const sz = Math.floor(cell*0.92);
-      const cx = b.x + sz/2;
-      const cy = b.y + sz/2;
-      ctx.drawImage(b.img, cx - (sz*s)/2, cy - (sz*s)/2, sz*s, sz*s);
-
-      ctx.restore();
-    }
-
-    drawPopups();
-
-    // FRAME MUST BE ON TOP
-    drawFrame();
-
-    requestAnimationFrame(draw);
+  for(const c of grid){
+    if(!c.img) continue;
+    ctx.save();
+    ctx.shadowColor="rgba(59,130,246,0.28)";
+    ctx.shadowBlur=10;
+    ctx.drawImage(c.img,c.x,c.yAnim,cell,cell);
+    ctx.restore();
   }
 
-  // --- Cluster logic ---
+  drawHighlights();
+
+  for(const b of bombs){
+    if(!b.img) continue;
+    ctx.save();
+    ctx.globalAlpha=b.alpha;
+    ctx.shadowColor="rgba(59,130,246,0.65)";
+    ctx.shadowBlur=16;
+
+    const s = (b.scale ?? 1);
+    const sz = Math.floor(cell*0.92);
+    const cx = b.x + sz/2;
+    const cy = b.y + sz/2;
+    ctx.drawImage(b.img, cx - (sz*s)/2, cy - (sz*s)/2, sz*s, sz*s);
+
+    ctx.restore();
+  }
+
+  drawPopups();
+
+  // frame goes last: on top of fog + symbols (like real slots)
+  drawFrame();
+
+  requestAnimationFrame(draw);
+}
+
   function neighbors(idx){
     const r=Math.floor(idx/COLS), c=idx%COLS;
     const out=[];
@@ -459,7 +290,6 @@
       if(seen[i]) continue;
       const id=grid[i].symId;
       if(id==="scatter"){ seen[i]=true; continue; }
-
       const q=[i]; seen[i]=true;
       const members=[];
       while(q.length){
@@ -481,9 +311,7 @@
     return sym.pay[idx]||0;
   }
 
-  // --- Animation ---
   function easeOutCubic(t){ return 1-Math.pow(1-t,3); }
-
   function animateY(obj,from,to,ms,delay=0){
     return new Promise(res=>{
       const start=performance.now()+delay;
@@ -515,17 +343,12 @@
     const jobs=[];
     for(let i=0;i<grid.length;i++){
       const obj=grid[i];
-      jobs.push(animateY(obj,obj.yAnim,obj.y,CASCADE_DROP_MS,(i%COLS)*12));
+      jobs.push(animateY(obj,obj.yAnim,obj.y,CASCADE_DROP_MS,(i%COLS)*10));
     }
     await Promise.all(jobs);
   }
 
-  function removeIndices(setIdx){
-    for(const idx of setIdx){
-      grid[idx].symId=null;
-      grid[idx].img=null;
-    }
-  }
+  function removeIndices(setIdx){ for(const idx of setIdx){ grid[idx].symId=null; grid[idx].img=null; } }
 
   function collapseAndRefill(){
     for(let c=0;c<COLS;c++){
@@ -535,142 +358,98 @@
         if(grid[idx].symId) col.push(grid[idx].symId);
       }
       while(col.length<ROWS){ col.push(randomSymbol().id); }
-
       for(let r=ROWS-1;r>=0;r--){
         const idx=r*COLS+c;
         const id=col[ROWS-1-r];
         grid[idx].symId=id;
-
-        const file=(id==="scatter")
-          ? SCATTER.file
-          : SYMBOLS.find(s=>s.id===id).file;
-
+        const file=(id==="scatter")?SCATTER.file:SYMBOLS.find(s=>s.id===id).file;
         grid[idx].img=IMG.get(file);
       }
     }
   }
 
-  function countScatters(){
-    return grid.reduce((a,c)=>a+(c.symId==="scatter"),0);
-  }
+  function countScatters(){ return grid.reduce((a,c)=>a+(c.symId==="scatter"),0); }
 
-  // --- Grid ---
-  function newGrid(){
-    grid.length=0;
-    for(let r=0;r<ROWS;r++) for(let c=0;c<COLS;c++){
-      const s=randomSymbol();
-      const x=leftX+c*(cell+pad), y=topY+r*(cell+pad);
-      const file = (s.id==="scatter") ? SCATTER.file : s.file;
-      grid.push({symId:s.id,img:IMG.get(file),x,y,yAnim:y});
-    }
-  }
-
-  // --- Sweet-style shaping: "force one 8+ cluster" (soft) ---
-  function forceCluster8PlusSoft(){
-    const sym = SYMBOLS[Math.floor(Math.random() * SYMBOLS.length)];
-    const roll = Math.random();
-    const w = (roll < 0.82) ? 4 : 3;
-    const h = (w === 4) ? 2 : 3;
-
-    const startC = Math.floor(Math.random() * (COLS - w + 1));
-    const startR = Math.floor(Math.random() * (ROWS - h + 1));
-
-    for (let r = startR; r < startR + h; r++) {
-      for (let c = startC; c < startC + w; c++) {
-        const idx = r * COLS + c;
-        grid[idx].symId = sym.id;
-        grid[idx].img = IMG.get(sym.file);
-      }
-    }
-  }
-
-  // --- UI / Balance bridge ---
   function updateUI(){
-    if(ui.bal) ui.bal.textContent=`$${balance.toFixed(2)}`;
-    if(ui.bet) ui.bet.textContent=`BET $${bet.toFixed(2)}`;
-    if(ui.win) ui.win.textContent=`WIN $${lastWin.toFixed(2)}`;
-    if(ui.mode) ui.mode.textContent=`MODE ${isFS?"FS":"BASE"}`;
-    if(ui.fs) ui.fs.textContent = (fsLeft>0 ? String(fsLeft) : "-");
-    if(ui.fsm) ui.fsm.textContent=`FS MULTI x${fsMulti}`;
+    ui.bal.textContent=`$${balance.toFixed(2)}`;
+    // legacy (hidden) HUD keeps updating safely
+    ui.bet.textContent=`BET $${bet.toFixed(2)}`;
+    ui.win.textContent=`WIN $${lastWin.toFixed(2)}`;
+    ui.mode.textContent=`MODE ${isFS?"FS":"BASE"}`;
+    ui.fs.textContent = (fsLeft>0 ? String(fsLeft) : "-");
+    ui.fsm.textContent=`FS MULTI x${fsMulti}`;
   }
 
   async function fetchBalance(){
     try{
       if(window.parent && window.parent.PULZ_GAME?.getBalance) balance = await window.parent.PULZ_GAME.getBalance();
       else balance=1000;
-    }catch{
-      balance=1000;
-    }
+    }catch{ balance=1000; }
     updateUI();
   }
-
   async function chargeBet(amount){
     try{
       if(window.parent && window.parent.PULZ_GAME?.start){
         const r=await window.parent.PULZ_GAME.start({amount});
         balance = (r.balance ?? (balance-amount));
       } else balance -= amount;
-    }catch{
-      balance -= amount;
-    }
+    }catch{ balance -= amount; }
   }
-
   async function creditWin(win){
     try{
       if(window.parent && window.parent.PULZ_GAME?.finish){
         const r=await window.parent.PULZ_GAME.finish({win});
         balance = (r.balance ?? (balance+win));
       } else balance += win;
-    }catch{
-      balance += win;
-    }
+    }catch{ balance += win; }
   }
 
-  // --- Bombs (multipliers) ---
   function placeBombs(picked){
     bombs.length=0;
     for(const b of picked){
       const c=Math.floor(Math.random()*COLS), r=Math.floor(Math.random()*ROWS);
       const x=leftX+c*(cell+pad)+Math.floor(cell*0.04);
       const y=topY+r*(cell+pad)+Math.floor(cell*0.04);
-      bombs.push({x,y,img:IMG.get(b.file),mult:b.mult,alpha:0,scale:0.82});
+      bombs.push({x,y,img:IMG.get(b.file),mult:b.mult,alpha:0});
     }
   }
-
   function maybeSpawnBombsBase(){
     const count = Math.random()<0.55?1:(Math.random()<0.25?2:0);
     const picked=[];
     for(let i=0;i<count;i++) picked.push(pickWeighted(MULTI_BOMBS));
     return picked;
   }
-
   function spawnBombsFS(){
     const count = 1 + (Math.random()<0.55?1:0) + (Math.random()<0.25?1:0);
     const picked=[];
     for(let i=0;i<count;i++) picked.push(pickWeighted(MULTI_BOMBS));
     return picked;
   }
-
   async function animateBombsIn(){
     await Promise.all(bombs.map(b=>new Promise(res=>{
-      const start=performance.now(), ms=260;
+      const start=performance.now(), ms=180;
       function tick(now){
         const t=Math.min(1,(now-start)/ms);
         b.alpha=t;
-        b.scale = 0.82 + 0.32 * (1 - Math.pow(1 - t, 3));
-        if(t<1) requestAnimationFrame(tick);
-        else { b.scale = 1; res(); }
+        if(t<1) requestAnimationFrame(tick); else res();
       }
       requestAnimationFrame(tick);
     })));
   }
 
-  // --- Spin ---
+  function newGrid(){
+    grid.length=0;
+    for(let r=0;r<ROWS;r++) for(let c=0;c<COLS;c++){
+      const s=randomSymbol();
+      const x=leftX+c*(cell+pad), y=topY+r*(cell+pad);
+      grid.push({symId:s.id,img:IMG.get(s.file),x,y,yAnim:y});
+    }
+  }
+
   async function doSpin({buyBonus=false}={}){
     if(spinning) return;
     spinning=true;
-    lastWin=0;
-    bombs.length=0;
+    lastWin=0; bombs.length=0;
 
     if(buyBonus){
       const cost=bet*BUY_BONUS_COST_MULT;
@@ -684,15 +463,8 @@
       }
     }
 
+    // key feel: full drop EVERY SPIN
     newGrid();
-
-    const baseChance = isFS ? FS_SHAPE_CHANCE : BASE_SHAPE_CHANCE;
-    const chance = capChance(baseChance + antiDryBoost(dryStreak));
-
-    if(findClusters().length === 0 && Math.random() < chance){
-      forceCluster8PlusSoft();
-    }
-
     await animateFullDrop();
 
     if(!isFS && !buyBonus){
@@ -707,51 +479,28 @@
     while(true){
       const clusters=findClusters();
       if(!clusters.length) break;
-
       safety++; if(safety>18) break;
 
       let cascadeWin=0;
       const toRemove=new Set();
-      const hi = new Set();
-
       for(const cl of clusters){
         cascadeWin += payoutFor(cl.id, cl.members.length) * bet;
-        cl.members.forEach(i=>{ toRemove.add(i); hi.add(i); });
+        cl.members.forEach(i=>toRemove.add(i));
       }
-
-      if(hi.size) addHighlight(hi, 420);
       totalSpinWin += cascadeWin;
 
-      if(cascadeWin > 0){
-        addPopup(
-          leftX + (COLS*(cell+pad)-pad)/2,
-          topY - 12,
-          `+${cascadeWin.toFixed(2)}`,
-          900,
-          "win"
-        );
-      }
-
+      // bombs
       const picked = isFS ? spawnBombsFS() : maybeSpawnBombsBase();
       placeBombs(picked);
       await animateBombsIn();
-
-      for(const b of bombs){
-        const sz = Math.floor(cell*0.92);
-        const cx = b.x + sz/2;
-        const cy = b.y + sz/2;
-        addPopup(cx, cy - 8, `x${b.mult}`, 950, "mult");
-      }
-
       const add = picked.reduce((a,b)=>a+b.mult,0);
       if(isFS) fsMulti += add;
       else totalSpinMult += add;
 
+      // cascade
       removeIndices(toRemove);
       collapseAndRefill();
-
-      for(const c of grid) c.yAnim -= (cell+pad)*1.05;
-
+      for(const c of grid) c.yAnim -= (cell+pad)*0.8;
       await animateCascadeDrop();
     }
 
@@ -762,14 +511,12 @@
     finalWin = Math.min(finalWin, bet*MAX_WIN_MULT);
     lastWin = finalWin;
 
-    if(finalWin > 0.000001) dryStreak = 0;
-    else dryStreak = Math.min(9, dryStreak + 1);
-
+    // UI FX: flash bar on any win; pulse button on big wins
     if(finalWin > 0){
-      addPopup(W*0.5, topY - 42, `WIN +${finalWin.toFixed(2)}`, 1200, "total");
+      flashTapbar();
       const x = finalWin / Math.max(0.01, bet);
-      if(x >= 20) pulseStartBtn();
-      if(x >= 60) setTimeout(pulseStartBtn, 220);
+      if(x >= 20) pulseSpinBtn();
+      if(x >= 60) setTimeout(pulseSpinBtn, 220);
     }
 
     await creditWin(finalWin);
@@ -783,46 +530,22 @@
     spinning=false;
   }
 
-  // --- Input: tap spin, hold for buy bonus modal ---
+  // input: tap spin, hold for buy bonus modal
   let holdTimer=null;
-
-  if(ui.startBtn){
-    ui.startBtn.addEventListener("pointerdown",()=>{
-      if(spinning) return;
-      holdTimer=setTimeout(()=>{
-        if(ui.buyModal) ui.buyModal.style.display="flex";
-        holdTimer=null;
-      },520);
-    });
-
-    ui.startBtn.addEventListener("pointerup",()=>{
-      if(spinning) return;
-      if(holdTimer){
-        clearTimeout(holdTimer);
-        holdTimer=null;
-        doSpin({buyBonus:false});
-      }
-    });
-
-    ui.startBtn.addEventListener("pointerleave",()=>{
-      if(holdTimer){
-        clearTimeout(holdTimer);
-        holdTimer=null;
-      }
-    });
-  } else {
-    console.warn("startBtn not found. Check index.html has <img id='startBtn' ...>.");
-  }
-
-  if(ui.cancelBuy) ui.cancelBuy.addEventListener("click",()=> ui.buyModal && (ui.buyModal.style.display="none"));
-  if(ui.confirmBuy) ui.confirmBuy.addEventListener("click",async()=>{
-    if(ui.buyModal) ui.buyModal.style.display="none";
-    await doSpin({buyBonus:true});
+  ui.spinBtn.addEventListener("pointerdown",()=>{
+    if(spinning) return;
+    holdTimer=setTimeout(()=>{ ui.buyModal.style.display="flex"; holdTimer=null; },520);
   });
+  ui.spinBtn.addEventListener("pointerup",()=>{
+    if(spinning) return;
+    if(holdTimer){ clearTimeout(holdTimer); holdTimer=null; doSpin({buyBonus:false}); }
+  });
+  ui.spinBtn.addEventListener("pointerleave",()=>{ if(holdTimer){ clearTimeout(holdTimer); holdTimer=null; } });
+  ui.cancelBuy.addEventListener("click",()=> ui.buyModal.style.display="none");
+  ui.confirmBuy.addEventListener("click",async()=>{ ui.buyModal.style.display="none"; await doSpin({buyBonus:true}); });
 
   window.addEventListener("resize",resize);
 
-  // --- Boot ---
   (async()=>{
     resize();
     await loadAssets();
@@ -833,3 +556,21 @@
     await animateFullDrop();
   })();
 })();
+function drawCellSeparators(){
+  // subtle separators so cells read cleanly, without shifting layout
+  ctx.save();
+  ctx.globalAlpha = 0.09;
+  ctx.lineWidth = 1;
+  ctx.strokeStyle = "rgba(255,255,255,0.9)";
+  for(let r=0;r<ROWS;r++){
+    for(let c=0;c<COLS;c++){
+      const x = leftX + c*(cell+pad);
+      const y = topY  + r*(cell+pad);
+      roundRect(x+2, y+2, cell-4, cell-4, Math.max(10, Math.floor(cell*0.22)));
+      ctx.stroke();
+    }
+  }
+  ctx.restore();
+}
+
+
