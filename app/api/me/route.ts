@@ -11,9 +11,9 @@ export async function GET(req: NextRequest) {
 
   const user = await prisma.user.findUnique({
     where: { id: au.id },
-    select: { balanceCents: true },
+    select: { id: true, email: true, balanceCents: true, createdAt: true },
   });
   if (!user) return jsonErr("Unauthorized", 401);
 
-  return jsonOk({ balanceCents: user.balanceCents });
+  return jsonOk({ user });
 }

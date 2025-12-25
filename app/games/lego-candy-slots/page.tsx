@@ -13,7 +13,9 @@ export default function RobinsonPage() {
       getBalance: async () => {
         const r = await fetch("/api/games/robinson/balance", { credentials: "include" });
         if (!r.ok) throw new Error("balance failed");
-        return (await r.json()).balance as number;
+        const j = await r.json();
+        if (!j?.ok) throw new Error(j?.error?.message || "balance failed");
+        return (j.data.balanceCents as number) / 100;
       },
 
       placeBet: async (amount: number) => {
@@ -24,7 +26,9 @@ export default function RobinsonPage() {
           body: JSON.stringify({ amount }),
         });
         if (!r.ok) throw new Error("start failed");
-        return (await r.json()) as { balance: number; roundId: string };
+        const j = await r.json();
+        if (!j?.ok) throw new Error(j?.error?.message || "start failed");
+        return { balance: (j.data.balanceCents as number) / 100, roundId: j.data.roundId as string };
       },
 
       finishRound: async (payload: { roundId: string; multiplier: number; result: "won" | "lost" }) => {
@@ -35,7 +39,9 @@ export default function RobinsonPage() {
           body: JSON.stringify(payload),
         });
         if (!r.ok) throw new Error("finish failed");
-        return (await r.json()) as { balance: number; win: number };
+        const j = await r.json();
+        if (!j?.ok) throw new Error(j?.error?.message || "finish failed");
+        return { balance: (j.data.balanceCents as number) / 100, win: (j.data.winCents as number) / 100 };
       },
     };
 

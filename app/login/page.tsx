@@ -1,8 +1,41 @@
-// app/login/page.tsx
+"use client";
+
 import Link from "next/link";
 import Image from "next/image";
+import { useState } from "react";
+import { useRouter } from "next/navigation";
 
 export default function LoginPage() {
+  const router = useRouter();
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function onSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setError(null);
+    setLoading(true);
+    try {
+      const r = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ email, password }),
+      });
+      const j = await r.json();
+      if (!r.ok || !j?.ok) {
+        setError(j?.error?.message || "Не удалось войти");
+        setLoading(false);
+        return;
+      }
+      router.replace("/account");
+    } catch {
+      setError("Сеть/сервер недоступны");
+    } finally {
+      setLoading(false);
+    }
+  }
+
   return (
     <div className="px-4 pb-6 pt-4">
       {/* Шапка */}
@@ -13,84 +46,58 @@ export default function LoginPage() {
             Продолжай игру в неоновой вселенной Pulz.
           </p>
         </div>
-        <Link
-          href="/register"
-          className="rounded-full border border-blue-500/70 bg-blue-500/10 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.18em] text-blue-200"
-        >
-          Регистрация
+        <Link href="/" className="flex items-center gap-2">
+          <Image src="/pulz-logo-light.png" alt="Pulz" width={44} height={44} />
         </Link>
       </header>
 
-      {/* Основная карточка */}
-      <main className="mx-auto flex max-w-lg flex-col gap-4 rounded-3xl border border-slate-800/80 bg-slate-950/90 p-4 shadow-[0_0_40px_rgba(15,23,42,0.95)]">
-        {/* Левая часть – талисман / картинка */}
-        <div className="flex items-center gap-3 rounded-2xl bg-slate-900/70 p-3">
-          <div className="relative h-14 w-14 overflow-hidden rounded-2xl border border-blue-500/70 bg-slate-950/90 shadow-[0_0_20px_rgba(37,99,235,0.8)]">
-            <Image
-              src="/banners/join-pulz-free-spins.png"
-              alt="Pulz"
-              fill
-              className="object-cover"
-            />
-          </div>
-          <div className="flex flex-col">
-            <span className="text-[11px] font-semibold uppercase tracking-[0.2em] text-blue-300">
-              PULZ ACCOUNT
-            </span>
-            <span className="text-sm font-semibold text-slate-50">
-              Войти и продолжить игру
-            </span>
-            <span className="text-[11px] text-slate-400">
-              Доступ к крутилкам, кэшбэку и VIP-статусу.
-            </span>
+      {/* Карточка */}
+      <main className="mx-auto max-w-md rounded-2xl border border-slate-800/70 bg-slate-950/60 p-4 shadow-[0_0_40px_rgba(59,130,246,0.12)] backdrop-blur">
+        <div className="mb-4">
+          <div className="text-sm font-medium text-slate-100">Добро пожаловать</div>
+          <div className="text-[11px] text-slate-400">
+            Войди, чтобы увидеть баланс и пополнить счёт.
           </div>
         </div>
 
-        {/* Форма логина */}
-        <form className="space-y-3">
-          <div className="space-y-1 text-xs">
-            <label className="text-slate-300">E-mail или логин</label>
-            <div className="flex items-center rounded-2xl border border-slate-700/80 bg-slate-950/90 px-3 py-2 text-sm text-slate-100">
-              <input
-                type="text"
-                className="w-full bg-transparent outline-none placeholder:text-slate-500"
-                placeholder="name@pulzwin.com"
-              />
-            </div>
+        {error && (
+          <div className="mb-3 rounded-xl border border-red-500/30 bg-red-950/40 px-3 py-2 text-[12px] text-red-200">
+            {error}
           </div>
+        )}
 
-          <div className="space-y-1 text-xs">
-            <label className="text-slate-300">Пароль</label>
-            <div className="flex items-center rounded-2xl border border-slate-700/80 bg-slate-950/90 px-3 py-2 text-sm text-slate-100">
-              <input
-                type="password"
-                className="w-full bg-transparent outline-none placeholder:text-slate-500"
-                placeholder="Введите пароль"
-              />
-            </div>
-          </div>
+        <form className="space-y-3" onSubmit={onSubmit}>
+          <label className="block">
+            <span className="mb-1 block text-[11px] text-slate-400">Email</span>
+            <input
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              type="email"
+              required
+              className="w-full rounded-xl border border-slate-800 bg-slate-950/70 px-3 py-2 text-sm text-slate-100 outline-none focus:border-blue-500/60"
+              placeholder="you@example.com"
+              autoComplete="email"
+            />
+          </label>
 
-          <div className="flex items-center justify-between text-[11px] text-slate-400">
-            <label className="flex items-center gap-2">
-              <input
-                type="checkbox"
-                className="h-3 w-3 rounded border-slate-600 bg-slate-900"
-              />
-              <span>Запомнить меня</span>
-            </label>
-            <button
-              type="button"
-              className="text-blue-300 hover:text-blue-200"
-            >
-              Забыли пароль?
-            </button>
-          </div>
+          <label className="block">
+            <span className="mb-1 block text-[11px] text-slate-400">Пароль</span>
+            <input
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              type="password"
+              required
+              className="w-full rounded-xl border border-slate-800 bg-slate-950/70 px-3 py-2 text-sm text-slate-100 outline-none focus:border-blue-500/60"
+              placeholder="••••••••"
+              autoComplete="current-password"
+            />
+          </label>
 
           <button
-            type="submit"
-            className="mt-1 inline-flex w-full items-center justify-center rounded-2xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-slate-50 shadow-[0_0_24px_rgba(37,99,235,0.95)] hover:bg-blue-500 transition-colors"
+            disabled={loading}
+            className="w-full rounded-xl bg-blue-600/90 px-3 py-2 text-sm font-semibold text-white shadow hover:bg-blue-600 disabled:opacity-60"
           >
-            Войти
+            {loading ? "Входим…" : "Войти"}
           </button>
         </form>
 
