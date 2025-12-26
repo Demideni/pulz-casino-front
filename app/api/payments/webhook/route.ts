@@ -12,6 +12,10 @@ export const runtime = "nodejs";
  */
 export async function POST(req: NextRequest) {
   try {
+    const token = req.nextUrl.searchParams.get("token");
+if (!token || token !== process.env.PASSIMPAY_WEBHOOK_TOKEN) {
+  return jsonErr("Unauthorized", 401);
+}
     const raw = await req.text();
 
     // TODO: verify webhook signature (example header name; replace with real)
