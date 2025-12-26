@@ -3,23 +3,22 @@ import "./globals.css";
 import type { ReactNode } from "react";
 import Link from "next/link";
 import BottomNav from "@/components/BottomNav";
-import PulzBootOverlay from "@/components/PulzBootOverlay"; // ✅ добавили
+import PulzBootOverlay from "@/components/PulzBootOverlay";
 import TopBar from "@/components/TopBar";
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="ru" className="bg-black text-slate-100">
       <body className="bg-black text-slate-100 antialiased">
-        {/* ✅ фирменная загрузка (overlay) */}
+        {/* фирменная загрузка (overlay) */}
         <PulzBootOverlay />
 
         <div className="pulz-animated-bg flex min-h-screen flex-col">
           {/* TOP BAR */}
-<TopBar />
-
+          <TopBar />
 
           {/* КОНТЕНТ СТРАНИЦЫ */}
-          <main className="mx-auto flex w-full max-w-6xl flex-1 flex-col px-0 pb--2 pt--2">
+          <main className="mx-auto flex w-full max-w-6xl flex-1 flex-col px-0 pb-2 pt-2">
             {children}
           </main>
 
@@ -37,6 +36,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
                   коэффициентами для взрослых игроков 18+.
                 </p>
               </div>
+
               <div>
                 <div className="mb-1 font-semibold text-slate-200">Компания</div>
                 <ul className="space-y-1">
@@ -52,6 +52,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
                   </li>
                 </ul>
               </div>
+
               <div>
                 <div className="mb-1 font-semibold text-slate-200">Помощь</div>
                 <ul className="space-y-1">
@@ -65,6 +66,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
                   </li>
                 </ul>
               </div>
+
               <div>
                 <div className="mb-1 font-semibold text-slate-200">Контакты</div>
                 <ul className="space-y-1">
@@ -73,6 +75,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
                 </ul>
               </div>
             </div>
+
             <div className="border-t border-slate-800/80 bg-black/90">
               <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3 text-[11px] text-slate-500">
                 <span>© {new Date().getFullYear()} Pulz. Demo only.</span>
