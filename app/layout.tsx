@@ -4,6 +4,7 @@ import type { ReactNode } from "react";
 import Link from "next/link";
 import BottomNav from "@/components/BottomNav";
 import PulzBootOverlay from "@/components/PulzBootOverlay"; // ✅ добавили
+import TopBar from "@/components/TopBar";
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
@@ -14,34 +15,8 @@ export default function RootLayout({ children }: { children: ReactNode }) {
 
         <div className="pulz-animated-bg flex min-h-screen flex-col">
           {/* TOP BAR */}
-          <header className="sticky top-0 z-30 border-b border-slate-900/60 bg-black/90 backdrop-blur">
-            <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3">
-              {/* Логотип слева */}
-              <Link href="/" className="flex items-center gap-2">
-                <img
-                  src="/pulz-logo-dark.PNG"
-                  alt="Pulz Casino"
-                  className="pulz-logo-animated h-24 w-auto"
-                />
-              </Link>
+<TopBar />
 
-              {/* Кнопки Вход / Регистрация справа */}
-              <div className="flex items-center gap-3">
-                <Link
-                  href="/login"
-                  className="rounded-full border border-slate-500/80 px-5 py-1.5 text-sm text-slate-100 hover:border-slate-300"
-                >
-                  Вход
-                </Link>
-                <Link
-                  href="/register"
-                  className="rounded-full bg-blue-600 px-6 py-1.5 text-sm font-semibold text-white shadow-[0_0_30px_rgba(59,130,246,0.8)] hover:bg-blue-500"
-                >
-                  Регистрация
-                </Link>
-              </div>
-            </div>
-          </header>
 
           {/* КОНТЕНТ СТРАНИЦЫ */}
           <main className="mx-auto flex w-full max-w-6xl flex-1 flex-col px-0 pb--2 pt--2">
