@@ -195,7 +195,7 @@ export default function BottomNav() {
                 href="/profile"
                 label="Профиль"
                 subtitle="Баланс, данные, настройки"
-                icon="👤"
+                iconSrc="/icons/profile.png" icon="👤"
               />
               <MenuItem
                 href="/vip"
@@ -207,7 +207,7 @@ export default function BottomNav() {
                 href="/promo"
                 label="Бонусы и акции"
                 subtitle="Welcome, крипто-бонусы"
-                icon="🎁"
+                iconSrc="/icons/bonuses.png" icon="🎁"
               />
               <MenuItem
                 href="/transactions"
@@ -219,7 +219,7 @@ export default function BottomNav() {
                 href="/help"
                 label="Поддержка"
                 subtitle="FAQ и чат"
-                icon="💬"
+                iconSrc="/icons/support.png" icon="💬"
               />
               <MenuItem
                 href="/terms"
@@ -398,12 +398,14 @@ function MenuItem({
   label,
   subtitle,
   icon,
+  iconSrc,
   last,
 }: {
   href: string;
   label: string;
   subtitle: string;
   icon: string;
+  iconSrc?: string;
   last?: boolean;
 }) {
   return (
@@ -418,8 +420,12 @@ function MenuItem({
       `}
     >
       <div className="flex items-center gap-2">
-        <div className="flex h-7 w-7 items-center justify-center rounded-xl bg-slate-900/90 text-lg">
-          <span>{icon}</span>
+        <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-slate-900/90">
+          {iconSrc ? (
+            <Image src={iconSrc} alt={label} width={30} height={30} className="opacity-95" />
+          ) : (
+            <span className="text-lg">{icon}</span>
+          )}
         </div>
         <span className="text-sm font-semibold text-slate-50">{label}</span>
       </div>

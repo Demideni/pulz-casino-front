@@ -2,6 +2,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import BannerCarousel from "@/components/BannerCarousel";
+import BannerGate from "@/components/BannerGate";
 
 const POPULAR_GAMES = [
   {
@@ -28,7 +29,7 @@ export default function HomePage() {
   <div className="flex gap-3">
 
     {/* Баннер: Join Pulz Free Spins */}
-    <div className="flex-1 overflow-hidden rounded-3xl border border-slate-800/80 bg-slate-950/80">
+    <BannerGate className="flex-1 overflow-hidden rounded-3xl border border-slate-800/80 bg-slate-950/80 p-0 text-left">
       <Image
         src="/banners/banner1.png"
         alt="Join Pulz — Free Spins"
@@ -37,10 +38,10 @@ export default function HomePage() {
         className="h-full w-full object-cover"
         priority
       />
-    </div>
+    </BannerGate>
 
     {/* Баннер: Feel the Pulse */}
-    <div className="flex-1 overflow-hidden rounded-3xl border border-slate-800/80 bg-slate-950/80">
+    <BannerGate className="flex-1 overflow-hidden rounded-3xl border border-slate-800/80 bg-slate-950/80 p-0 text-left">
       <Image
         src="/banners/banner2.png"
         alt="Feel the Pulse. Win Bigger."
@@ -48,7 +49,7 @@ export default function HomePage() {
         height={360}
         className="h-full w-full object-cover"
       />
-    </div>
+    </BannerGate>
 
   </div>
 </section>
