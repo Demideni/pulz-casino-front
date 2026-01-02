@@ -36,6 +36,10 @@ export default function CashierPage() {
         return;
       }
       setInvoice(j.data.invoice);
+      if (j?.data?.invoice?.checkoutUrl) {
+        // redirect to PassimPay checkout
+        window.location.href = j.data.invoice.checkoutUrl;
+      }
     } catch {
       setError("Сеть/сервер недоступны");
     } finally {
@@ -115,9 +119,25 @@ export default function CashierPage() {
             <div className="mt-1 text-[12px] text-slate-300">
               Currency: <span className="text-slate-100">{invoice.currency}</span>
             </div>
-            <div className="mt-3 text-[11px] text-slate-500">
-              Сейчас это локальный инвойс (заглушка). Подключим PassimPay createInvoice и сюда придёт checkoutUrl.
-            </div>
+            {invoice.checkoutUrl ? (
+  <div className="mt-3 space-y-2">
+    <a
+      href={invoice.checkoutUrl}
+      target="_blank"
+      rel="noreferrer"
+      className="block w-full rounded-xl bg-blue-600/90 px-4 py-3 text-center text-sm font-semibold text-white hover:bg-blue-600"
+    >
+      Перейти к оплате
+    </a>
+    <div className="text-[11px] text-slate-500">
+      Если страница оплаты не открылась автоматически — нажми кнопку выше.
+    </div>
+  </div>
+) : (
+  <div className="mt-3 text-[11px] text-slate-500">
+    Инвойс создан, но checkoutUrl не получен. Проверь PASSIMPAY ключи/платформу.
+  </div>
+)}
           </div>
         )}
       </main>

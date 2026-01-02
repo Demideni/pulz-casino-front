@@ -8,7 +8,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 export default function LoginPage() {
   const router = useRouter();
   const sp = useSearchParams();
-  const next = sp.get("next");
+  const next = sp.get("next") || "/account";
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -30,7 +30,7 @@ export default function LoginPage() {
         setLoading(false);
         return;
       }
-      router.replace(next || "/account");
+      router.replace(next);
     } catch {
       setError("Сеть/сервер недоступны");
     } finally {

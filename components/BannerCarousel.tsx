@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
 import Image from "next/image";
 
 const BANNERS = [
@@ -16,21 +15,6 @@ const BANNERS = [
 ];
 
 export default function BannerCarousel() {
-  const router = useRouter();
-
-  async function goCta() {
-    try {
-      const r = await fetch("/api/me", { method: "GET", credentials: "include", cache: "no-store" });
-      if (r.ok) {
-        router.push("/cashier");
-      } else {
-        router.push("/login?next=/cashier");
-      }
-    } catch {
-      router.push("/login?next=/cashier");
-    }
-  }
-
   const [index, setIndex] = useState(0);
 
   // авто-переключение каждые 6 сек
@@ -51,7 +35,7 @@ export default function BannerCarousel() {
         style={{ transform: `translateX(-${index * 100}%)` }}
       >
         {BANNERS.map((banner, i) => (
-          <button key={i} type="button" onClick={goCta} className="w-full shrink-0 text-left">
+          <div key={i} className="w-full shrink-0">
             <Image
               src={banner.src}
               alt={banner.alt}
@@ -60,7 +44,7 @@ export default function BannerCarousel() {
               className="h-auto w-full object-cover"
               priority={i === 0}
             />
-          </button>
+          </div>
         ))}
       </div>
 
@@ -74,7 +58,7 @@ export default function BannerCarousel() {
               h-1.5 w-6 rounded-full transition-all
               ${i === index ? "bg-blue-500" : "bg-slate-600/70"}
             `}
-          ></button>
+          />
         ))}
       </div>
     </div>
