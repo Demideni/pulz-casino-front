@@ -24,20 +24,54 @@ export default function CashierPage() {
     setError(null);
     setInvoice(null);
     setLoading(true);
+
     try {
       const r = await fetch("/api/payments/deposit/create", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ amountUsd: Number(amount), currency }),
+        credentials: "include",
+        body: JSON.stringify({
+          amountUsd: Number(amount),
+          currency,
+        }),
       });
-      const j = await r.json();
-      if (!r.ok || !j?.ok) {
-        setError(j?.error?.message || "Не удалось создать инвойс");
+
+      const j = await r.json().catch(() => ({}));
+
+      if (!r.ok) {
+        setError(j?.error || j?.message || "Не удалось создать инвойс");
         return;
       }
-      setInvoice(j.data.invoice);
+
+      // поддержка разных форматов ответа
+      const inv =
+        j?.invoice ??
+        j?.data?.invoice ??
+        j?.data ??
+        j;
+
+      if (!inv?.id) {
+        setError("Сервер не вернул инвойс");
+        return;
+      }
+
+      setInvoice(inv);
+
+      // ✅ ГЛАВНОЕ — редирект на PassimPay
+      const checkoutUrl =
+        inv?.checkoutUrl ||
+        inv?.checkout_url ||
+        j?.checkoutUrl ||
+        j?.data?.checkoutUrl;
+
+      if (checkoutUrl) {
+        window.location.href = checkoutUrl;
+        return;
+      }
+
+      setError("Инвойс создан, но checkoutUrl не пришёл");
     } catch {
-      setError("Сеть/сервер недоступны");
+      setError("Сеть или сервер недоступны");
     } finally {
       setLoading(false);
     }
@@ -106,18 +140,36 @@ export default function CashierPage() {
         {invoice && (
           <div className="rounded-2xl border border-slate-800/70 bg-slate-950/60 p-4">
             <div className="text-sm font-medium text-slate-100">Инвойс создан</div>
+
             <div className="mt-2 text-[12px] text-slate-300">
               ID: <span className="text-slate-100">{invoice.id}</span>
             </div>
+
             <div className="mt-1 text-[12px] text-slate-300">
-              Amount: <span className="text-slate-100">${(invoice.amountCents / 100).toFixed(2)}</span>
+              Amount:{" "}
+              <span className="text-slate-100">
+                {typeof invoice.amountCents === "number"
+                  ? `$${(invoice.amountCents / 100).toFixed(2)}`
+                  : typeof invoice.amountUsd === "number"
+                  ? `$${invoice.amountUsd.toFixed(2)}`
+                  : invoice.amount
+                  ? `$${invoice.amount}`
+                  : "-"}
+              </span>
             </div>
+
             <div className="mt-1 text-[12px] text-slate-300">
               Currency: <span className="text-slate-100">{invoice.currency}</span>
             </div>
-            <div className="mt-3 text-[11px] text-slate-500">
-              Сейчас это локальный инвойс (заглушка). Подключим PassimPay createInvoice и сюда придёт checkoutUrl.
-            </div>
+
+            {(invoice.checkoutUrl || invoice.checkout_url) && (
+              <a
+                href={invoice.checkoutUrl || invoice.checkout_url}
+                className="mt-4 inline-flex w-full items-center justify-center rounded-xl bg-blue-600/90 px-3 py-2 text-sm font-semibold text-white hover:bg-blue-600"
+              >
+                Перейти к оплате
+              </a>
+            )}
           </div>
         )}
       </main>
