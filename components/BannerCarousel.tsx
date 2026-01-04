@@ -29,6 +29,17 @@ export default function BannerCarousel() {
 
   const goTo = (i: number) => setIndex(i);
 
+  // ✅ Баннер-клик: не авторизован -> login?next=/cashier, авторизован -> /cashier
+  const handleBannerClick = async () => {
+    try {
+      const res = await fetch("/api/me", { credentials: "include" });
+      if (res.ok) router.push("/cashier");
+      else router.push("/login?next=/cashier");
+    } catch {
+      router.push("/login?next=/cashier");
+    }
+  };
+
   return (
     <div className="relative w-full overflow-hidden rounded-none">
       {/* Лента баннеров */}
@@ -37,7 +48,14 @@ export default function BannerCarousel() {
         style={{ transform: `translateX(-${index * 100}%)` }}
       >
         {BANNERS.map((banner, i) => (
-          <div key={i} onClick={handleBannerClick} role="button" tabIndex={0} onKeyDown={(e) => e.key === "Enter" && handleBannerClick()} onClick={handleBannerClick} role="button" tabIndex={0} onKeyDown={(e) => e.key === "Enter" && handleBannerClick()} className="w-full shrink-0">
+          <div
+            key={i}
+            className="w-full shrink-0 cursor-pointer"
+            onClick={handleBannerClick}
+            role="button"
+            tabIndex={0}
+            onKeyDown={(e) => e.key === "Enter" && handleBannerClick()}
+          >
             <Image
               src={banner.src}
               alt={banner.alt}
