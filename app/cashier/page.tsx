@@ -2,7 +2,8 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 
 const METHODS = [
   { id: "usdt", name: "USDT", code: "USDT", network: "TRC20 / ERC20", icon: "/crypto/usdt.png", tag: "Рекомендуем" },
@@ -19,12 +20,45 @@ type Invoice = {
   createdAt?: string;
 };
 
+type Toast = null | { type: "success" | "error"; text: string };
+
 export default function CashierPage() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const paid = searchParams.get("paid") === "1";
+  const fail = searchParams.get("fail") === "1";
+
   const [amount, setAmount] = useState("50");
   const [currency, setCurrency] = useState("USDT");
   const [loading, setLoading] = useState(false);
   const [invoice, setInvoice] = useState<Invoice | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [toast, setToast] = useState<Toast>(null);
+
+  // paid/fail UX
+  useEffect(() => {
+    let t: any;
+
+    const run = async () => {
+      if (paid) {
+        setToast({ type: "success", text: "Баланс пополнен ✅ Сейчас перекину в Робинзона…" });
+
+        // дернём /api/me чтобы подтянуть новый баланс (если у тебя шапка/лейаут это использует)
+        try {
+          await fetch("/api/me", { credentials: "include" });
+        } catch {}
+
+        t = setTimeout(() => router.push("/games/robinson"), 2000);
+      } else if (fail) {
+        setToast({ type: "error", text: "Платёж отменён или не прошёл ❌ Попробуй ещё раз." });
+      } else {
+        setToast(null);
+      }
+    };
+
+    run();
+    return () => clearTimeout(t);
+  }, [paid, fail, router]);
 
   async function createInvoice() {
     setError(null);
@@ -80,6 +114,24 @@ export default function CashierPage() {
       </header>
 
       <main className="mx-auto max-w-md space-y-3">
+        {toast && (
+          <div
+            className={
+              "rounded-xl border px-3 py-2 text-[12px] " +
+              (toast.type === "success"
+                ? "border-emerald-400/30 bg-emerald-950/40 text-emerald-100"
+                : "border-red-500/30 bg-red-950/40 text-red-200")
+            }
+          >
+            {toast.text}
+            {toast.type === "success" && (
+              <button onClick={() => router.push("/games/robinson")} className="ml-2 underline underline-offset-2">
+                Играть сейчас
+              </button>
+            )}
+          </div>
+        )}
+
         <div className="rounded-2xl border border-slate-800/70 bg-slate-950/60 p-4">
           <div className="mb-2 text-sm font-medium text-slate-100">Сумма депозита (USD)</div>
           <input
