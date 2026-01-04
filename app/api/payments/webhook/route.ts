@@ -24,15 +24,24 @@ if (!token || token !== process.env.PASSIMPAY_WEBHOOK_TOKEN) {
 
     const payload = JSON.parse(raw);
 
-    // Expected fields (replace with real):
-    // payload.invoiceId, payload.status, payload.amountUsd
-    const externalId = payload.invoiceId || payload.id;
+    // Expected fields vary by PassimPay integration.
+    // We try common variants to reliably match a local invoice.
+    const externalId =
+      payload.invoiceId ||
+      payload.invoice_id ||
+      payload.orderId ||
+      payload.order_id ||
+      payload.id;
     const status = (payload.status || "").toUpperCase();
 
     if (!externalId) return jsonErr("Missing invoiceId", 400);
 
-    // Find local invoice by externalId
-    const inv = await prisma.paymentInvoice.findFirst({ where: { externalId } });
+    // Find local invoice by provider externalId OR our local invoice id (we send orderId = invoice.id)
+    const inv = await prisma.paymentInvoice.findFirst({
+      where: {
+        OR: [{ externalId }, { id: externalId }],
+      },
+    });
     if (!inv) return jsonErr("Invoice not found", 404);
 
     if (inv.status === "PAID") {
