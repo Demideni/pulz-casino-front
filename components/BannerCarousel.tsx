@@ -1,25 +1,18 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
 import Image from "next/image";
+import { useRouter } from "next/navigation";
 
 const BANNERS = [
-  {
-    src: "/banners/join-pulz-free-spins.png",
-    alt: "Join Pulz — Free Spins",
-  },
-  {
-    src: "/banners/hero-feel-the-pulse.png",
-    alt: "Feel the Pulse. Win Bigger.",
-  },
+  { src: "/banners/join-pulz-free-spins.png", alt: "Join Pulz — Free Spins" },
+  { src: "/banners/hero-feel-the-pulse.png", alt: "Feel the Pulse. Win Bigger." },
 ];
 
 export default function BannerCarousel() {
   const router = useRouter();
   const [index, setIndex] = useState(0);
 
-  // авто-переключение каждые 6 сек
   useEffect(() => {
     const id = setInterval(() => {
       setIndex((prev) => (prev + 1) % BANNERS.length);
@@ -29,32 +22,33 @@ export default function BannerCarousel() {
 
   const goTo = (i: number) => setIndex(i);
 
-  // ✅ Баннер-клик: не авторизован -> login?next=/cashier, авторизован -> /cashier
-  const handleBannerClick = async () => {
+  async function handleBannerClick() {
     try {
-      const res = await fetch("/api/me", { credentials: "include" });
-      if (res.ok) router.push("/cashier");
-      else router.push("/login?next=/cashier");
+      const r = await fetch("/api/me", { cache: "no-store" });
+      const j = await r.json().catch(() => null);
+      const authed = !!(j?.data?.user?.id || j?.user?.id || (j?.ok && j?.user?.id));
+
+      if (authed) router.push("/cashier");
+      else router.push("/register");
     } catch {
-      router.push("/login?next=/cashier");
+      // fallback: if anything fails, send to register
+      router.push("/register");
     }
-  };
+  }
 
   return (
     <div className="relative w-full overflow-hidden rounded-none">
-      {/* Лента баннеров */}
       <div
         className="flex transition-transform duration-500 ease-out"
         style={{ transform: `translateX(-${index * 100}%)` }}
       >
         {BANNERS.map((banner, i) => (
-          <div
+          <button
             key={i}
-            className="w-full shrink-0 cursor-pointer"
+            type="button"
             onClick={handleBannerClick}
-            role="button"
-            tabIndex={0}
-            onKeyDown={(e) => e.key === "Enter" && handleBannerClick()}
+            className="w-full shrink-0 text-left"
+            aria-label="Open banner"
           >
             <Image
               src={banner.src}
@@ -64,20 +58,17 @@ export default function BannerCarousel() {
               className="h-auto w-full object-cover"
               priority={i === 0}
             />
-          </div>
+          </button>
         ))}
       </div>
 
-      {/* Индикаторы снизу */}
       <div className="absolute bottom-3 left-1/2 flex -translate-x-1/2 gap-2">
         {BANNERS.map((_, i) => (
           <button
             key={i}
             onClick={() => goTo(i)}
-            className={`
-              h-1.5 w-6 rounded-full transition-all
-              ${i === index ? "bg-blue-500" : "bg-slate-600/70"}
-            `}
+            className={`h-1.5 w-6 rounded-full transition-all ${i === index ? "bg-blue-500" : "bg-slate-600/70"}`}
+            aria-label={`Go to banner ${i + 1}`}
           />
         ))}
       </div>

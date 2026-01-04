@@ -3,103 +3,86 @@ import { z } from "zod";
 import { prisma } from "@/lib/db";
 import { getUserFromRequest } from "@/lib/auth";
 import { jsonErr, jsonOk } from "@/lib/http";
+import { passimpaySignature } from "@/lib/passimpay";
 
 export const runtime = "nodejs";
 
 const Body = z.object({
-  amountUsd: z.number().positive(), // USD amount (we'll convert to cents)
-  currency: z.string().optional().default("USDT"),
+  amountUsd: z.number().positive(),
+  currency: z.string().optional().default("USDT"), // UI hint only (we can restrict later via currency IDs)
 });
 
-function toCents(amountUsd: number) {
-  return Math.round(amountUsd * 100);
+function toAmountString(amountUsd: number) {
+  return amountUsd.toFixed(2);
 }
 
 export async function POST(req: NextRequest) {
-  const au = await getUserFromRequest(req);
-  if (!au) return jsonErr("Unauthorized", 401);
-
   try {
-    const body = Body.parse(await req.json());
-    const amountCents = toCents(body.amountUsd);
+    const user = await getUserFromRequest(req);
+    if (!user) return jsonErr("Unauthorized", 401);
 
-    // 1) Create local invoice first
+    const body = Body.parse(await req.json());
+    const amountUsd = body.amountUsd;
+    const currency = body.currency || "USDT";
+
+    // Create local invoice first
     const invoice = await prisma.paymentInvoice.create({
       data: {
-        userId: au.id,
+        userId: user.id,
         provider: "PassimPay",
-        currency: body.currency,
-        amountCents,
+        currency,
+        amountCents: Math.round(amountUsd * 100),
         status: "PENDING",
       },
-      select: { id: true, amountCents: true, currency: true, status: true, checkoutUrl: true },
     });
 
-    // 2) Call PassimPay create-order endpoint
-    const platformId = process.env.PASSIMPAY_PLATFORM_ID;
-    const apiKey = process.env.PASSIMPAY_API_KEY;
-    if (!platformId || !apiKey) return jsonErr("PassimPay env missing", 500);
+    // We'll use our local invoice id as PassimPay orderId, so webhook can find it deterministically.
+    await prisma.paymentInvoice.update({
+      where: { id: invoice.id },
+      data: { externalId: invoice.id },
+    });
 
-    // Build absolute URLs from current deployment origin (works for Render previews too)
-    const origin = req.nextUrl.origin;
-    const webhookToken = process.env.PASSIMPAY_WEBHOOK_TOKEN;
-    const callbackUrl = webhookToken
-      ? `${origin}/api/payments/webhook?token=${encodeURIComponent(webhookToken)}`
-      : `${origin}/api/payments/webhook`;
+    const platformId = process.env.PASSIMPAY_PLATFORM_ID;
+    const secret = process.env.PASSIMPAY_API_KEY;
+
+    if (!platformId || !secret) {
+      return jsonErr("PassimPay env missing: PASSIMPAY_PLATFORM_ID / PASSIMPAY_API_KEY", 500);
+    }
+
+    // Create invoice link (redirect user to PassimPay hosted checkout)
+    // Docs: POST https://api.passimpay.io/v2/createorder
+    const payload: any = {
+      platformId: Number(platformId),
+      orderId: invoice.id,
+      amount: toAmountString(amountUsd),
+      symbol: "USD",
+      type: 1, // crypto only
+      // currencies: "..." // optional currency IDs. We'll add mapping later if you want strict selection.
+    };
+
+    const signature = passimpaySignature(payload.platformId, payload, secret);
 
     const r = await fetch("https://api.passimpay.io/v2/createorder", {
       method: "POST",
       headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${apiKey}`,
+        "content-type": "application/json",
+        "x-signature": signature,
       },
-      body: JSON.stringify({
-        platformId,
-        // Use our local invoice id as orderId for easy reconciliation
-        orderId: invoice.id,
-        amount: body.amountUsd,
-        currency: body.currency,
-        successUrl: `${origin}/cashier?paid=1`,
-        failUrl: `${origin}/cashier?fail=1`,
-        callbackUrl,
-      }),
+      body: JSON.stringify(payload),
     });
 
-    const data = await r.json().catch(() => ({}));
-    if (!r.ok) {
-      console.error("PassimPay createorder failed", data);
-      return jsonErr(data?.message || data?.error || "PassimPay error", 502, data);
+    const data = await r.json().catch(() => null);
+
+    if (!r.ok || !data || data.result !== 1 || !data.url) {
+      console.error("PassimPay createorder failed:", r.status, data);
+      return jsonErr("PassimPay createorder failed", 502, data);
     }
 
-    const checkoutUrl =
-      data?.checkoutUrl ||
-      data?.data?.checkoutUrl ||
-      data?.result?.checkoutUrl ||
-      data?.invoice?.checkoutUrl ||
-      data?.url;
+    const checkoutUrl: string = data.url;
 
-    // External id returned by provider (if any)
-    const externalId = data?.invoiceId || data?.id || data?.data?.id || data?.result?.id;
-
-    if (!checkoutUrl) {
-      console.error("PassimPay did not return checkoutUrl", data);
-      // Still return invoice (front will show error), but persist externalId if present
-      await prisma.paymentInvoice.update({
-        where: { id: invoice.id },
-        data: { externalId: externalId || invoice.id },
-        select: { id: true },
-      });
-      return jsonOk({ invoice: { ...invoice, externalId: externalId || invoice.id } });
-    }
-
-    // 3) Persist provider fields
     const updated = await prisma.paymentInvoice.update({
       where: { id: invoice.id },
-      data: {
-        externalId: externalId || invoice.id,
-        checkoutUrl,
-      },
-      select: { id: true, amountCents: true, currency: true, status: true, checkoutUrl: true, externalId: true },
+      data: { checkoutUrl },
     });
 
     return jsonOk({ invoice: updated });
