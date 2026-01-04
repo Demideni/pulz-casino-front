@@ -7,9 +7,8 @@ import { jsonErr, jsonOk } from "@/lib/http";
 export const runtime = "nodejs";
 
 const Body = z.object({
-  amount: z.number().positive(), // bet amount in USD (MVP)
+  amount: z.number().min(0.1), // bet amount in USD (MVP), min $0.10
 });
-
 function toCents(amountUsd: number) {
   return Math.round(amountUsd * 100);
 }
@@ -21,6 +20,12 @@ export async function POST(req: NextRequest) {
   try {
     const body = Body.parse(await req.json());
     const betCents = toCents(body.amount);
+    // avoid weird floats (e.g. 0.1000000003)
+    if (Math.abs(betCents / 100 - body.amount) > 0.00001) {
+      return jsonErr("Invalid amount", 422);
+    }
+    if (betCents < 10) return jsonErr("Minimum bet is $0.10", 422);
+
     const roundId = crypto.randomUUID();
 
     const user = await prisma.user.findUnique({

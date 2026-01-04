@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import Image from "next/image";
 
 const BANNERS = [
@@ -15,6 +16,7 @@ const BANNERS = [
 ];
 
 export default function BannerCarousel() {
+  const router = useRouter();
   const [index, setIndex] = useState(0);
 
   // авто-переключение каждые 6 сек
@@ -35,7 +37,7 @@ export default function BannerCarousel() {
         style={{ transform: `translateX(-${index * 100}%)` }}
       >
         {BANNERS.map((banner, i) => (
-          <div key={i} className="w-full shrink-0">
+          <div key={i} onClick={handleBannerClick} role="button" tabIndex={0} onKeyDown={(e) => e.key === "Enter" && handleBannerClick()} onClick={handleBannerClick} role="button" tabIndex={0} onKeyDown={(e) => e.key === "Enter" && handleBannerClick()} className="w-full shrink-0">
             <Image
               src={banner.src}
               alt={banner.alt}

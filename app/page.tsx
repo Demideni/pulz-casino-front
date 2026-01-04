@@ -28,7 +28,7 @@ export default function HomePage() {
   <div className="flex gap-3">
 
     {/* Баннер: Join Pulz Free Spins */}
-    <Link href="/go/promo" className="flex-1 overflow-hidden rounded-3xl border border-slate-800/80 bg-slate-950/80 block">
+    <div className="flex-1 overflow-hidden rounded-3xl border border-slate-800/80 bg-slate-950/80">
       <Image
         src="/banners/banner1.png"
         alt="Join Pulz — Free Spins"
@@ -37,10 +37,10 @@ export default function HomePage() {
         className="h-full w-full object-cover"
         priority
       />
-    </Link>
+    </div>
 
     {/* Баннер: Feel the Pulse */}
-    <Link href="/go/promo" className="flex-1 overflow-hidden rounded-3xl border border-slate-800/80 bg-slate-950/80 block">
+    <div className="flex-1 overflow-hidden rounded-3xl border border-slate-800/80 bg-slate-950/80">
       <Image
         src="/banners/banner2.png"
         alt="Feel the Pulse. Win Bigger."
@@ -48,7 +48,7 @@ export default function HomePage() {
         height={360}
         className="h-full w-full object-cover"
       />
-    </Link>
+    </div>
 
   </div>
 </section>
@@ -70,7 +70,7 @@ export default function HomePage() {
             {POPULAR_GAMES.map((game) => (
 <Link
   key={game.id}
-  href={`/games/${game.id}`}
+  href={`/games/robinson`}
   className="group relative w-[100px] overflow-hidden rounded-3xl bg-slate-900/80 border border-slate-800/80 hover:border-blue-500/70 hover:shadow-[0_0_35px_rgba(59,130,246,0.5)]"
 >
 

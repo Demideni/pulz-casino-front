@@ -3,12 +3,10 @@
 import Link from "next/link";
 import Image from "next/image";
 import { useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 
 export default function RegisterPage() {
   const router = useRouter();
-  const sp = useSearchParams();
-  const next = sp.get("next") || "/account";
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [password2, setPassword2] = useState("");
@@ -35,7 +33,7 @@ export default function RegisterPage() {
         setLoading(false);
         return;
       }
-      router.replace(next);
+      router.replace("/account");
     } catch {
       setError("Сеть/сервер недоступны");
     } finally {

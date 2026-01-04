@@ -15,5 +15,5 @@ export async function GET(req: NextRequest) {
   });
   if (!user) return jsonErr("Unauthorized", 401);
 
-  return jsonOk({ balanceCents: user.balanceCents });
+  return jsonOk({ balanceCents: user.balanceCents ?? 0 });
 }

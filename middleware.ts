@@ -9,7 +9,7 @@ const BLOCK = [
   "/setup-config.php",
 ];
 
-const PROTECTED_PAGES = ["/account", "/cashier"];
+const PROTECTED_PAGES = ["/account", "/cashier", "/games"];
 const PROTECTED_API_PREFIXES = ["/api/me", "/api/transactions", "/api/payments", "/api/games/robinson"];
 
 const ACCESS_COOKIE = "PULZ_AT";
