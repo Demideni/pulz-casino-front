@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { NextResponse, NextRequest } from "next/server";
 import { z } from "zod";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/db";
@@ -12,7 +12,7 @@ const Body = z.object({
   password: z.string().min(6, "Password must be at least 6 characters"),
 });
 
-export async function POST(req: Request) {
+export async function POST(req: NextRequest) {
   try {
     const body = Body.parse(await req.json());
 
@@ -25,7 +25,27 @@ export async function POST(req: Request) {
       select: { id: true, email: true, balanceCents: true, createdAt: true },
     });
 
-    const token = await signAccessToken({ id: user.id, email: user.email });
+    
+    // affiliate referral (one-time) from cookie
+    const refCode = req.cookies.get("aff_ref")?.value;
+    if (refCode) {
+      const aff = await prisma.affiliate.findUnique({ where: { code: refCode } });
+      // prevent self-ref and inactive affiliates
+      if (aff && aff.isActive && aff.userId !== user.id) {
+        try {
+          await prisma.referral.create({
+            data: {
+              affiliateId: aff.id,
+              referredUserId: user.id,
+            },
+          });
+        } catch {
+          // ignore (already referred)
+        }
+      }
+    }
+
+const token = await signAccessToken({ id: user.id, email: user.email });
     setAccessCookie(token);
 
     return jsonOk({ user });

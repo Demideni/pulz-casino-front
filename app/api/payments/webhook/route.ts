@@ -115,6 +115,33 @@ export async function POST(req: NextRequest) {
           },
         },
       });
+      // affiliate revshare (MVP: percent from deposit)
+      try {
+        const ref = await tx.referral.findUnique({ where: { referredUserId: inv.userId } });
+        if (ref) {
+          const aff = await tx.affiliate.findUnique({ where: { id: ref.affiliateId } });
+          if (aff && aff.isActive && aff.revshareBps > 0) {
+            const earn = Math.floor((inv.amountCents * aff.revshareBps) / 10000);
+            if (earn > 0) {
+              await tx.affiliateEarning.create({
+                data: {
+                  affiliateId: aff.id,
+                  referredUserId: inv.userId,
+                  source: "deposit",
+                  invoiceId: inv.id,
+                  amountCents: earn,
+                  currency: inv.currency || "USD",
+                  meta: { provider: "PassimPay", orderId, paymentId },
+                },
+              });
+            }
+          }
+        }
+      } catch {
+        // ignore duplicates / optional failures
+      }
+
+
     });
 
     return jsonOk({ ok: true, credited: true });

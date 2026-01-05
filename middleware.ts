@@ -10,9 +10,11 @@ const BLOCK = [
 ];
 
 const PROTECTED_PAGES = ["/account", "/cashier"];
-const PROTECTED_API_PREFIXES = ["/api/me", "/api/transactions", "/api/payments", "/api/games/robinson"];
+const PROTECTED_API_PREFIXES = ["/api/me", "/api/transactions", "/api/payments", "/api/games/robinson", "/api/aff/me", "/api/aff/stats"];
 
 const ACCESS_COOKIE = "PULZ_AT";
+const AFF_COOKIE = "aff_ref";
+
 
 export function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;

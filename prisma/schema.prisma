@@ -33,6 +33,8 @@ model User {
   transactions Transaction[]
   invoices     PaymentInvoice[]
   withdrawals  WithdrawRequest[]
+
+  affiliate Affiliate?
 }
 
 model Transaction {
@@ -76,4 +78,64 @@ model WithdrawRequest {
 
   user User @relation(fields: [userId], references: [id])
   @@index([userId, createdAt])
+}
+
+
+model Affiliate {
+  id          String   @id @default(cuid())
+  userId      String   @unique
+  code        String   @unique
+  revshareBps Int      @default(2500) // 25.00%
+  isActive    Boolean  @default(true)
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  user        User     @relation(fields: [userId], references: [id])
+  clicks      AffiliateClick[]
+  referrals   Referral[]
+  earnings    AffiliateEarning[]
+}
+
+model AffiliateClick {
+  id          String   @id @default(cuid())
+  affiliateId String
+  ipHash      String
+  uaHash      String
+  landingPath String?
+  referrer    String?
+  createdAt   DateTime @default(now())
+
+  affiliate   Affiliate @relation(fields: [affiliateId], references: [id])
+
+  @@index([affiliateId, createdAt])
+  @@index([ipHash, createdAt])
+}
+
+model Referral {
+  id             String   @id @default(cuid())
+  affiliateId    String
+  referredUserId String   @unique
+  firstClickId   String?
+  createdAt      DateTime @default(now())
+
+  affiliate      Affiliate @relation(fields: [affiliateId], references: [id])
+}
+
+model AffiliateEarning {
+  id             String   @id @default(cuid())
+  affiliateId    String
+  referredUserId String
+  source         String   // "deposit" | "ngr_daily" | "adjustment"
+  invoiceId      String?  // for idempotency (e.g., PaymentInvoice.id)
+  amountCents    Int
+  currency       String   @default("USD")
+  meta           Json?
+  createdAt      DateTime @default(now())
+
+  affiliate      Affiliate @relation(fields: [affiliateId], references: [id])
+
+  @@index([affiliateId, createdAt])
+  @@index([referredUserId, createdAt])
+  @@unique([affiliateId, source, invoiceId])
 }
