@@ -46,55 +46,58 @@ model Transaction {
   createdAt   DateTime @default(now())
 
   user User @relation(fields: [userId], references: [id])
+
   @@index([userId, createdAt])
 }
 
 model PaymentInvoice {
-  id            String        @id @default(cuid())
-  userId        String
-  provider      String        @default("PassimPay")
-  externalId    String?       @unique
-  currency      String        @default("USDT")
-  amountCents   Int
-  status        InvoiceStatus @default(PENDING)
-  checkoutUrl   String?
-  createdAt     DateTime      @default(now())
-  updatedAt     DateTime      @updatedAt
+  id          String        @id @default(cuid())
+  userId      String
+  provider    String        @default("PassimPay")
+  externalId  String?       @unique
+  currency    String        @default("USDT")
+  amountCents Int
+  status      InvoiceStatus @default(PENDING)
+  checkoutUrl String?
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
 
   user User @relation(fields: [userId], references: [id])
+
   @@index([userId, createdAt])
 }
 
 model WithdrawRequest {
-  id            String   @id @default(cuid())
-  userId        String
-  currency      String   @default("USDT")
-  amountCents   Int
-  address       String
-  status        String   @default("PENDING") // PENDING|APPROVED|REJECTED|PAID
-  externalId    String?
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-
-  user User @relation(fields: [userId], references: [id])
-  @@index([userId, createdAt])
-}
-
-
-model Affiliate {
   id          String   @id @default(cuid())
-  userId      String   @unique
-  code        String   @unique
-  revshareBps Int      @default(2500) // 25.00%
-  isActive    Boolean  @default(true)
-
+  userId      String
+  currency    String   @default("USDT")
+  amountCents Int
+  address     String
+  status      String   @default("PENDING") // PENDING|APPROVED|REJECTED|PAID
+  externalId  String?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  user        User     @relation(fields: [userId], references: [id])
-  clicks      AffiliateClick[]
-  referrals   Referral[]
-  earnings    AffiliateEarning[]
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([userId, createdAt])
+}
+
+model Affiliate {
+  id          String  @id @default(cuid())
+  userId      String  @unique
+  code        String  @unique
+  revshareBps Int     @default(2500) // 25.00%
+  isActive    Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user           User                     @relation(fields: [userId], references: [id])
+  clicks         AffiliateClick[]
+  referrals      Referral[]
+  earnings       AffiliateEarning[]
+  payoutRequests AffiliatePayoutRequest[]
 }
 
 model AffiliateClick {
@@ -106,7 +109,7 @@ model AffiliateClick {
   referrer    String?
   createdAt   DateTime @default(now())
 
-  affiliate   Affiliate @relation(fields: [affiliateId], references: [id])
+  affiliate Affiliate @relation(fields: [affiliateId], references: [id])
 
   @@index([affiliateId, createdAt])
   @@index([ipHash, createdAt])
@@ -119,23 +122,39 @@ model Referral {
   firstClickId   String?
   createdAt      DateTime @default(now())
 
-  affiliate      Affiliate @relation(fields: [affiliateId], references: [id])
+  affiliate Affiliate @relation(fields: [affiliateId], references: [id])
 }
 
 model AffiliateEarning {
   id             String   @id @default(cuid())
   affiliateId    String
   referredUserId String
-  source         String   // "deposit" | "ngr_daily" | "adjustment"
-  invoiceId      String?  // for idempotency (e.g., PaymentInvoice.id)
+  source         String // "deposit" | "ngr_daily" | "adjustment"
+  invoiceId      String? // for idempotency (e.g., PaymentInvoice.id)
   amountCents    Int
   currency       String   @default("USD")
   meta           Json?
   createdAt      DateTime @default(now())
 
-  affiliate      Affiliate @relation(fields: [affiliateId], references: [id])
+  affiliate Affiliate @relation(fields: [affiliateId], references: [id])
 
+  @@unique([affiliateId, source, invoiceId])
   @@index([affiliateId, createdAt])
   @@index([referredUserId, createdAt])
-  @@unique([affiliateId, source, invoiceId])
+}
+
+model AffiliatePayoutRequest {
+  id          String   @id @default(cuid())
+  affiliateId String
+  amountCents Int
+  currency    String   @default("USD")
+  destination String
+  status      String   @default("PENDING")
+  note        String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  affiliate Affiliate @relation(fields: [affiliateId], references: [id])
+
+  @@index([affiliateId, createdAt])
 }
