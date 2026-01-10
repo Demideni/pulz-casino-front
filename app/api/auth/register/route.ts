@@ -1,9 +1,10 @@
-import { NextResponse, NextRequest } from "next/server";
+import { NextRequest } from "next/server";
 import { z } from "zod";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/db";
 import { signAccessToken, setAccessCookie } from "@/lib/auth";
 import { jsonErr, jsonOk } from "@/lib/http";
+import { cookies } from "next/headers";
 
 export const runtime = "nodejs";
 
@@ -20,32 +21,44 @@ export async function POST(req: NextRequest) {
     if (existing) return jsonErr("Email already registered", 409);
 
     const passwordHash = await bcrypt.hash(body.password, 12);
+
     const user = await prisma.user.create({
       data: { email: body.email, passwordHash },
       select: { id: true, email: true, balanceCents: true, createdAt: true },
     });
 
-    
-    // affiliate referral (one-time) from cookie
-    const refCode = req.cookies.get("aff_ref")?.value;
-    if (refCode) {
-      const aff = await prisma.affiliate.findUnique({ where: { code: refCode } });
-      // prevent self-ref and inactive affiliates
-      if (aff && aff.isActive && aff.userId !== user.id) {
-        try {
-          await prisma.referral.create({
-            data: {
+    // --- affiliate referral (one-time) from cookie ---
+    try {
+      const refCode = req.cookies.get("aff_ref")?.value?.trim()?.toUpperCase();
+
+      if (refCode) {
+        const aff = await prisma.affiliate.findUnique({ where: { code: refCode } });
+
+        // prevent self-ref and inactive affiliates
+        if (aff && aff.isActive && aff.userId !== user.id) {
+          await prisma.referral.upsert({
+            where: { referredUserId: user.id },
+            update: {},
+            create: {
               affiliateId: aff.id,
               referredUserId: user.id,
             },
           });
-        } catch {
-          // ignore (already referred)
+
+          // очистим cookie, чтобы не “прилипало”
+          cookies().set("aff_ref", "", {
+            path: "/",
+            maxAge: 0,
+            sameSite: "lax",
+          });
         }
       }
+    } catch {
+      // рефка не должна ломать регистрацию
     }
+    // --- /affiliate referral ---
 
-const token = await signAccessToken({ id: user.id, email: user.email });
+    const token = await signAccessToken({ id: user.id, email: user.email });
     setAccessCookie(token);
 
     return jsonOk({ user });

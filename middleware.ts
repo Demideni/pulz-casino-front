@@ -10,45 +10,47 @@ const BLOCK = [
 ];
 
 const PROTECTED_PAGES = ["/account", "/cashier"];
-const PROTECTED_API_PREFIXES = ["/api/me", "/api/transactions", "/api/payments", "/api/games/robinson", "/api/aff/me", "/api/aff/stats", "/api/aff/payout"];
+const PROTECTED_API_PREFIXES = [
+  "/api/me",
+  "/api/transactions",
+  "/api/payments",
+  "/api/games/robinson",
+  "/api/aff/me",
+  "/api/aff/stats",
+  "/api/aff/payout",
+];
 
 const ACCESS_COOKIE = "PULZ_AT";
 const AFF_COOKIE = "aff_ref";
-
 
 export function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
 
   // block wp-scanners
-  if (
-    BLOCK.some(
-      (p) => pathname === p || pathname.startsWith(p + "/") || pathname.endsWith(p)
-    )
-  ) {
+  if (BLOCK.some((p) => pathname === p || pathname.startsWith(p + "/") || pathname.endsWith(p))) {
     return new NextResponse("Not found", { status: 404 });
   }
 
-  const hasAuth = Boolean(req.cookies.get(ACCESS_COOKIE)?.value);
-    // --- affiliate ref capture: /?ref=CODE -> cookie aff_ref (30d)
+  // --- affiliate ref capture: /?ref=CODE -> cookie aff_ref (30d) ---
   const ref = req.nextUrl.searchParams.get("ref")?.trim().toUpperCase();
   if (ref && ref.length >= 3 && ref.length <= 32) {
-    const res = NextResponse.next();
+    const cleanUrl = req.nextUrl.clone();
+    cleanUrl.searchParams.delete("ref");
 
-    // сохраняем ref на 30 дней
+    // ВАЖНО: cookie надо ставить НА ТОТ RESPONSE, который возвращаем (redirect)
+    const res = NextResponse.redirect(cleanUrl);
+
     res.cookies.set(AFF_COOKIE, ref, {
       path: "/",
       maxAge: 60 * 60 * 24 * 30,
       sameSite: "lax",
     });
 
-    // чтобы URL был чистый (без ?ref=) — редиректим на ту же страницу без параметра
-    const cleanUrl = req.nextUrl.clone();
-    cleanUrl.searchParams.delete("ref");
-    res.headers.set("Location", cleanUrl.toString());
-    return NextResponse.redirect(cleanUrl, { headers: res.headers });
+    return res;
   }
-  // --- /affiliate ref capture
+  // --- /affiliate ref capture ---
 
+  const hasAuth = Boolean(req.cookies.get(ACCESS_COOKIE)?.value);
 
   // protect pages
   if (PROTECTED_PAGES.some((p) => pathname === p || pathname.startsWith(p + "/"))) {
