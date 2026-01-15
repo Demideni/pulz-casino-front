@@ -4,38 +4,40 @@ import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/db";
 import { signAccessToken, setAccessCookie } from "@/lib/auth";
 import { jsonErr, jsonOk } from "@/lib/http";
-import { cookies } from "next/headers";
 
 export const runtime = "nodejs";
 
 const Body = z.object({
   email: z.string().email().transform((s) => s.trim().toLowerCase()),
-  password: z.string().min(6, "Password must be at least 6 characters"),
+  password: z.string().min(6),
 });
 
 export async function POST(req: NextRequest) {
   try {
     const body = Body.parse(await req.json());
 
-    const existing = await prisma.user.findUnique({ where: { email: body.email } });
-    if (existing) return jsonErr("Email already registered", 409);
+    const existing = await prisma.user.findUnique({
+      where: { email: body.email },
+    });
+    if (existing) return jsonErr("User already exists", 400);
 
-    const passwordHash = await bcrypt.hash(body.password, 12);
+    const hash = await bcrypt.hash(body.password, 10);
 
     const user = await prisma.user.create({
-      data: { email: body.email, passwordHash },
-      select: { id: true, email: true, balanceCents: true, createdAt: true },
+      data: {
+        email: body.email,
+        passwordHash: hash,
+      },
     });
 
-    // --- affiliate referral (one-time) from cookie ---
+    // ✅ РЕФЕРАЛЬНАЯ ПРИВЯЗКА
     try {
-      const refCode = req.cookies.get("aff_ref")?.value?.trim()?.toUpperCase();
-
-      if (refCode) {
-        const aff = await prisma.affiliate.findUnique({ where: { code: refCode } });
-
-        // prevent self-ref and inactive affiliates
-        if (aff && aff.isActive && aff.userId !== user.id) {
+      const ref = req.cookies.get("aff_ref")?.value?.trim()?.toUpperCase();
+      if (ref) {
+        const aff = await prisma.affiliate.findUnique({
+          where: { code: ref },
+        });
+        if (aff && aff.userId !== user.id) {
           await prisma.referral.upsert({
             where: { referredUserId: user.id },
             update: {},
@@ -44,27 +46,19 @@ export async function POST(req: NextRequest) {
               referredUserId: user.id,
             },
           });
-
-          // очистим cookie, чтобы не “прилипало”
-          cookies().set("aff_ref", "", {
-            path: "/",
-            maxAge: 0,
-            sameSite: "lax",
-          });
         }
       }
-    } catch {
-      // рефка не должна ломать регистрацию
-    }
-    // --- /affiliate referral ---
+    } catch {}
 
-    const token = await signAccessToken({ id: user.id, email: user.email });
-    setAccessCookie(token);
+    const token = await signAccessToken({
+      id: user.id,
+      email: user.email,
+    });
 
-    return jsonOk({ user });
+    const res = jsonOk({ ok: true });
+    setAccessCookie(res, token);
+    return res;
   } catch (e: any) {
-    if (e?.name === "ZodError") return jsonErr("Invalid input", 422, e.issues);
-    console.error(e);
-    return jsonErr("Server error", 500);
+    return jsonErr("Register failed", 400);
   }
 }
