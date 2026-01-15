@@ -1,9 +1,10 @@
+import { NextRequest, NextResponse } from "next/server";
 import { clearAccessCookie } from "@/lib/auth";
-import { jsonOk } from "@/lib/http";
 
 export const runtime = "nodejs";
 
-export async function POST() {
-  clearAccessCookie();
-  return jsonOk({ loggedOut: true });
+export async function POST(_req: NextRequest) {
+  const res = NextResponse.json({ ok: true });
+  clearAccessCookie(res);
+  return res;
 }

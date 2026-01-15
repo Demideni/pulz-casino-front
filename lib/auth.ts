@@ -37,6 +37,16 @@ export function setAccessCookie(res: NextResponse, token: string) {
     maxAge: 60 * 60 * 24 * 14,
   });
 }
+export function clearAccessCookie(res: NextResponse) {
+  res.cookies.set(ACCESS_COOKIE, "", {
+    httpOnly: true,
+    path: "/",
+    sameSite: "lax",
+    secure: process.env.NODE_ENV === "production",
+    maxAge: 0,
+  });
+}
+
 
 export async function getUserFromRequest(
   req: NextRequest
