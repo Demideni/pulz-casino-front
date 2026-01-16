@@ -4,7 +4,6 @@ import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/db";
 import { signAccessToken, setAccessCookie } from "@/lib/auth";
 import { jsonErr, jsonOk } from "@/lib/http";
-import { cookies } from "next/headers";
 
 export const runtime = "nodejs";
 
@@ -33,41 +32,45 @@ export async function POST(req: NextRequest) {
       select: { id: true, email: true },
     });
 
-    // если юзер пришёл по рефке — запишем Referral
+    // рефка из cookie, которую ставит middleware
     const refCode = req.cookies.get("aff_ref")?.value;
+
     if (refCode) {
       const aff = await prisma.affiliate.findUnique({
         where: { code: refCode },
-        select: { id: true, isActive: true },
+        select: { id: true, isActive: true, userId: true },
       });
 
-      if (aff?.isActive) {
-        try {
-          await prisma.referral.create({
+      if (aff?.isActive && aff.userId !== user.id) {
+        // защищаемся от дубля: на один юзер — одна привязка
+        await prisma.referral
+          .create({
             data: {
               affiliateId: aff.id,
               referredUserId: user.id,
             },
-          });
-        } catch {
-          // ignore (already referred)
-        }
+          })
+          .catch(() => {});
       }
-
-      // важно: чистим cookie, чтобы этот ref не "прилип" к следующей регистрации на устройстве
-      cookies().set("aff_ref", "", {
-        path: "/",
-        sameSite: "lax",
-        secure: process.env.NODE_ENV === "production",
-        maxAge: 0,
-      });
     }
 
     const token = await signAccessToken({ id: user.id, email: user.email });
-   const res = jsonOk({ user });
-setAccessCookie(res, token);
-return res;
 
+    // ✅ формируем response
+    const res = jsonOk({ user });
+
+    // ✅ ставим access cookie НА response
+    setAccessCookie(res, token);
+
+    // ✅ чистим aff_ref НА response, чтобы не "прилипало"
+    res.cookies.set("aff_ref", "", {
+      path: "/",
+      sameSite: "lax",
+      secure: process.env.NODE_ENV === "production",
+      maxAge: 0,
+    });
+
+    return res;
   } catch (e: any) {
     if (e?.name === "ZodError") return jsonErr("Invalid input", 422, e.issues);
     console.error(e);
