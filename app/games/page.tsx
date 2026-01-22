@@ -137,9 +137,8 @@ export default function GamesPage() {
         </div>
         <div className="flex flex-wrap items-center gap-2 text-[11px] text-slate-400">
           <span className="rounded-full border border-blue-500/50 bg-blue-500/10 px-2 py-1 text-[10px] uppercase tracking-[0.16em] text-blue-200">
-            DEMO
           </span>
-          <span>Сейчас все игры в демо-режиме.</span>
+          <span></span>
         </div>
       </header>
 

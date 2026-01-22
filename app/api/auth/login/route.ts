@@ -40,3 +40,4 @@ export async function POST(req: NextRequest) {
     return jsonErr("Server error", 500);
   }
 }
+

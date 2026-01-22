@@ -32,8 +32,8 @@ export default function RootLayout({ children }: { children: ReactNode }) {
                   className="h-12 w-auto"
                 />
                 <p className="text-[11px] leading-snug text-slate-500">
-                  Pulz — онлайн-казино с дерзким красно-чёрным стилем и честными
-                  коэффициентами для взрослых игроков 18+.
+                  Pulz — честные коэффициенты. 
+                  Только для взрослых игроков 18+.
                 </p>
               </div>
 
@@ -78,7 +78,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
 
             <div className="border-t border-slate-800/80 bg-black/90">
               <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3 text-[11px] text-slate-500">
-                <span>© {new Date().getFullYear()} Pulz. Demo only.</span>
+                <span>© {new Date().getFullYear()} Pulz 2026.</span>
                 <span>Играй ответственно 18+</span>
               </div>
             </div>
