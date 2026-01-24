@@ -49,7 +49,7 @@ export default function LoginPage() {
           </p>
         </div>
         <Link href="/" className="flex items-center gap-2">
-          <Image src="/pulz-logo-light.png" alt="Pulz" width={44} height={44} />
+          <Image src="/pulz-logo-dark.PNG" alt="Pulz" width={44} height={44} />
         </Link>
       </header>
 
