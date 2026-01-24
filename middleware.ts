@@ -18,8 +18,6 @@ const PROTECTED_API_PREFIXES = [
   "/api/aff/me",
   "/api/aff/stats",
   "/api/aff/payout",
-  "/api/withdraw",
-  "/api/admin/withdrawals",
 ];
 
 const ACCESS_COOKIE = "PULZ_AT";

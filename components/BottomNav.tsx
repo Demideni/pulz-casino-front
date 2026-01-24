@@ -19,7 +19,6 @@ export default function BottomNav() {
   const [openAuth, setOpenAuth] = useState(false);
   const [authMode, setAuthMode] = useState<AuthMode>("login");
   const [openMenu, setOpenMenu] = useState(false);
-  const [openGames, setOpenGames] = useState(false);
 
   return (
     <>
@@ -54,15 +53,8 @@ export default function BottomNav() {
           {/* Пустое место под колесо */}
           <div className="w-[96px]" />
 
-          {/* Игры — bottom sheet */}
-          <button
-            type="button"
-            className="flex w-[72px] flex-col items-center gap-1 text-[10px] text-slate-100 border-l border-slate-700/70"
-            onClick={() => setOpenGames(true)}
-          >
-            <NavIcon src={ICONS["/games"]} alt="Игры" />
-            <span>Игры</span>
-          </button>
+          {/* Игры */}
+          <NavLink href="/games" label="Игры" />
 
           {/* Меню — bottom sheet */}
           <button
@@ -147,60 +139,6 @@ export default function BottomNav() {
         </div>
       )}
 
-
-      {/* Bottom-sheet ИГРЫ */}
-      {openGames && (
-        <div
-          className="
-            fixed inset-0 z-50 flex items-end justify-center
-            bg-black/60 backdrop-blur-sm pulz-sheet-backdrop
-          "
-          onClick={() => setOpenGames(false)}
-        >
-          <div
-            className="
-              pulz-sheet
-              w-full max-w-lg rounded-t-3xl border border-slate-800/80
-              bg-slate-950/95 px-4 pt-4 pb-6
-            "
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="mb-3 flex items-center justify-between">
-              <div className="flex flex-col">
-                <span className="text-[11px] font-semibold uppercase tracking-[0.22em] text-blue-300">
-                  ИГРЫ
-                </span>
-                <span className="text-sm text-slate-300">
-                  Выбирай игру и запускай.
-                </span>
-              </div>
-              <button
-                type="button"
-                className="rounded-full border border-slate-700/80 bg-slate-900/80 px-2 py-1 text-[11px] text-slate-400 hover:text-slate-200"
-                onClick={() => setOpenGames(false)}
-              >
-                Закрыть
-              </button>
-            </div>
-
-            <div className="grid grid-cols-2 gap-2 text-sm text-slate-100">
-              <MenuItem
-                href="/games/robinson"
-                label="ROBINSON"
-                subtitle="Pulz Originals • Crash"
-                icon="/icons/games.png"
-              />
-              <MenuItem
-                href="/games/lego-candy-slots"
-                label="Lego Candy Slots"
-                subtitle="Pulz Originals • Slot"
-                icon="/icons/games.png"
-                last
-              />
-            </div>
-          </div>
-        </div>
-      )}
       {/* Bottom-sheet МЕНЮ с талисманом наверху */}
       {openMenu && (
         <div

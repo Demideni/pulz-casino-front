@@ -27,7 +27,6 @@ model User {
   email        String   @unique
   passwordHash String
   balanceCents Int      @default(0)
-  lockedCents  Int      @default(0)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
@@ -74,10 +73,6 @@ model WithdrawRequest {
   currency    String   @default("USDT")
   amountCents Int
   address     String
-  network     String   @default("TRC20")
-  note        String?
-  adminEmail  String?
-  txHash      String?
   status      String   @default("PENDING") // PENDING|APPROVED|REJECTED|PAID
   externalId  String?
   createdAt   DateTime @default(now())

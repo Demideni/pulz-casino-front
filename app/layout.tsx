@@ -1,77 +1,93 @@
-"use client";
+// app/layout.tsx
+import "./globals.css";
+import type { ReactNode } from "react";
+import Link from "next/link";
+import BottomNav from "@/components/BottomNav";
+import PulzBootOverlay from "@/components/PulzBootOverlay";
+import TopBar from "@/components/TopBar";
 
-import { useEffect, useState } from "react";
-import Image from "next/image";
-import { useRouter } from "next/navigation";
-
-const BANNERS = [
-  { src: "/banners/join-pulz-free-spins.png", alt: "Join Pulz — Free Spins" },
-  { src: "/banners/hero-feel-the-pulse.png", alt: "Feel the Pulse. Win Bigger." },
-];
-
-export default function BannerCarousel() {
-  const router = useRouter();
-  const [index, setIndex] = useState(0);
-
-  useEffect(() => {
-    const id = setInterval(() => {
-      setIndex((prev) => (prev + 1) % BANNERS.length);
-    }, 6000);
-    return () => clearInterval(id);
-  }, []);
-
-  const goTo = (i: number) => setIndex(i);
-
-  async function handleBannerClick() {
-    try {
-      const r = await fetch("/api/me", { cache: "no-store" });
-      const j = await r.json().catch(() => null);
-      const authed = !!(j?.data?.user?.id || j?.user?.id || (j?.ok && j?.user?.id));
-
-      if (authed) router.push("/cashier");
-      else router.push("/register");
-    } catch {
-      // fallback: if anything fails, send to register
-      router.push("/register");
-    }
-  }
-
+export default function RootLayout({ children }: { children: ReactNode }) {
   return (
-    <div className="relative w-full overflow-hidden rounded-none">
-      <div
-        className="flex transition-transform duration-500 ease-out"
-        style={{ transform: `translateX(-${index * 100}%)` }}
-      >
-        {BANNERS.map((banner, i) => (
-          <button
-            key={i}
-            type="button"
-            onClick={handleBannerClick}
-            className="w-full shrink-0 text-left"
-            aria-label="Open banner"
-          >
-            <Image
-              src={banner.src}
-              alt={banner.alt}
-              width={1920}
-              height={720}
-              className="h-auto w-full object-cover"
-              priority={i === 0}
-            />
-          </button>
-        ))}
-      </div>
+    <html lang="ru" className="bg-black text-slate-100">
+      <body className="bg-black text-slate-100 antialiased">
+        {/* фирменная загрузка (overlay) */}
+        <PulzBootOverlay />
 
-      <div className="absolute bottom-3 left-1/2 flex -translate-x-1/2 gap-2">
-        {BANNERS.map((_, i) => (
-          <button
-            key={i}
-            onClick={() => goTo(i)}
-            className={`h-1.5 w-6 rounded-full transition-all ${i === index ? "bg-blue-500" : "bg-slate-600/70"}`}
-            aria-label={`Go to banner ${i + 1}`}
-          />
-        ))}
-      </div>
-    </div>
+        <div className="pulz-animated-bg flex min-h-screen flex-col">
+          {/* TOP BAR */}
+          <TopBar />
+
+          {/* КОНТЕНТ СТРАНИЦЫ */}
+          <main className="mx-auto flex w-full max-w-6xl flex-1 flex-col px-0 pb-2 pt-2">
+            {children}
+          </main>
+
+          {/* FOOTER */}
+          <footer className="border-t border-slate-800/60 bg-black/80">
+            <div className="mx-auto grid max-w-6xl gap-4 px-4 py-3 text-xs text-slate-400 md:grid-cols-4">
+              <div>
+                <img
+                  src="/pulz-logo-dark.PNG"
+                  alt="Pulz Casino"
+                  className="h-12 w-auto"
+                />
+                <p className="text-[11px] leading-snug text-slate-500">
+                  Pulz — честные коэффициенты. 
+                  Только для взрослых игроков 18+.
+                </p>
+              </div>
+
+              <div>
+                <div className="mb-1 font-semibold text-slate-200">Компания</div>
+                <ul className="space-y-1">
+                  <li>
+                    <Link href="/about" className="hover:text-slate-100">
+                      О нас
+                    </Link>
+                  </li>
+                  <li>
+                    <Link href="/partners" className="hover:text-slate-100">
+                      Партнёрам
+                    </Link>
+                  </li>
+                </ul>
+              </div>
+
+              <div>
+                <div className="mb-1 font-semibold text-slate-200">Помощь</div>
+                <ul className="space-y-1">
+                  <li>
+                    <Link href="/status" className="hover:text-slate-100">
+                      Статус платформы
+                    </Link>
+                  </li>
+                  <li>
+                    <span className="text-slate-500">Ответственная игра</span>
+                  </li>
+                </ul>
+              </div>
+
+              <div>
+                <div className="mb-1 font-semibold text-slate-200">Контакты</div>
+                <ul className="space-y-1">
+                  <li>support@pulz.casino</li>
+                  <li>Чат 24/7 (в разработке)</li>
+                </ul>
+              </div>
+            </div>
+
+            <div className="border-t border-slate-800/80 bg-black/90">
+              <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3 text-[11px] text-slate-500">
+                <span>© {new Date().getFullYear()} Pulz 2026.</span>
+                <span>Играй ответственно 18+</span>
+              </div>
+            </div>
+          </footer>
+
+          {/* НИЖНИЙ ТАП-БАР С КОЛЕСОМ */}
+          <BottomNav />
+        </div>
+      </body>
+    </html>
   );
 }

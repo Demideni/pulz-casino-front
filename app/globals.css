@@ -1,0 +1,291 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: dark;
+}
+
+body {
+  @apply bg-black text-slate-100 antialiased;
+}
+
+.pulz-gradient-bg {
+  background:
+radial-gradient(circle at 0% 0%, rgba(37,99,235,0.55), transparent 55%),
+radial-gradient(circle at 100% 0%, rgba(56,189,248,0.45), transparent 55%),
+    radial-gradient(circle at 50% 100%, rgba(37,99,235,0.35), transparent 55%),
+    linear-gradient(to bottom, #05040a, #020106);
+}
+
+/* Медленное вращение (фон колеса) */
+@keyframes spin-slow {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(1080deg);
+  }
+}
+
+.animate-spin-slow {
+  animation: spin-slow 2.8s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+/* Реалистичная вспышка молний вокруг кнопки */
+@keyframes pulz-lightning-flash {
+  0% {
+    opacity: 0;
+    filter: brightness(1);
+  }
+  10% {
+    opacity: 1;
+    filter: brightness(2.5);
+  }
+  25% {
+    opacity: 0.3;
+    filter: brightness(1.2);
+  }
+  40% {
+    opacity: 0.9;
+    filter: brightness(2);
+  }
+  60% {
+    opacity: 0.2;
+    filter: brightness(1);
+  }
+  75% {
+    opacity: 0.8;
+    filter: brightness(1.6);
+  }
+  100% {
+    opacity: 0;
+    filter: brightness(1);
+  }
+}
+
+/* Облако молний поверх экрана */
+.pulz-lightning {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 40;
+  opacity: 0;
+  background:
+    radial-gradient(circle at 10% 20%, rgba(252, 211, 77, 0.35), transparent 55%),
+    radial-gradient(circle at 80% 15%, rgba(248, 113, 113, 0.45), transparent 55%),
+    radial-gradient(circle at 20% 80%, rgba(56, 189, 248, 0.35), transparent 55%),
+    radial-gradient(circle at 75% 75%, rgba(251, 113, 133, 0.4), transparent 55%);
+  mix-blend-mode: screen;
+}
+
+/* Активная анимация молний */
+.pulz-lightning-active {
+  animation: pulz-lightning-flash 0.8s ease-out forwards;
+}
+
+/* "Луч" молнии (несколько узких полос) */
+.pulz-lightning-beam {
+  position: absolute;
+  width: 2px;
+  inset-block: 5%;
+  background:
+    linear-gradient(to bottom, transparent, rgba(248, 250, 252, 0.9), transparent);
+  box-shadow:
+    0 0 20px rgba(248, 250, 252, 0.9),
+    0 0 40px rgba(248, 113, 113, 0.7);
+  opacity: 0.7;
+}
+
+/* Светящееся облако и орбиты вокруг правой части hero-баннера */
+
+.pulz-hero-shadow {
+  box-shadow: 0 0 60px rgba(15, 23, 42, 0.9);
+}
+
+.pulz-hero-orbit {
+  position: absolute;
+  height: 220px;
+  width: 220px;
+  border-radius: 9999px;
+  border: 1px solid rgba(248, 250, 252, 0.16);
+  box-shadow:
+    0 0 40px rgba(248, 113, 113, 0.7),
+    0 0 90px rgba(37, 99, 235, 0.6);
+  opacity: 0.5;
+  animation: pulz-orbit-spin 18s linear infinite;
+}
+
+.pulz-hero-orbit-2 {
+  height: 260px;
+  width: 260px;
+  opacity: 0.3;
+  animation-duration: 26s;
+  animation-direction: reverse;
+}
+
+@keyframes pulz-orbit-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* === Pulz neon mascot & logo animations === */
+
+.pulz-mascot-glow img {
+  display: block;
+  max-width: 100%;
+  filter: drop-shadow(0 0 18px #1e90ff);
+  animation: pulz-mascot-glow 2.2s ease-in-out infinite;
+}
+
+@keyframes pulz-mascot-glow {
+  0%, 100% {
+    filter: drop-shadow(0 0 10px #1e90ff);
+    transform: scale(1);
+  }
+  50% {
+    filter: drop-shadow(0 0 26px #4aa3ff);
+    transform: scale(1.03);
+  }
+}
+
+/* pulsing logo in the header */
+.pulz-logo-animated {
+  filter: drop-shadow(0 0 10px #1e90ff);
+  animation: pulz-logo-pulse 2.8s ease-in-out infinite;
+}
+
+@keyframes pulz-logo-pulse {
+  0%, 100% {
+    transform: scale(1);
+    filter: drop-shadow(0 0 8px #1e90ff);
+  }
+  40% {
+    transform: scale(1.04);
+    filter: drop-shadow(0 0 20px #4aa3ff);
+  }
+  70% {
+    transform: scale(1.02);
+    filter: drop-shadow(0 0 14px #1e90ff);
+  }
+}
+
+/* animated wheel button in bottom nav */
+.pulz-wheel-animated {
+  width: 160px;
+  height: 160px;
+  border-radius: 9999px;
+  object-fit: contain;
+  animation: pulz-wheel-spin 1.8s cubic-bezier(0.45, 0, 0.2, 1) infinite;
+}
+
+@keyframes pulz-wheel-spin {
+  0%   { transform: rotate(0deg); }
+  70%  { transform: rotate(330deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* === Pulz: неоновый анимированный фон === */
+
+.pulz-animated-bg {
+  position: relative;
+  min-height: 100vh;
+  isolation: isolate;
+  overflow: hidden;
+  background:
+    /* уменьшаем яркость левого синего пятна */
+    radial-gradient(circle at 0% 0%, rgba(37,99,235,0.25), transparent 55%),
+    /* уменьшаем яркость правого голубого пятна */
+    radial-gradient(circle at 100% 0%, rgba(56,189,248,0.22), transparent 55%),
+    /* делаем основной фон намного темнее */
+    radial-gradient(circle at 50% 140%, rgba(11,17,28,0.98), #01040a);
+}
+
+
+/* слой звёзд */
+.pulz-animated-bg::before {
+  content: "";
+  position: fixed;
+  inset: -40px;
+  z-index: -2;
+  background-image:
+    radial-gradient(circle, rgba(148,163,184,0.8) 1px, transparent 0),
+    radial-gradient(circle, rgba(56,189,248,0.9) 1px, transparent 0);
+  background-size: 140px 140px, 220px 220px;
+  background-position: 0 0, 40px 80px;
+  opacity: 0.45;
+  animation: pulz-stars-move 55s linear infinite;
+}
+
+/* слой неонового дыма */
+.pulz-animated-bg::after {
+  content: "";
+  position: fixed;
+  inset: -80px;
+  z-index: -3;
+  background:
+    radial-gradient(circle at 20% 80%, rgba(15,118,210,0.26), transparent 60%),
+    radial-gradient(circle at 80% 20%, rgba(59,130,246,0.24), transparent 60%);
+  mix-blend-mode: screen;
+  opacity: 0.75;
+  animation: pulz-fog-move 32s ease-in-out infinite alternate;
+}
+
+/* медленное движение звёзд */
+@keyframes pulz-stars-move {
+  0% {
+    transform: translate3d(0, 0, 0);
+  }
+  50% {
+    transform: translate3d(-40px, -20px, 0);
+  }
+  100% {
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+/* лёгкое “дыхание” неонового тумана */
+@keyframes pulz-fog-move {
+  0% {
+    transform: scale(1) translate3d(0, 0, 0);
+    opacity: 0.65;
+  }
+  50% {
+    transform: scale(1.08) translate3d(-10px, -12px, 0);
+    opacity: 0.9;
+  }
+  100% {
+    transform: scale(1.02) translate3d(5px, 8px, 0);
+    opacity: 0.7;
+  }
+}
+
+/* Pulz bottom sheet animation */
+.pulz-sheet-backdrop {
+  animation: pulz-sheet-backdrop-in 0.2s ease-out forwards;
+}
+
+@keyframes pulz-sheet-backdrop-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+.pulz-sheet {
+  animation: pulz-sheet-in 0.25s ease-out forwards;
+  transform-origin: bottom;
+}
+
+@keyframes pulz-sheet-in {
+  from {
+    transform: translateY(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0%);
+    opacity: 1;
+  }
+}

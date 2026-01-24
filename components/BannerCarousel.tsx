@@ -55,7 +55,7 @@ export default function BannerCarousel() {
               alt={banner.alt}
               width={1920}
               height={720}
-              className="h-[180px] w-full object-cover sm:h-[220px] md:h-[240px] lg:h-[280px] xl:h-[320px]"
+              className="h-auto w-full object-cover"
               priority={i === 0}
             />
           </button>

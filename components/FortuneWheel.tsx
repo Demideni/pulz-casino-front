@@ -100,7 +100,7 @@ export default function FortuneWheelModal({ open, onClose }: Props) {
           <div className="space-y-2 text-center text-sm">
             <div className="text-slate-100">Твой бонус: {result}</div>
             <div className="text-[12px] text-slate-400">
-              Чтобы закрепить бонус, зарегистрируй аккаунт Pulz.
+              Чтобы закрепить бонус, зарегистрируй демо-аккаунт Pulz.
             </div>
             <div className="mt-2 flex justify-center gap-3">
               <button
