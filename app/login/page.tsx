@@ -45,7 +45,7 @@ export default function LoginPage() {
         <div>
           <h1 className="text-xl font-semibold text-slate-50">Вход в Pulz</h1>
           <p className="mt-1 text-xs text-slate-400">
-            Продолжай игру в неоновой вселенной Pulz.
+            
           </p>
         </div>
         <Link href="/" className="flex items-center gap-2">

@@ -106,10 +106,10 @@ export default function CashierPage() {
       <header className="mb-4 flex items-center justify-between">
         <div>
           <h1 className="text-xl font-semibold text-slate-50">Cashier</h1>
-          <p className="mt-1 text-xs text-slate-400">Депозит криптой через PassimPay</p>
+          
         </div>
         <Link href="/account" className="flex items-center gap-2">
-          <Image src="/pulz-logo-light.png" alt="Pulz" width={44} height={44} />
+          <img src="/pulz-logo-light.png" alt="Pulz" className="h-11 w-11" />
         </Link>
       </header>
 

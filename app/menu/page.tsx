@@ -38,23 +38,9 @@ export default function MenuPage() {
           className="flex items-center justify-between rounded-xl bg-slate-900/70 px-4 py-3 text-sm text-slate-100 hover:bg-slate-800"
         >
           <span>Касса</span>
-          <span className="text-[11px] text-slate-400">Депозит / вывод (макет)</span>
+          <span className="text-[11px] text-slate-400">Депозит / вывод</span>
         </a>
-        <a
-          href="/status"
-          className="flex items-center justify-between rounded-xl bg-slate-900/70 px-4 py-3 text-sm text-slate-100 hover:bg-slate-800"
-        >
-          <span>Статус платформы</span>
-          <span className="text-[11px] text-slate-400">Аптайм и провайдеры</span>
-        </a>
-        <a
-          href="/about"
-          className="flex items-center justify-between rounded-xl bg-slate-900/70 px-4 py-3 text-sm text-slate-100 hover:bg-slate-800"
-        >
-          <span>О нас</span>
-          <span className="text-[11px] text-slate-400">Команда Pulz</span>
-        </a>
-      </div>
+</div>
     </div>
   );
 }

@@ -41,8 +41,7 @@ export default function GameDetailsPage({ params }: Props) {
           <div>
             <h1 className="text-lg font-semibold text-slate-50">{name}</h1>
             <p className="text-sm text-slate-400">
-              Интеграция этой игры ещё в разработке. Сейчас доступна только
-              демо-страница.
+              Интеграция этой игры ещё в разработке. Скоро будет доступна.
             </p>
           </div>
           <Link

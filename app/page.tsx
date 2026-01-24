@@ -34,7 +34,7 @@ export default function HomePage() {
         alt="Join Pulz — Free Spins"
         width={640}
         height={360}
-        className="h-full w-full object-cover"
+        className="h-[120px] w-full object-cover sm:h-[140px] md:h-[160px] lg:h-[180px]"
         priority
       />
     </Link>
@@ -46,7 +46,7 @@ export default function HomePage() {
         alt="Feel the Pulse. Win Bigger."
         width={640}
         height={360}
-        className="h-full w-full object-cover"
+        className="h-[120px] w-full object-cover sm:h-[140px] md:h-[160px] lg:h-[180px]"
       />
     </Link>
 
