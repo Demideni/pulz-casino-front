@@ -590,6 +590,51 @@
   overflow:hidden;
 }
 
+.pulz-control-group{
+  display:flex;
+  align-items:center;
+  gap:12px;
+}
+
+.pulz-compact{
+  min-width: 110px;
+}
+
+@media (min-width: 900px){
+  #bottom-ui{ bottom:24px; }
+  .pulz-bar{
+    width: min(1080px, 92vw);
+    padding: 16px 18px;
+    gap: 16px;
+  }
+  .pulz-play{
+    width: 110px;
+    height: 110px;
+  }
+  .pulz-stat{
+    min-width: 140px;
+  }
+  .pulz-pill{
+    width: 44px;
+    height: 44px;
+  }
+}
+
+@media (max-width: 520px){
+  .pulz-bar{
+    gap:10px;
+    padding:10px 12px;
+  }
+  .pulz-compact{
+    display:none; /* на маленьком экране убираем TOTAL BET и SPEED, чтобы не было каши */
+  }
+  .pulz-play{
+    width: 72px;
+    height: 72px;
+  }
+}
+
+
 /* inner glow line */
 .pulz-bar::before{
   content:"";
@@ -780,21 +825,33 @@
         <div class="pulz-value" id="balance-bottom">0.00</div>
       </div>
 
-      <button class="pulz-pill" id="bet-minus" aria-label="Bet minus">−</button>
-
-      <div class="pulz-stat pulz-click" id="bottom-bet">
-        <div class="pulz-label">BET</div>
-        <div class="pulz-value" id="bet-bottom">1.00</div>
+      <div class="pulz-stat">
+        <div class="pulz-label">LAST WIN</div>
+        <div class="pulz-value" id="lastwin-bottom">0.00</div>
       </div>
 
-      <button class="pulz-play" id="start-round-btn" aria-label="Play"></button>
+      <div class="pulz-control-group">
+        <button class="pulz-pill" id="bet-minus" aria-label="Bet minus">−</button>
 
-      <div class="pulz-stat pulz-click" id="speed-control">
+        <div class="pulz-stat pulz-click" id="bottom-bet">
+          <div class="pulz-label">BET</div>
+          <div class="pulz-value" id="bet-bottom">1.00</div>
+        </div>
+
+        <button class="pulz-pill" id="bet-plus" aria-label="Bet plus">+</button>
+      </div>
+
+      <div class="pulz-stat pulz-compact">
+        <div class="pulz-label">TOTAL BET</div>
+        <div class="pulz-value" id="totalbet-bottom">0.00</div>
+      </div>
+
+      <div class="pulz-stat pulz-click pulz-compact" id="speed-control">
         <div class="pulz-label">SPEED</div>
         <div class="pulz-value" id="speed-value">Medium</div>
       </div>
 
-      <button class="pulz-pill" id="bet-plus" aria-label="Bet plus">+</button>
+      <button class="pulz-play" id="start-round-btn" aria-label="Play"></button>
     </div>
   </div>
 <div id="canvas-container">
@@ -862,6 +919,8 @@
 const startBtn=document.getElementById("start-round-btn");
     const balanceEl=document.getElementById("balance");
     const balanceBottomEl=document.getElementById("balance-bottom");
+    const lastWinBottomEl=document.getElementById("lastwin-bottom");
+    const totalBetBottomEl=document.getElementById("totalbet-bottom");
     const betBottomEl=document.getElementById("bet-bottom");
 const autoToggleEl=document.getElementById("auto-toggle");
     const autoStatusEl=document.getElementById("auto-status");
@@ -948,6 +1007,8 @@ const menuCloseBtn=document.getElementById("menu-close");
 
     // ==== AUDIO ====
     let audioCtx=null;
+    const WIND_ENABLED=false; // отключили звук ветра
+
     let windNode=null;
 
     function getAudioCtx(){
@@ -1016,6 +1077,7 @@ const menuCloseBtn=document.getElementById("menu-close");
     function playWhooshSound(){playNoiseBurst(0.15,0.22);}
 
     function startWindSound(){
+      if(!WIND_ENABLED) return;
       const ac=getAudioCtx(); if(!ac) return;
       if(windNode) return;
       const len=ac.sampleRate*2;
@@ -1131,7 +1193,7 @@ const HERO_X_REL=0.25;
     let skidEndY=0;
 
     // RTP (как раньше)
-    let totalBet=0,totalPayout=0;
+    let totalBet=0,totalPayout=0,lastWin=0;
     const TARGET_RTP=0.96;
     let roundHistory=[];
 
@@ -1231,6 +1293,8 @@ function resetRound(){
     function updateBalanceUI(){
       if(balanceEl) balanceEl.textContent=userBalance.toFixed(2);
       if(balanceBottomEl) balanceBottomEl.textContent=userBalance.toFixed(2);
+      if(lastWinBottomEl) lastWinBottomEl.textContent=lastWin.toFixed(2);
+      if(totalBetBottomEl) totalBetBottomEl.textContent=totalBet.toFixed(2);
 }
 
     // -------- МЕНЮ --------
@@ -1346,7 +1410,7 @@ function resetRound(){
     }
 
     getAudioCtx();
-    startWindSound();
+    // startWindSound(); // отключено
 
     const data = await PulzBridge.placeBet(baseBet);
 
@@ -1388,7 +1452,6 @@ function resetRound(){
 
       if (typeof data.balance === "number") {
         userBalance = data.balance;
-        updateBalanceUI();
       }
       winAmount = Number(data.win || 0);
     }
@@ -1397,6 +1460,9 @@ function resetRound(){
   }
 
   currentRoundId = null;
+
+  if (result === "won") lastWin = winAmount; else lastWin = 0;
+  updateBalanceUI();
 
   if (result === "won") {
     totalPayout += winAmount;
