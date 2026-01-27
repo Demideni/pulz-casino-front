@@ -774,6 +774,86 @@
       .pulz-play:before{ width:64px; height:64px; }
     }
 
+
+  /* --- Pulz HUD (inspired by modern crash-game layouts; not a 1:1 copy) --- */
+  .hud-panel{
+    position: relative;
+    width: min(980px, calc(100% - 40px));
+    margin: 0 auto;
+    padding: 16px 18px;
+    border-radius: 28px;
+    border: 1px solid rgba(255,255,255,.08);
+    background: rgba(0,0,0,.28);
+    backdrop-filter: blur(10px);
+    box-shadow: 0 16px 60px rgba(0,0,0,.35);
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    align-items: center;
+    gap: 18px;
+  }
+  .hud-left,.hud-right{display:flex; align-items:center; gap:14px;}
+  .hud-right{justify-content:flex-end;}
+  .hud-box{
+    border-radius: 20px;
+    padding: 12px 14px;
+    border: 1px solid rgba(255,255,255,.08);
+    background: rgba(0,0,0,.22);
+    min-width: 150px;
+  }
+  .hud-label{
+    font-size: 10px;
+    letter-spacing: .22em;
+    opacity: .7;
+    margin-bottom: 6px;
+  }
+  .hud-value{
+    font-size: 22px;
+    font-weight: 800;
+  }
+  .hud-bet{display:flex; align-items:center; gap:10px;}
+  .bet-step{
+    width: 44px; height: 44px;
+    border-radius: 14px;
+    border: 1px solid rgba(255,255,255,.1);
+    background: rgba(0,0,0,.28);
+    color: #fff;
+    font-size: 22px;
+    font-weight: 900;
+    cursor: pointer;
+  }
+  .bet-step:disabled{opacity:.4; cursor:not-allowed;}
+  .play-btn{
+    width: 92px; height: 92px;
+    border-radius: 999px;
+    border: 1px solid rgba(255,255,255,.14);
+    background: radial-gradient(circle at 30% 30%, rgba(255,255,255,.12), rgba(0,0,0,.55));
+    box-shadow: 0 0 0 10px rgba(0,163,255,.06), 0 30px 90px rgba(0,0,0,.45);
+    display:flex; align-items:center; justify-content:center;
+    cursor:pointer;
+  }
+  .play-btn:disabled{opacity:.55; cursor:not-allowed;}
+  .play-icon{
+    width: 0; height: 0;
+    border-left: 22px solid rgba(255,255,255,.95);
+    border-top: 14px solid transparent;
+    border-bottom: 14px solid transparent;
+    transform: translateX(3px);
+    filter: drop-shadow(0 6px 18px rgba(0,0,0,.55));
+  }
+  .hud-hidden{display:none !important;}
+
+  @media (max-width: 720px){
+    .hud-panel{
+      width: calc(100% - 18px);
+      padding: 14px 14px calc(14px + env(safe-area-inset-bottom));
+      border-radius: 26px;
+      gap: 12px;
+    }
+    .hud-box{min-width: 120px; padding: 10px 12px; border-radius: 18px;}
+    .hud-value{font-size: 18px;}
+    .bet-step{width: 40px; height: 40px; border-radius: 14px;}
+    .play-btn{width: 84px; height: 84px;}
+  }
 </style>
 </head>
 <body>
@@ -787,28 +867,35 @@
   <div id="toast" aria-live="polite"></div>
   <div id="multiplier" style="display:none">1.00x</div>
 <!-- Нижний Pulz-бар -->
-  <div id="bottom-ui">
-    <div class="pulz-bar">
-      <div class="pulz-stat">
-        <div class="pulz-label">BALANCE</div>
-        <div class="pulz-value" id="balance-bottom">0.00</div>
+  <div id="bottom-ui" class="bottom-ui">
+    <div class="hud-panel">
+      <div class="hud-left">
+        <div class="hud-box">
+          <div class="hud-label">BALANCE</div>
+          <div id="balance-bottom" class="hud-value">0.00</div>
+        </div>
       </div>
 
-      <button class="pulz-pill" id="bet-minus" aria-label="Bet minus">−</button>
+      <button id="start-round-btn" class="play-btn" aria-label="Start round">
+        <span class="play-icon"></span>
+      </button>
 
-      <div class="pulz-stat pulz-click" id="bottom-bet">
-        <div class="pulz-label">BET</div>
-        <div class="pulz-value" id="bet-bottom">1.00</div>
+      <div class="hud-right">
+        <div class="hud-box">
+          <div class="hud-label">BET</div>
+          <div class="hud-bet">
+            <button id="bet-minus" class="bet-step" aria-label="Decrease bet">−</button>
+            <div id="bet-bottom" class="hud-value">1.00</div>
+            <button id="bet-plus" class="bet-step" aria-label="Increase bet">+</button>
+          </div>
+        </div>
+
+        <!-- hidden for now; kept for compatibility with existing JS -->
+        <div id="speed-control" class="hud-box hud-hidden">
+          <div class="hud-label">SPEED</div>
+          <div id="speed-value" class="hud-value">Medium</div>
+        </div>
       </div>
-
-      <button class="pulz-play" id="start-round-btn" aria-label="Play"></button>
-
-      <div class="pulz-stat pulz-click" id="speed-control">
-        <div class="pulz-label">SPEED</div>
-        <div class="pulz-value" id="speed-value">Medium</div>
-      </div>
-
-      <button class="pulz-pill" id="bet-plus" aria-label="Bet plus">+</button>
     </div>
   </div>
 <div id="canvas-container">
