@@ -86,6 +86,24 @@
         { filter: `brightness(${isWin ? 1.35 : 1.1})`, duration: 0.18, yoyo: true, repeat: 3, ease: "sine.inOut" }
       );
     },
+    showResultText(text, isWin) {
+  // меняем текст на кнопке на короткое время — как “казино”
+  const prev = $play.textContent;
+  $play.textContent = text;
+
+  if (window.gsap) {
+    gsap.fromTo(
+      $play,
+      { scale: 1 },
+      { scale: 1.08, duration: 0.22, ease: "back.out(2)" }
+    );
+  }
+
+  setTimeout(() => {
+    $play.textContent = prev;
+  }, 650);
+},
+
   };
 
   // стартовое состояние
