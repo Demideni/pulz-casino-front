@@ -3,7 +3,7 @@
   if (!canvas) return console.error("[game] Canvas not found");
   const ctx = canvas.getContext("2d");
 
-  // ===== Assets (images) =====
+  // ===== Assets =====
   function loadImage(src) {
     return new Promise((resolve) => {
       const img = new Image();
@@ -35,6 +35,7 @@
   let W = 0,
     H = 0,
     dpr = 1;
+
   function resize() {
     dpr = Math.min(window.devicePixelRatio || 1, 2);
     W = window.innerWidth;
@@ -60,6 +61,7 @@
     FINISH_WIN: "FINISH_WIN",
     FINISH_LOSE: "FINISH_LOSE",
   };
+
   let state = State.IDLE;
   let lastTime = performance.now();
 
@@ -72,14 +74,15 @@
   const START_VY = -420;
   const OBJECT_SPEED_BASE = 520;
 
-  // прокат
+  // roll
   const ROLL_FRICTION = 1700;
   const ROLL_STOP_VX = 35;
 
-  // Trail feel
-  const RIBBON_LIFE = 0.42;
-  const RIBBON_MAX = 34;
-  const RIBBON_MIN_DIST = 7; // px (чтобы не добавлять точки слишком часто)
+  // ribbon look
+  const RIBBON_LIFE = 0.45;     // сколько живёт хвост
+  const RIBBON_MAX = 36;        // длина хвоста
+  const RIBBON_MIN_DIST = 6;    // шаг точек (для стабильности)
+  const RIBBON_SHIFT_K = 0.70;  // насколько сильно "тянет назад" по скорости мира
 
   // ===== World =====
   const world = {
@@ -96,28 +99,25 @@
     result: null,
     finishT: 0,
 
-    plan: null, // { result: "WIN" | "LOSE" }
+    plan: null,
     decided: false,
 
     roll: { vx: 0 },
 
     fx: {
-      mode: "BLUE", // "BLUE" | "FIRE"
+      mode: "BLUE",      // "BLUE" | "FIRE"
       fireUntil: 0,
 
-      // blue ribbon points
+      // critical: world speed for ribbon shift
+      worldSpeed: OBJECT_SPEED_BASE,
+
+      // ribbon
       ribbon: [], // {x,y,t,life}
       ribbonMax: RIBBON_MAX,
-
-      // for direction / sampling
-      lastHX: 0,
-      lastHY: 0,
-      lastVx: 0,
-      lastVy: 0,
       lastRibbonX: 0,
       lastRibbonY: 0,
 
-      // particles only for FIRE/SMOKE
+      // fire particles
       particles: [],
     },
   };
@@ -161,13 +161,13 @@
     world.fx.fireUntil = world.t + seconds;
   }
 
-  // публичный тест-хук
+  // debug hook
   window.RobinsonGame = window.RobinsonGame || {};
   window.RobinsonGame.triggerDamage = () => setDamagedTrail(1.4);
 
   // ===== Planning =====
   function planRound() {
-    const isWin = Math.random() < 0.5; // потом подключим вашу математику/RTP
+    const isWin = Math.random() < 0.5;
     world.plan = { result: isWin ? "WIN" : "LOSE" };
   }
 
@@ -200,15 +200,13 @@
     world.cam.y = 0;
     world.cam.shake = 0;
 
-    // trail init
+    // fx reset
     world.fx.mode = "BLUE";
     world.fx.fireUntil = 0;
     world.fx.particles = [];
     world.fx.ribbon = [];
-    world.fx.lastHX = world.hero.x;
-    world.fx.lastHY = world.hero.y;
-    world.fx.lastVx = 0;
-    world.fx.lastVy = 0;
+    world.fx.worldSpeed = OBJECT_SPEED_BASE;
+
     world.fx.lastRibbonX = world.hero.x;
     world.fx.lastRibbonY = world.hero.y;
 
@@ -249,7 +247,7 @@
 
   // ===== Deck geometry =====
   function deckTopY() {
-    return world.island.y - world.island.h / 2 + 6; // подгоним при необходимости
+    return world.island.y - world.island.h / 2 + 6; // tweak if needed
   }
   function deckLeftX() {
     return world.island.x - world.island.w / 2;
@@ -258,7 +256,7 @@
     return world.island.x + world.island.w / 2;
   }
 
-  // ===== Blue ribbon (two-layer) =====
+  // ===== Ribbon =====
   function pushRibbonPoint(x, y) {
     const dx = x - world.fx.lastRibbonX;
     const dy = y - world.fx.lastRibbonY;
@@ -271,59 +269,47 @@
     if (world.fx.ribbon.length > world.fx.ribbonMax) world.fx.ribbon.shift();
   }
 
-  function spawnRibbon() {
-    // Голубая лента всегда нужна (и в FIRE-режиме можно оставить, но сейчас — замещаем огнём)
+  function spawnRibbonPoint() {
     if (world.fx.mode !== "BLUE") return;
 
-    const vx = world.fx.lastVx;
-    const vy = world.fx.lastVy;
-    const sp = Math.hypot(vx, vy);
-    if (sp < 10) return;
-
-    const nx = vx / sp;
-    const ny = vy / sp;
-
+    // точка сопла: просто за спиной по Y (стабильно)
     const back = 0.55 * Math.max(world.hero.w, world.hero.h);
-    const x = world.hero.x - nx * back;
-    const y = world.hero.y - ny * back;
+    const x = world.hero.x - back * 0.10; // микро-сдвиг, но не обязателен
+    const y = world.hero.y + back * 0.15;
 
     pushRibbonPoint(x, y);
   }
 
-  // ===== Fire/Smoke particles =====
+  // ===== Fire / Smoke particles =====
   function spawnFireParticles(dt) {
+    // auto return to blue
     if (world.fx.mode === "FIRE" && world.t >= world.fx.fireUntil) {
       world.fx.mode = "BLUE";
     }
     if (world.fx.mode !== "FIRE") return;
 
-    const vx = world.fx.lastVx;
-    const vy = world.fx.lastVy;
-    const sp = Math.hypot(vx, vy);
-    if (sp < 10) return;
-
-    const nx = vx / sp;
-    const ny = vy / sp;
+    const speed = Math.max(300, world.fx.worldSpeed || OBJECT_SPEED_BASE);
 
     const back = 0.55 * Math.max(world.hero.w, world.hero.h);
-    const sx = world.hero.x - nx * back;
-    const sy = world.hero.y - ny * back;
+    const sx = world.hero.x - back * 0.10;
+    const sy = world.hero.y + back * 0.15;
 
     const rate = 90;
     const count = Math.max(1, Math.floor(rate * dt));
 
     for (let i = 0; i < count; i++) {
       const jitter = (Math.random() - 0.5) * 10;
-      const px = sx + (-ny) * jitter;
-      const py = sy + (nx) * jitter;
+      const px = sx + jitter;
+      const py = sy + jitter;
 
       const isSmoke = Math.random() < 0.55;
       world.fx.particles.push({
         kind: isSmoke ? "SMOKE" : "FIRE",
         x: px,
         y: py,
-        vx: -nx * (90 + Math.random() * 90) + (Math.random() - 0.5) * 55,
-        vy: -ny * (90 + Math.random() * 90) + (Math.random() - 0.5) * 55 - (isSmoke ? 25 : 0),
+        // частицы летят назад влево (как струя)
+        vx: -(speed * 0.35 + Math.random() * speed * 0.25) + (Math.random() - 0.5) * 60,
+        vy: (Math.random() - 0.5) * 80 - (isSmoke ? 30 : 0),
         life: isSmoke ? 0.9 + Math.random() * 0.55 : 0.35 + Math.random() * 0.25,
         t: 0,
         size: isSmoke ? 10 + Math.random() * 18 : 8 + Math.random() * 12,
@@ -369,7 +355,6 @@
     state = State.LANDING_ROLL;
 
     world.roll.vx = Math.max(320, speed * 0.85);
-
     cameraKick(0.9);
   }
 
@@ -403,10 +388,13 @@
       const p = clamp(world.roundT / world.roundDur, 0, 1);
       const speed = OBJECT_SPEED_BASE * (0.9 + 0.55 * easeInOut(p));
 
-      // палуба едет влево
+      // save world speed for ribbon render shift
+      world.fx.worldSpeed = speed;
+
+      // deck moves left
       world.island.x -= speed * dt;
 
-      // физика героя
+      // hero physics
       world.hero.vy += GRAVITY * dt;
       world.hero.y += world.hero.vy * dt;
 
@@ -417,29 +405,26 @@
         if (world.hero.vy < 0) world.hero.vy = 0;
       }
 
-      // наклон
+      // tilt
       world.hero.rot = clamp(world.hero.vy / 1200, -0.35, 0.55);
 
       // touchdown
       tryTouchdown(speed);
 
-      // Если упал ниже — lose
+      // fail conditions
       if (world.hero.y - world.hero.h / 2 > H + 90 && !world.result) endRound("LOSE");
-      // Если палуба улетела — lose
       if (world.island.x < -700 && !world.result) endRound("LOSE");
 
-      // КЛЮЧ: направление "вперёд" = скорость мира (speed), а не dx героя
-      world.fx.lastVx = speed;
-      world.fx.lastVy = world.hero.vy;
-      world.fx.lastHX = world.hero.x;
-      world.fx.lastHY = world.hero.y;
-
-      spawnRibbon();
+      // spawn fx
+      spawnRibbonPoint();
       spawnFireParticles(dt);
     }
 
     if (state === State.LANDING_ROLL) {
       const hero = world.hero;
+
+      // during roll, keep same worldSpeed so ribbon still shifts nicely if needed
+      world.fx.worldSpeed = Math.max(world.fx.worldSpeed, OBJECT_SPEED_BASE * 0.9);
 
       world.roll.vx = Math.max(0, world.roll.vx - ROLL_FRICTION * dt);
       hero.x += world.roll.vx * dt;
@@ -449,7 +434,7 @@
 
       const rightEdge = deckRightX();
 
-      // дошёл до края — сорвался (LOSE) + огонь/дым
+      // fell from edge => LOSE + fire trail
       if (hero.x + hero.w * 0.35 >= rightEdge) {
         setDamagedTrail(1.4);
         hero.vy = 420;
@@ -457,18 +442,30 @@
         return;
       }
 
-      // остановился — WIN
+      // stop => WIN
       if (world.roll.vx <= ROLL_STOP_VX) {
         endRound("WIN");
         return;
       }
     }
 
+    // finish lose physics + some fire
     if (state === State.FINISH_LOSE) {
-      // чуть-чуть продолжаем огонь/дым во время падения
-      world.fx.lastVx = 220;
-      world.fx.lastVy = world.hero.vy;
+      world.fx.worldSpeed = Math.max(world.fx.worldSpeed, OBJECT_SPEED_BASE);
+
+      // keep a bit of fire while falling
       spawnFireParticles(dt);
+
+      world.finishT += dt;
+      world.hero.vy += GRAVITY * 0.70 * dt;
+      world.hero.y += world.hero.vy * dt;
+      world.hero.rot += 1.6 * dt;
+      if (world.finishT < 0.6) cameraKick(0.12);
+    }
+
+    if (state === State.FINISH_WIN) {
+      world.finishT += dt;
+      if (world.finishT < 0.35) cameraKick(0.07);
     }
 
     // update ribbon life
@@ -498,20 +495,6 @@
 
       if (k >= 1) world.fx.particles.splice(i, 1);
     }
-
-    // finish motion
-    if (state === State.FINISH_WIN) {
-      world.finishT += dt;
-      if (world.finishT < 0.35) cameraKick(0.07);
-    }
-
-    if (state === State.FINISH_LOSE) {
-      world.finishT += dt;
-      world.hero.vy += GRAVITY * 0.70 * dt;
-      world.hero.y += world.hero.vy * dt;
-      world.hero.rot += 1.6 * dt;
-      if (world.finishT < 0.6) cameraKick(0.12);
-    }
   }
 
   // ===== Render helpers =====
@@ -530,35 +513,48 @@
     const pts = world.fx.ribbon;
     if (pts.length < 2) return;
 
+    // THIS is the fix: pull older points left by worldSpeed * age
+    const ws = Math.max(250, world.fx.worldSpeed || OBJECT_SPEED_BASE);
+
     ctx.save();
     ctx.lineCap = "round";
     ctx.lineJoin = "round";
 
-    // ВАЖНО: рисуем от хвоста к голове
     for (let i = 1; i < pts.length; i++) {
       const a = i / pts.length;
+
       const p0 = pts[i - 1];
       const p1 = pts[i];
 
-      const fade = 1 - (p1.t / p1.life);
-      const t = clamp(a * fade, 0, 1);
+      const k0 = clamp(p0.t / p0.life, 0, 1);
+      const k1 = clamp(p1.t / p1.life, 0, 1);
 
-      // 1) мягкий glow (шире)
-      ctx.globalAlpha = 0.18 * t;
+      // shift points left by age -> always "behind"
+      const x0 = p0.x - ws * (RIBBON_SHIFT_K * k0);
+      const y0 = p0.y;
+
+      const x1 = p1.x - ws * (RIBBON_SHIFT_K * k1);
+      const y1 = p1.y;
+
+      // fade
+      const t = clamp(a * (1 - k1), 0, 1);
+
+      // soft glow layer
+      ctx.globalAlpha = 0.16 * t;
       ctx.strokeStyle = "#2cf2ff";
-      ctx.lineWidth = 26 * t;
+      ctx.lineWidth = 30 * t;
       ctx.beginPath();
-      ctx.moveTo(p0.x, p0.y);
-      ctx.lineTo(p1.x, p1.y);
+      ctx.moveTo(x0, y0);
+      ctx.lineTo(x1, y1);
       ctx.stroke();
 
-      // 2) ядро (тоньше и ярче)
-      ctx.globalAlpha = 0.45 * t;
+      // bright core
+      ctx.globalAlpha = 0.44 * t;
       ctx.strokeStyle = "#8ff3ff";
-      ctx.lineWidth = 10 * t;
+      ctx.lineWidth = 11 * t;
       ctx.beginPath();
-      ctx.moveTo(p0.x, p0.y);
-      ctx.lineTo(p1.x, p1.y);
+      ctx.moveTo(x0, y0);
+      ctx.lineTo(x1, y1);
       ctx.stroke();
     }
 
@@ -629,7 +625,7 @@
       ctx.globalAlpha = 1;
     }
 
-    // DECK (авианосец)
+    // DECK
     const isl = world.island;
     const islandDrawn = drawCentered(GFX.island, isl.x, isl.y, isl.w, isl.h, 0);
     if (!islandDrawn) {
@@ -637,12 +633,9 @@
       ctx.fillRect(isl.x - isl.w / 2, isl.y - isl.h / 2, isl.w, isl.h);
     }
 
-    // BLUE ribbon OR FIRE particles
-    if (world.fx.mode === "BLUE") {
-      renderRibbonTwoLayer();
-    } else {
-      renderFireParticles();
-    }
+    // FX
+    if (world.fx.mode === "BLUE") renderRibbonTwoLayer();
+    else renderFireParticles();
 
     // HERO
     const h = world.hero;
@@ -658,9 +651,9 @@
       ctx.restore();
     }
 
-    ctx.restore(); // camera
+    ctx.restore();
 
-    // loading hint
+    // loading hint (можешь потом убрать)
     if (!GFX.ready) {
       ctx.fillStyle = "rgba(255,255,255,0.75)";
       ctx.font = "600 14px Arial";
@@ -673,6 +666,7 @@
     let dt = (time - lastTime) / 1000;
     lastTime = time;
     dt = Math.min(dt, 0.033);
+
     update(dt);
     render();
     requestAnimationFrame(loop);
