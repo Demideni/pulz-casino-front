@@ -79,10 +79,10 @@
   const ROLL_STOP_VX = 35;
 
   // ribbon look
-  const RIBBON_LIFE = 0.45;     // сколько живёт хвост
-  const RIBBON_MAX = 36;        // длина хвоста
-  const RIBBON_MIN_DIST = 6;    // шаг точек (для стабильности)
-  const RIBBON_SHIFT_K = 0.70;  // насколько сильно "тянет назад" по скорости мира
+  const RIBBON_LIFE = 0.45;
+  const RIBBON_MAX = 36;
+  const RIBBON_MIN_DIST = 6;
+  const RIBBON_SHIFT_K = 0.70;
 
   // ===== World =====
   const world = {
@@ -105,10 +105,10 @@
     roll: { vx: 0 },
 
     fx: {
-      mode: "BLUE",      // "BLUE" | "FIRE"
+      mode: "BLUE", // "BLUE" | "FIRE"
       fireUntil: 0,
 
-      // critical: world speed for ribbon shift
+      // world speed for ribbon shift
       worldSpeed: OBJECT_SPEED_BASE,
 
       // ribbon
@@ -121,6 +121,29 @@
       particles: [],
     },
   };
+
+  // ===== Hit pause / time scale =====
+  const TIME = {
+    scale: 1,
+    freeze: 0,
+  };
+
+  function hitPause(freezeSec = 0.06, slowScale = 0.25, slowRecover = 0.12) {
+    TIME.freeze = Math.max(TIME.freeze, freezeSec);
+    TIME.scale = Math.min(TIME.scale, slowScale);
+
+    const startT = world.t;
+    const startScale = TIME.scale;
+    const target = 1;
+
+    function step() {
+      const t = clamp((world.t - startT) / slowRecover, 0, 1);
+      TIME.scale = startScale + (target - startScale) * t;
+      if (t < 1) requestAnimationFrame(step);
+      else TIME.scale = 1;
+    }
+    requestAnimationFrame(step);
+  }
 
   function initStars() {
     world.stars = [];
@@ -138,6 +161,11 @@
 
   function cameraKick(amount = 1) {
     world.cam.shake = Math.max(world.cam.shake, amount);
+  }
+
+  function cameraPunch(dx = 0, dy = 0) {
+    world.cam.x += dx;
+    world.cam.y += dy;
   }
 
   function kickStartFeel() {
@@ -247,7 +275,7 @@
 
   // ===== Deck geometry =====
   function deckTopY() {
-    return world.island.y - world.island.h / 2 + 6; // tweak if needed
+    return world.island.y - world.island.h / 2 + 6;
   }
   function deckLeftX() {
     return world.island.x - world.island.w / 2;
@@ -272,17 +300,15 @@
   function spawnRibbonPoint() {
     if (world.fx.mode !== "BLUE") return;
 
-    // точка сопла: просто за спиной по Y (стабильно)
     const back = 0.55 * Math.max(world.hero.w, world.hero.h);
-    const x = world.hero.x - back * 0.10; // микро-сдвиг, но не обязателен
+    const x = world.hero.x - back * 0.10;
     const y = world.hero.y + back * 0.15;
 
     pushRibbonPoint(x, y);
   }
 
-  // ===== Fire / Smoke particles =====
+  // ===== Fire / Smoke =====
   function spawnFireParticles(dt) {
-    // auto return to blue
     if (world.fx.mode === "FIRE" && world.t >= world.fx.fireUntil) {
       world.fx.mode = "BLUE";
     }
@@ -307,7 +333,6 @@
         kind: isSmoke ? "SMOKE" : "FIRE",
         x: px,
         y: py,
-        // частицы летят назад влево (как струя)
         vx: -(speed * 0.35 + Math.random() * speed * 0.25) + (Math.random() - 0.5) * 60,
         vy: (Math.random() - 0.5) * 80 - (isSmoke ? 30 : 0),
         life: isSmoke ? 0.9 + Math.random() * 0.55 : 0.35 + Math.random() * 0.25,
@@ -322,7 +347,7 @@
     }
   }
 
-  // ===== Landing decision (touchdown -> roll) =====
+  // ===== Landing decision =====
   function tryTouchdown(speed) {
     if (world.decided) return;
 
@@ -342,8 +367,8 @@
     const left = deckLeftX();
     const right = deckRightX();
 
-    const safeTouchdownX = left + isl.w * 0.35; // WIN
-    const lateTouchdownX = right - isl.w * 0.12; // LOSE
+    const safeTouchdownX = left + isl.w * 0.35;   // WIN
+    const lateTouchdownX = right - isl.w * 0.12;  // LOSE
 
     const touchdownX = world.plan.result === "WIN" ? safeTouchdownX : lateTouchdownX;
 
@@ -355,7 +380,13 @@
     state = State.LANDING_ROLL;
 
     world.roll.vx = Math.max(320, speed * 0.85);
+
     cameraKick(0.9);
+
+    // ===== FEEL: touchdown impact =====
+    hitPause(0.055, 0.22, 0.14);
+    cameraPunch(-8, 6);
+    cameraKick(1.25);
   }
 
   // ===== Update =====
@@ -388,34 +419,26 @@
       const p = clamp(world.roundT / world.roundDur, 0, 1);
       const speed = OBJECT_SPEED_BASE * (0.9 + 0.55 * easeInOut(p));
 
-      // save world speed for ribbon render shift
       world.fx.worldSpeed = speed;
 
-      // deck moves left
       world.island.x -= speed * dt;
 
-      // hero physics
       world.hero.vy += GRAVITY * dt;
       world.hero.y += world.hero.vy * dt;
 
-      // top limit
       const topLimit = H * PLAYFIELD_TOP_REL;
       if (world.hero.y < topLimit) {
         world.hero.y = topLimit;
         if (world.hero.vy < 0) world.hero.vy = 0;
       }
 
-      // tilt
       world.hero.rot = clamp(world.hero.vy / 1200, -0.35, 0.55);
 
-      // touchdown
       tryTouchdown(speed);
 
-      // fail conditions
       if (world.hero.y - world.hero.h / 2 > H + 90 && !world.result) endRound("LOSE");
       if (world.island.x < -700 && !world.result) endRound("LOSE");
 
-      // spawn fx
       spawnRibbonPoint();
       spawnFireParticles(dt);
     }
@@ -423,7 +446,6 @@
     if (state === State.LANDING_ROLL) {
       const hero = world.hero;
 
-      // during roll, keep same worldSpeed so ribbon still shifts nicely if needed
       world.fx.worldSpeed = Math.max(world.fx.worldSpeed, OBJECT_SPEED_BASE * 0.9);
 
       world.roll.vx = Math.max(0, world.roll.vx - ROLL_FRICTION * dt);
@@ -434,26 +456,27 @@
 
       const rightEdge = deckRightX();
 
-      // fell from edge => LOSE + fire trail
       if (hero.x + hero.w * 0.35 >= rightEdge) {
         setDamagedTrail(1.4);
         hero.vy = 420;
+
+        // ===== FEEL: fall-off impact =====
+        hitPause(0.08, 0.18, 0.18);
+        cameraPunch(-14, 10);
+        cameraKick(1.8);
+
         endRound("LOSE");
         return;
       }
 
-      // stop => WIN
       if (world.roll.vx <= ROLL_STOP_VX) {
         endRound("WIN");
         return;
       }
     }
 
-    // finish lose physics + some fire
     if (state === State.FINISH_LOSE) {
       world.fx.worldSpeed = Math.max(world.fx.worldSpeed, OBJECT_SPEED_BASE);
-
-      // keep a bit of fire while falling
       spawnFireParticles(dt);
 
       world.finishT += dt;
@@ -468,7 +491,7 @@
       if (world.finishT < 0.35) cameraKick(0.07);
     }
 
-    // update ribbon life
+    // update ribbon
     for (let i = world.fx.ribbon.length - 1; i >= 0; i--) {
       const p = world.fx.ribbon[i];
       p.t += dt;
@@ -513,7 +536,7 @@
     const pts = world.fx.ribbon;
     if (pts.length < 2) return;
 
-    // THIS is the fix: pull older points left by worldSpeed * age
+    // pull older points left by worldSpeed * age (always behind)
     const ws = Math.max(250, world.fx.worldSpeed || OBJECT_SPEED_BASE);
 
     ctx.save();
@@ -529,17 +552,15 @@
       const k0 = clamp(p0.t / p0.life, 0, 1);
       const k1 = clamp(p1.t / p1.life, 0, 1);
 
-      // shift points left by age -> always "behind"
       const x0 = p0.x - ws * (RIBBON_SHIFT_K * k0);
       const y0 = p0.y;
 
       const x1 = p1.x - ws * (RIBBON_SHIFT_K * k1);
       const y1 = p1.y;
 
-      // fade
       const t = clamp(a * (1 - k1), 0, 1);
 
-      // soft glow layer
+      // glow
       ctx.globalAlpha = 0.16 * t;
       ctx.strokeStyle = "#2cf2ff";
       ctx.lineWidth = 30 * t;
@@ -548,7 +569,7 @@
       ctx.lineTo(x1, y1);
       ctx.stroke();
 
-      // bright core
+      // core
       ctx.globalAlpha = 0.44 * t;
       ctx.strokeStyle = "#8ff3ff";
       ctx.lineWidth = 11 * t;
@@ -653,7 +674,7 @@
 
     ctx.restore();
 
-    // loading hint (можешь потом убрать)
+    // loading hint (optional to remove later)
     if (!GFX.ready) {
       ctx.fillStyle = "rgba(255,255,255,0.75)";
       ctx.font = "600 14px Arial";
@@ -667,9 +688,18 @@
     lastTime = time;
     dt = Math.min(dt, 0.033);
 
+    // apply freeze / time scale
+    if (TIME.freeze > 0) {
+      TIME.freeze = Math.max(0, TIME.freeze - dt);
+      dt = 0;
+    } else {
+      dt = dt * TIME.scale;
+    }
+
     update(dt);
     render();
     requestAnimationFrame(loop);
   }
+
   requestAnimationFrame(loop);
 })();
