@@ -73,8 +73,13 @@
   const OBJECT_SPEED_BASE = 520;
 
   // прокат
-  const ROLL_FRICTION = 1700; // px/s^2
+  const ROLL_FRICTION = 1700;
   const ROLL_STOP_VX = 35;
+
+  // Trail feel
+  const RIBBON_LIFE = 0.42;
+  const RIBBON_MAX = 34;
+  const RIBBON_MIN_DIST = 7; // px (чтобы не добавлять точки слишком часто)
 
   // ===== World =====
   const world = {
@@ -96,15 +101,24 @@
 
     roll: { vx: 0 },
 
-    // trail FX
     fx: {
-      particles: [],
       mode: "BLUE", // "BLUE" | "FIRE"
       fireUntil: 0,
+
+      // blue ribbon points
+      ribbon: [], // {x,y,t,life}
+      ribbonMax: RIBBON_MAX,
+
+      // for direction / sampling
       lastHX: 0,
       lastHY: 0,
       lastVx: 0,
       lastVy: 0,
+      lastRibbonX: 0,
+      lastRibbonY: 0,
+
+      // particles only for FIRE/SMOKE
+      particles: [],
     },
   };
 
@@ -153,7 +167,7 @@
 
   // ===== Planning =====
   function planRound() {
-    const isWin = Math.random() < 0.5; // позже подключим вашу математику/RTP
+    const isWin = Math.random() < 0.5; // потом подключим вашу математику/RTP
     world.plan = { result: isWin ? "WIN" : "LOSE" };
   }
 
@@ -186,13 +200,17 @@
     world.cam.y = 0;
     world.cam.shake = 0;
 
-    // trail baseline
+    // trail init
+    world.fx.mode = "BLUE";
+    world.fx.fireUntil = 0;
+    world.fx.particles = [];
+    world.fx.ribbon = [];
     world.fx.lastHX = world.hero.x;
     world.fx.lastHY = world.hero.y;
     world.fx.lastVx = 0;
     world.fx.lastVy = 0;
-    world.fx.mode = "BLUE";
-    world.fx.fireUntil = 0;
+    world.fx.lastRibbonX = world.hero.x;
+    world.fx.lastRibbonY = world.hero.y;
 
     planRound();
   }
@@ -231,8 +249,7 @@
 
   // ===== Deck geometry =====
   function deckTopY() {
-    // верх палубы (подгоним +- пару px если надо)
-    return world.island.y - world.island.h / 2 + 6;
+    return world.island.y - world.island.h / 2 + 6; // подгоним при необходимости
   }
   function deckLeftX() {
     return world.island.x - world.island.w / 2;
@@ -241,26 +258,58 @@
     return world.island.x + world.island.w / 2;
   }
 
-  // ===== Trail spawn =====
-  function spawnTrailParticles(dt) {
-    if (world.fx.mode === "FIRE" && world.t >= world.fx.fireUntil) {
-      world.fx.mode = "BLUE";
-    }
+  // ===== Blue ribbon (two-layer) =====
+  function pushRibbonPoint(x, y) {
+    const dx = x - world.fx.lastRibbonX;
+    const dy = y - world.fx.lastRibbonY;
+    if (dx * dx + dy * dy < RIBBON_MIN_DIST * RIBBON_MIN_DIST) return;
+
+    world.fx.ribbon.push({ x, y, t: 0, life: RIBBON_LIFE });
+    world.fx.lastRibbonX = x;
+    world.fx.lastRibbonY = y;
+
+    if (world.fx.ribbon.length > world.fx.ribbonMax) world.fx.ribbon.shift();
+  }
+
+  function spawnRibbon() {
+    // Голубая лента всегда нужна (и в FIRE-режиме можно оставить, но сейчас — замещаем огнём)
+    if (world.fx.mode !== "BLUE") return;
 
     const vx = world.fx.lastVx;
     const vy = world.fx.lastVy;
-    const speed = Math.hypot(vx, vy);
+    const sp = Math.hypot(vx, vy);
+    if (sp < 10) return;
 
-    if (speed < 40) return;
+    const nx = vx / sp;
+    const ny = vy / sp;
 
-    const nx = vx / speed;
-    const ny = vy / speed;
+    const back = 0.55 * Math.max(world.hero.w, world.hero.h);
+    const x = world.hero.x - nx * back;
+    const y = world.hero.y - ny * back;
+
+    pushRibbonPoint(x, y);
+  }
+
+  // ===== Fire/Smoke particles =====
+  function spawnFireParticles(dt) {
+    if (world.fx.mode === "FIRE" && world.t >= world.fx.fireUntil) {
+      world.fx.mode = "BLUE";
+    }
+    if (world.fx.mode !== "FIRE") return;
+
+    const vx = world.fx.lastVx;
+    const vy = world.fx.lastVy;
+    const sp = Math.hypot(vx, vy);
+    if (sp < 10) return;
+
+    const nx = vx / sp;
+    const ny = vy / sp;
 
     const back = 0.55 * Math.max(world.hero.w, world.hero.h);
     const sx = world.hero.x - nx * back;
     const sy = world.hero.y - ny * back;
 
-    const rate = world.fx.mode === "BLUE" ? 55 : 85;
+    const rate = 90;
     const count = Math.max(1, Math.floor(rate * dt));
 
     for (let i = 0; i < count; i++) {
@@ -268,39 +317,22 @@
       const px = sx + (-ny) * jitter;
       const py = sy + (nx) * jitter;
 
-      if (world.fx.mode === "BLUE") {
-        world.fx.particles.push({
-          kind: "BLUE",
-          x: px,
-          y: py,
-          vx: -nx * (120 + Math.random() * 120) + (Math.random() - 0.5) * 25,
-          vy: -ny * (120 + Math.random() * 120) + (Math.random() - 0.5) * 25,
-          life: 0.45 + Math.random() * 0.25,
-          t: 0,
-          size: 6 + Math.random() * 8,
-          a: 0.24 + Math.random() * 0.18,
-        });
-      } else {
-        const isSmoke = Math.random() < 0.55;
-        world.fx.particles.push({
-          kind: isSmoke ? "SMOKE" : "FIRE",
-          x: px,
-          y: py,
-          vx: -nx * (90 + Math.random() * 90) + (Math.random() - 0.5) * 55,
-          vy:
-            -ny * (90 + Math.random() * 90) +
-            (Math.random() - 0.5) * 55 -
-            (isSmoke ? 25 : 0),
-          life: isSmoke ? 0.9 + Math.random() * 0.55 : 0.35 + Math.random() * 0.25,
-          t: 0,
-          size: isSmoke ? 10 + Math.random() * 18 : 8 + Math.random() * 12,
-          a: isSmoke ? 0.18 + Math.random() * 0.10 : 0.28 + Math.random() * 0.18,
-        });
-      }
+      const isSmoke = Math.random() < 0.55;
+      world.fx.particles.push({
+        kind: isSmoke ? "SMOKE" : "FIRE",
+        x: px,
+        y: py,
+        vx: -nx * (90 + Math.random() * 90) + (Math.random() - 0.5) * 55,
+        vy: -ny * (90 + Math.random() * 90) + (Math.random() - 0.5) * 55 - (isSmoke ? 25 : 0),
+        life: isSmoke ? 0.9 + Math.random() * 0.55 : 0.35 + Math.random() * 0.25,
+        t: 0,
+        size: isSmoke ? 10 + Math.random() * 18 : 8 + Math.random() * 12,
+        a: isSmoke ? 0.18 + Math.random() * 0.10 : 0.28 + Math.random() * 0.18,
+      });
     }
 
-    if (world.fx.particles.length > 900) {
-      world.fx.particles.splice(0, world.fx.particles.length - 900);
+    if (world.fx.particles.length > 750) {
+      world.fx.particles.splice(0, world.fx.particles.length - 750);
     }
   }
 
@@ -324,9 +356,8 @@
     const left = deckLeftX();
     const right = deckRightX();
 
-    // Вся палуба — посадочная. Разница в том, хватит ли пробега.
-    const safeTouchdownX = left + isl.w * 0.35;   // WIN: есть дистанция
-    const lateTouchdownX = right - isl.w * 0.12;  // LOSE: не хватает
+    const safeTouchdownX = left + isl.w * 0.35; // WIN
+    const lateTouchdownX = right - isl.w * 0.12; // LOSE
 
     const touchdownX = world.plan.result === "WIN" ? safeTouchdownX : lateTouchdownX;
 
@@ -337,7 +368,6 @@
 
     state = State.LANDING_ROLL;
 
-    // скорость проката
     world.roll.vx = Math.max(320, speed * 0.85);
 
     cameraKick(0.9);
@@ -393,25 +423,19 @@
       // touchdown
       tryTouchdown(speed);
 
-      // если упал ниже — lose
-      if (world.hero.y - world.hero.h / 2 > H + 90 && !world.result) {
-        endRound("LOSE");
-      }
+      // Если упал ниже — lose
+      if (world.hero.y - world.hero.h / 2 > H + 90 && !world.result) endRound("LOSE");
+      // Если палуба улетела — lose
+      if (world.island.x < -700 && !world.result) endRound("LOSE");
 
-      // если палуба улетела — lose
-      if (world.island.x < -700 && !world.result) {
-        endRound("LOSE");
-      }
-
-      // velocity estimate for trail direction
-      const vx = (world.hero.x - world.fx.lastHX) / Math.max(dt, 1e-6);
-      const vy = (world.hero.y - world.fx.lastHY) / Math.max(dt, 1e-6);
-      world.fx.lastVx = vx;
-      world.fx.lastVy = vy;
+      // КЛЮЧ: направление "вперёд" = скорость мира (speed), а не dx героя
+      world.fx.lastVx = speed;
+      world.fx.lastVy = world.hero.vy;
       world.fx.lastHX = world.hero.x;
       world.fx.lastHY = world.hero.y;
 
-      spawnTrailParticles(dt);
+      spawnRibbon();
+      spawnFireParticles(dt);
     }
 
     if (state === State.LANDING_ROLL) {
@@ -420,23 +444,15 @@
       world.roll.vx = Math.max(0, world.roll.vx - ROLL_FRICTION * dt);
       hero.x += world.roll.vx * dt;
 
-      // держим на палубе
       hero.y = deckTopY() - hero.h * 0.45;
-
-      // наклон при скольжении
       hero.rot = 0.10 + (world.roll.vx / 900) * 0.10;
 
       const rightEdge = deckRightX();
 
-      // дошёл до края — сорвался (LOSE)
+      // дошёл до края — сорвался (LOSE) + огонь/дым
       if (hero.x + hero.w * 0.35 >= rightEdge) {
-        // включим огонь/дым на момент “подбит/упал” — выглядит мощно
         setDamagedTrail(1.4);
-
-        // задаём падение
         hero.vy = 420;
-
-        // endRound выставит FINISH_LOSE + UI
         endRound("LOSE");
         return;
       }
@@ -446,32 +462,20 @@
         endRound("WIN");
         return;
       }
-
-      // во время проката — тоже можно спавнить шлейф, но слабее
-      // (пока оставим выключенным; потом сделаем искры)
-    }
-
-    // finish
-    if (state === State.FINISH_WIN) {
-      world.finishT += dt;
-      if (world.finishT < 0.35) cameraKick(0.07);
     }
 
     if (state === State.FINISH_LOSE) {
-      world.finishT += dt;
-      world.hero.vy += GRAVITY * 0.70 * dt;
-      world.hero.y += world.hero.vy * dt;
-      world.hero.rot += 1.6 * dt;
-      if (world.finishT < 0.6) cameraKick(0.12);
+      // чуть-чуть продолжаем огонь/дым во время падения
+      world.fx.lastVx = 220;
+      world.fx.lastVy = world.hero.vy;
+      spawnFireParticles(dt);
+    }
 
-      // можно продолжать подбитый шлейф чуть-чуть
-      const vx = 220;
-      const vy = world.hero.vy;
-      world.fx.lastVx = vx;
-      world.fx.lastVy = vy;
-      world.fx.lastHX = world.hero.x;
-      world.fx.lastHY = world.hero.y;
-      spawnTrailParticles(dt);
+    // update ribbon life
+    for (let i = world.fx.ribbon.length - 1; i >= 0; i--) {
+      const p = world.fx.ribbon[i];
+      p.t += dt;
+      if (p.t >= p.life) world.fx.ribbon.splice(i, 1);
     }
 
     // update particles
@@ -494,9 +498,23 @@
 
       if (k >= 1) world.fx.particles.splice(i, 1);
     }
+
+    // finish motion
+    if (state === State.FINISH_WIN) {
+      world.finishT += dt;
+      if (world.finishT < 0.35) cameraKick(0.07);
+    }
+
+    if (state === State.FINISH_LOSE) {
+      world.finishT += dt;
+      world.hero.vy += GRAVITY * 0.70 * dt;
+      world.hero.y += world.hero.vy * dt;
+      world.hero.rot += 1.6 * dt;
+      if (world.finishT < 0.6) cameraKick(0.12);
+    }
   }
 
-  // ===== Render =====
+  // ===== Render helpers =====
   function drawCentered(img, x, y, w, h, rot = 0) {
     if (!img) return false;
     ctx.save();
@@ -507,19 +525,56 @@
     return true;
   }
 
-  function renderParticles() {
+  // ===== Render FX =====
+  function renderRibbonTwoLayer() {
+    const pts = world.fx.ribbon;
+    if (pts.length < 2) return;
+
+    ctx.save();
+    ctx.lineCap = "round";
+    ctx.lineJoin = "round";
+
+    // ВАЖНО: рисуем от хвоста к голове
+    for (let i = 1; i < pts.length; i++) {
+      const a = i / pts.length;
+      const p0 = pts[i - 1];
+      const p1 = pts[i];
+
+      const fade = 1 - (p1.t / p1.life);
+      const t = clamp(a * fade, 0, 1);
+
+      // 1) мягкий glow (шире)
+      ctx.globalAlpha = 0.18 * t;
+      ctx.strokeStyle = "#2cf2ff";
+      ctx.lineWidth = 26 * t;
+      ctx.beginPath();
+      ctx.moveTo(p0.x, p0.y);
+      ctx.lineTo(p1.x, p1.y);
+      ctx.stroke();
+
+      // 2) ядро (тоньше и ярче)
+      ctx.globalAlpha = 0.45 * t;
+      ctx.strokeStyle = "#8ff3ff";
+      ctx.lineWidth = 10 * t;
+      ctx.beginPath();
+      ctx.moveTo(p0.x, p0.y);
+      ctx.lineTo(p1.x, p1.y);
+      ctx.stroke();
+    }
+
+    ctx.globalAlpha = 1;
+    ctx.restore();
+  }
+
+  function renderFireParticles() {
+    if (world.fx.particles.length === 0) return;
+
     for (let i = 0; i < world.fx.particles.length; i++) {
       const p = world.fx.particles[i];
       const k = p.t / p.life;
       const alpha = p.a * (1 - k);
 
-      if (p.kind === "BLUE") {
-        ctx.globalAlpha = alpha;
-        ctx.fillStyle = "#2cf2ff";
-        ctx.beginPath();
-        ctx.arc(p.x, p.y, p.size * (0.55 + 0.55 * (1 - k)), 0, Math.PI * 2);
-        ctx.fill();
-      } else if (p.kind === "FIRE") {
+      if (p.kind === "FIRE") {
         ctx.globalAlpha = alpha;
         ctx.fillStyle = "#ff7a00";
         ctx.beginPath();
@@ -542,6 +597,7 @@
     ctx.globalAlpha = 1;
   }
 
+  // ===== Render =====
   function render() {
     ctx.clearRect(0, 0, W, H);
 
@@ -581,10 +637,14 @@
       ctx.fillRect(isl.x - isl.w / 2, isl.y - isl.h / 2, isl.w, isl.h);
     }
 
-    // TRAIL PARTICLES (сзади по направлению движения)
-    renderParticles();
+    // BLUE ribbon OR FIRE particles
+    if (world.fx.mode === "BLUE") {
+      renderRibbonTwoLayer();
+    } else {
+      renderFireParticles();
+    }
 
-    // HERO (без голубого круга)
+    // HERO
     const h = world.hero;
     const heroDrawn = drawCentered(GFX.robinson, h.x, h.y, h.w, h.h, h.rot);
     if (!heroDrawn) {
