@@ -144,8 +144,10 @@
 
     // размеры под экран (мобилка/десктоп)
     const scale = Math.min(W / 1200, H / 800, 1);
-    world.hero.w = Math.round(110 * scale);
-    world.hero.h = Math.round(110 * scale);
+const heroScale = 1.9; // +90%
+world.hero.w = Math.round(110 * scale * heroScale);
+world.hero.h = Math.round(110 * scale * heroScale);
+
     world.island.w = Math.round(520 * scale);
     world.island.h = Math.round(170 * scale);
 
@@ -357,10 +359,7 @@
     const isl = world.island;
 
     // glow
-    ctx.globalAlpha = 0.16;
-    ctx.fillStyle = "#2cf2ff";
-    ctx.fillRect(isl.x - isl.w / 2 - 20, isl.y - isl.h / 2 - 20, isl.w + 40, isl.h + 40);
-    ctx.globalAlpha = 1;
+   
 
     const islandDrawn = drawCentered(GFX.island, isl.x, isl.y, isl.w, isl.h, 0);
     if (!islandDrawn) {
@@ -384,12 +383,7 @@
     const h = world.hero;
 
     // glow
-    ctx.globalAlpha = 0.22;
-    ctx.fillStyle = "#2cf2ff";
-    ctx.beginPath();
-    ctx.arc(h.x, h.y, Math.max(h.w, h.h) * 0.55, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.globalAlpha = 1;
+    
 
     const heroDrawn = drawCentered(GFX.robinson, h.x, h.y, h.w, h.h, h.rot);
     if (!heroDrawn) {
