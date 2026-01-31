@@ -18,37 +18,56 @@
   window.addEventListener("resize", resize);
   resize();
 
-  // ===== Game State =====
+  // ===== Utils =====
+  const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+  const easeInOut = (t) => 0.5 - 0.5 * Math.cos(Math.PI * clamp(t, 0, 1));
+
+  // ===== State =====
   const State = {
     IDLE: "IDLE",
     RUNNING: "RUNNING",
     FINISH_WIN: "FINISH_WIN",
     FINISH_LOSE: "FINISH_LOSE",
   };
-
   let state = State.IDLE;
   let lastTime = performance.now();
 
-  // ===== World =====
+  // ===== World (в духе старой версии) =====
+  const HERO_X_REL = 0.25;       // как было
+  const WATER_LINE_REL = 0.80;   // как было
+  const PLAYFIELD_TOP_REL = 0.18;
+
+  const GRAVITY = 750;           // подстроим, но уже “чувствуется”
+  const START_VY = -420;         // стартовый “подброс”
+  const OBJECT_SPEED_BASE = 520; // скорость острова/сцены
+
+  const ISLAND_W = 320;
+  const ISLAND_H = 90;
+
   const world = {
     t: 0,
     roundT: 0,
-    roundDur: 4.2,
+    roundDur: 3.6,
 
-    ship: { x: 120, y: 0, r: 18, vx: 0, vy: 0, rot: 0 },
-    platform: { x: 0, y: 0, w: 140, h: 18 },
-
-    // ощущение камеры
+    // камера
     cam: { x: 0, y: 0, shake: 0 },
 
-    // фон
-    scroll: 0,
-    stars: [],
+    // герой
+    hero: { x: 0, y: 0, vy: 0, w: 65, h: 65, rot: 0 },
 
-    // FX
+    // основной остров
+    island: { x: 0, y: 0, w: ISLAND_W, h: ISLAND_H },
+
+    // фон
+    stars: [],
     trail: [],
-    result: null, // "WIN" | "LOSE" | null
+
+    result: null,     // "WIN" | "LOSE"
     finishT: 0,
+
+    // детерминированный план раунда (только результат)
+    plan: null,       // { result: "WIN"|"LOSE" }
+    decided: false,
   };
 
   function initStars() {
@@ -65,33 +84,10 @@
   }
   initStars();
 
-  function clamp(v, a, b) {
-    return Math.max(a, Math.min(b, v));
+  function cameraKick(amount = 1) {
+    world.cam.shake = Math.max(world.cam.shake, amount);
   }
 
-  function resetRoundScene() {
-    world.roundT = 0;
-    world.finishT = 0;
-    world.result = null;
-    world.ship.x = 120;
-    world.ship.y = H * 0.52;
-    world.ship.vx = 0;
-    world.ship.vy = 0;
-    world.ship.rot = 0;
-
-    world.cam.x = 0;
-    world.cam.y = 0;
-    world.cam.shake = 0;
-
-    world.trail = [];
-
-    world.platform.x = W - 240;
-    const top = H * 0.30;
-    const bot = H * 0.72;
-    world.platform.y = top + Math.random() * (bot - top);
-  }
-
-  // ===== Feel helpers =====
   function kickStartFeel() {
     if (!window.gsap) return;
     gsap.fromTo(
@@ -101,16 +97,45 @@
     );
   }
 
-  function cameraKick(amount = 1) {
-    world.cam.shake = Math.max(world.cam.shake, amount);
-  }
-
   function emitStart() {
     window.RobinsonBridge?.emitRoundStart?.({ ts: Date.now() });
   }
-
   function emitEnd(result) {
     window.RobinsonBridge?.emitRoundEnd?.({ result, ts: Date.now() });
+  }
+
+  // ===== Planning (детерминированно) =====
+  function planRound() {
+    // Пока 50/50. Дальше подключим вашу RTP/таблицу/сервер.
+    const isWin = Math.random() < 0.5;
+    world.plan = { result: isWin ? "WIN" : "LOSE" };
+  }
+
+  function resetRound() {
+    world.t = world.t;
+    world.roundT = 0;
+    world.finishT = 0;
+    world.result = null;
+    world.decided = false;
+    world.trail = [];
+
+    const heroX = W * HERO_X_REL;
+    world.hero.x = heroX;
+    world.hero.y = H * 0.45;
+    world.hero.vy = START_VY;
+    world.hero.rot = 0;
+
+    // остров справа
+    world.island.x = W * 1.18;
+    world.island.y = H * WATER_LINE_REL;
+    world.island.w = ISLAND_W;
+    world.island.h = ISLAND_H;
+
+    world.cam.x = 0;
+    world.cam.y = 0;
+    world.cam.shake = 0;
+
+    planRound();
   }
 
   function endRound(result) {
@@ -120,15 +145,13 @@
     emitEnd(result);
 
     window.RobinsonUI?.flashResult?.(result === "WIN");
-    window.RobinsonUI?.showResultText?.(result === "WIN" ? "WIN" : "LOSE", result === "WIN");
+    window.RobinsonUI?.showResultText?.(result, result === "WIN");
 
     state = result === "WIN" ? State.FINISH_WIN : State.FINISH_LOSE;
     world.finishT = 0;
 
-    // короткий “impact”
     cameraKick(result === "WIN" ? 1.2 : 1.6);
 
-    // разблокировка UI через “казино-паузу”
     setTimeout(() => {
       state = State.IDLE;
       window.RobinsonUI?.unlockAfterRound?.();
@@ -140,133 +163,131 @@
     state = State.RUNNING;
 
     window.RobinsonUI?.lockForRound?.();
-    resetRoundScene();
+    resetRound();
     kickStartFeel();
     emitStart();
   }
 
   window.RobinsonUI?.onPlayClick?.(startRound);
 
-  // ===== Core Update =====
+  // ===== Decision logic (как было, но без near-miss/skid) =====
+  function decideOnIslandContact() {
+    if (world.decided) return;
+
+    const hero = world.hero;
+    const isl = world.island;
+
+    const heroBottom = hero.y + hero.h / 2;
+    const islandTop = isl.y - isl.h / 2;
+
+    // вертикально "рядом с верхом острова"
+    const verticalClose = heroBottom >= islandTop - hero.h * 0.4;
+
+    // горизонтально "в пределах ширины острова"
+    const horizontalClose = Math.abs(isl.x - hero.x) <= isl.w * 0.45;
+
+    if (!(horizontalClose && verticalClose)) return;
+
+    world.decided = true;
+
+    // Детерминированный исход: WIN/LOSE из plan
+    // Чтобы визуально гарантировать исход, слегка “дотягиваем” героя в момент контакта:
+    if (world.plan.result === "WIN") {
+      // лёгкая посадка
+      hero.y = islandTop - hero.h * 0.15;
+      hero.vy = 0;
+      endRound("WIN");
+    } else {
+      // гарантированный промах: чуть ниже/выше и дальше падение
+      hero.vy = Math.max(hero.vy, 220);
+      endRound("LOSE");
+    }
+  }
+
+  // ===== Update =====
   function update(dt) {
     world.t += dt;
 
-    // камера shake decay
-    world.cam.shake = Math.max(0, world.cam.shake - dt * 3.5);
-    const shakeAmt = world.cam.shake;
-    if (shakeAmt > 0) {
-      // псевдорандом без Math.random() в каждом кадре
-      const sx = Math.sin(world.t * 41.3) * 6 * shakeAmt;
-      const sy = Math.cos(world.t * 37.7) * 5 * shakeAmt;
-      world.cam.x = sx;
-      world.cam.y = sy;
+    // camera shake decay
+    world.cam.shake = Math.max(0, world.cam.shake - dt * 3.6);
+    const s = world.cam.shake;
+    if (s > 0) {
+      world.cam.x = Math.sin(world.t * 41.3) * 6 * s;
+      world.cam.y = Math.cos(world.t * 37.7) * 5 * s;
     } else {
       world.cam.x = 0;
       world.cam.y = 0;
     }
 
-    // фон скроллится всегда
-    const baseSpeed = state === State.RUNNING ? 240 : 90;
-
-    // speed curve (мягкий разгон)
-    let speed = baseSpeed;
-    if (state === State.RUNNING) {
-      world.roundT += dt;
-      const p = clamp(world.roundT / world.roundDur, 0, 1);
-      // easeInOut -> резвее к концу
-      const curve = 0.5 - 0.5 * Math.cos(Math.PI * p);
-      speed = 240 + 520 * curve; // ~240..760
-    }
-
-    world.scroll += speed * dt;
-
     // stars
+    const starSpeed = state === State.RUNNING ? 260 : 90;
     for (const st of world.stars) {
-      st.x -= (speed * 0.14) * st.s * dt;
+      st.x -= (starSpeed * 0.14) * st.s * dt;
       if (st.x < -20) {
         st.x = W + 20;
         st.y = Math.random() * H;
       }
     }
 
-    // trail (простая)
-    if (state === State.RUNNING || state === State.FINISH_WIN || state === State.FINISH_LOSE) {
-      world.trail.push({ x: world.ship.x, y: world.ship.y, t: world.t });
-      if (world.trail.length > 26) world.trail.shift();
+    // trail
+    if (state !== State.IDLE) {
+      world.trail.push({ x: world.hero.x, y: world.hero.y });
+      if (world.trail.length > 24) world.trail.shift();
     }
 
     if (state === State.RUNNING) {
-      // корабль движение по X
-      world.ship.vx = speed;
-      world.ship.x += world.ship.vx * dt;
+      world.roundT += dt;
+      const p = clamp(world.roundT / world.roundDur, 0, 1);
 
-      // “на рельсах” + wobble
-      const wobble = Math.sin(world.t * 6.4) * 11 + Math.sin(world.t * 2.8) * 7;
-      const targetY = (H * 0.52) + wobble;
+      // скорость острова по curve
+      const speed = OBJECT_SPEED_BASE * (0.9 + 0.55 * easeInOut(p));
 
-      // следуем к цели
-      const k = 7.0;
-      world.ship.y += (targetY - world.ship.y) * (1 - Math.exp(-k * dt));
+      // остров едет влево
+      world.island.x -= speed * dt;
 
-      // лёгкий наклон
-      world.ship.rot = (Math.sin(world.t * 3.2) * 0.08) + (wobble / 220) * 0.12;
+      // гравитация героя (как было)
+      world.hero.vy += GRAVITY * dt;
+      world.hero.y += world.hero.vy * dt;
 
-      // проверяем достижение платформы
-      if (world.ship.x >= world.platform.x - 8) {
-        const dy = Math.abs(world.ship.y - world.platform.y);
-        const win = dy < 26;
+      // верхний лимит
+      const topLimit = H * PLAYFIELD_TOP_REL;
+      if (world.hero.y < topLimit) {
+        world.hero.y = topLimit;
+        if (world.hero.vy < 0) world.hero.vy = 0;
+      }
 
-        // “удар”
-        cameraKick(1.2);
+      // лёгкий наклон от вертикальной скорости (без wobble)
+      world.hero.rot = clamp(world.hero.vy / 1200, -0.35, 0.55);
 
-        // мгновенно переключаемся в финишный стейт
-        endRound(win ? "WIN" : "LOSE");
+      // момент контакта с островом → решение
+      decideOnIslandContact();
+
+      // если упал ниже экрана (как было) — LOSE
+      if (world.hero.y - world.hero.h / 2 > H + 80 && !world.result) {
+        endRound("LOSE");
+      }
+
+      // если остров улетел влево, а решения не было — тоже LOSE
+      if (world.island.x < -400 && !world.result) {
+        endRound("LOSE");
       }
     }
 
     // ===== Finish anim =====
     if (state === State.FINISH_WIN) {
       world.finishT += dt;
-
-      // посадка: корабль “прилипает” к платформе и чуть подпрыгивает
-      const tt = clamp(world.finishT / 0.55, 0, 1);
-      const ease = 1 - Math.pow(1 - tt, 3);
-
-      const landX = world.platform.x + world.platform.w * 0.38;
-      const landY = world.platform.y - 6;
-
-      world.ship.x += (landX - world.ship.x) * (0.18 + 0.22 * ease);
-      world.ship.y += (landY - world.ship.y) * (0.22 + 0.25 * ease);
-
-      // маленький bounce
-      const bounce = Math.sin(tt * Math.PI) * (1 - tt) * 10;
-      world.ship.y -= bounce;
-
-      world.ship.rot *= 0.85;
-
-      if (tt > 0.15) cameraKick(0.15);
+      // держим возле острова (минимальная посадка)
+      world.hero.vy *= 0.85;
+      if (world.finishT < 0.35) cameraKick(0.10);
     }
 
     if (state === State.FINISH_LOSE) {
       world.finishT += dt;
-
-      // промах: корабль “ныряет” вниз и теряет скорость
-      world.ship.vy += 900 * dt;
-      world.ship.y += world.ship.vy * dt;
-
-      // чуть в сторону, будто сносит
-      world.ship.x += 120 * dt;
-
-      world.ship.rot += 2.2 * dt;
-
-      // чуть больше shake
-      if (world.finishT < 0.5) cameraKick(0.25);
-
-      // если улетел — прекращаем движение (для стабильности)
-      if (world.ship.y > H + 120) {
-        world.ship.y = H + 120;
-        world.ship.vy = 0;
-      }
+      // продолжение падения
+      world.hero.vy += GRAVITY * 0.65 * dt;
+      world.hero.y += world.hero.vy * dt;
+      world.hero.rot += 1.9 * dt;
+      if (world.finishT < 0.6) cameraKick(0.16);
     }
   }
 
@@ -274,13 +295,12 @@
   function render() {
     ctx.clearRect(0, 0, W, H);
 
-    // camera offset
     ctx.save();
     ctx.translate(world.cam.x, world.cam.y);
 
-    // space bg
+    // bg
     ctx.fillStyle = "#05070d";
-    ctx.fillRect(-50, -50, W + 100, H + 100);
+    ctx.fillRect(-60, -60, W + 120, H + 120);
 
     // stars
     for (const st of world.stars) {
@@ -290,66 +310,49 @@
     }
     ctx.globalAlpha = 1;
 
-    // subtle nebula lines
-    ctx.globalAlpha = 0.12;
+    // water line (ориентир)
+    const waterY = H * WATER_LINE_REL;
+    ctx.globalAlpha = 0.10;
     ctx.fillStyle = "#2cf2ff";
-    ctx.fillRect(0, H * 0.16, W, 2);
-    ctx.fillRect(0, H * 0.84, W, 2);
+    ctx.fillRect(0, waterY, W, 2);
     ctx.globalAlpha = 1;
 
-    // platform glow
+    // island
+    const isl = world.island;
     ctx.fillStyle = "rgba(0,180,255,0.18)";
-    ctx.fillRect(world.platform.x - 14, world.platform.y - 18, world.platform.w + 28, world.platform.h + 36);
+    ctx.fillRect(isl.x - isl.w / 2 - 14, isl.y - isl.h / 2 - 18, isl.w + 28, isl.h + 36);
 
-    // platform body
     ctx.fillStyle = "rgba(0,180,255,0.70)";
-    ctx.fillRect(world.platform.x, world.platform.y, world.platform.w, world.platform.h);
+    ctx.fillRect(isl.x - isl.w / 2, isl.y - isl.h / 2, isl.w, isl.h);
 
-    // highlight stripe
-    ctx.fillStyle = "rgba(255,255,255,0.75)";
-    ctx.fillRect(world.platform.x + 10, world.platform.y + 5, world.platform.w - 20, 3);
-
-    // trail
-    for (let i = 0; i < world.trail.length; i++) {
-      const p = world.trail[i];
-      const a = i / world.trail.length;
-      ctx.globalAlpha = 0.18 * a;
-      ctx.fillStyle = "#2cf2ff";
-      ctx.beginPath();
-      ctx.arc(p.x - 6, p.y, 10 * a, 0, Math.PI * 2);
-      ctx.fill();
-    }
-    ctx.globalAlpha = 1;
-
-    // ship (temp orb)
+    // hero (пока шар — дальше заменим на LEGO Robinson sprite)
+    const h = world.hero;
     ctx.save();
-    ctx.translate(world.ship.x, world.ship.y);
-    ctx.rotate(world.ship.rot);
+    ctx.translate(h.x, h.y);
+    ctx.rotate(h.rot);
 
-    // glow
     ctx.globalAlpha = 0.22;
     ctx.fillStyle = "#2cf2ff";
     ctx.beginPath();
-    ctx.arc(0, 0, world.ship.r * 2.3, 0, Math.PI * 2);
+    ctx.arc(0, 0, 42, 0, Math.PI * 2);
     ctx.fill();
 
-    // body
     ctx.globalAlpha = 1;
     ctx.fillStyle = "#00c8ff";
     ctx.beginPath();
-    ctx.arc(0, 0, world.ship.r, 0, Math.PI * 2);
+    ctx.arc(0, 0, 18, 0, Math.PI * 2);
     ctx.fill();
 
-    // highlight
     ctx.fillStyle = "rgba(255,255,255,0.85)";
     ctx.beginPath();
     ctx.arc(-6, -6, 5, 0, Math.PI * 2);
     ctx.fill();
 
     ctx.restore();
+
     ctx.restore(); // camera
 
-    // (пока оставим) маленький debug текста результата — потом уберём
+    // debug
     if (world.result) {
       ctx.fillStyle = world.result === "WIN" ? "#2cf2ff" : "#ff3b57";
       ctx.font = "700 18px Arial";
@@ -361,10 +364,11 @@
   function loop(time) {
     let dt = (time - lastTime) / 1000;
     lastTime = time;
-    dt = Math.min(dt, 0.033); // clamp dt
+    dt = Math.min(dt, 0.033);
 
     update(dt);
     render();
+
     requestAnimationFrame(loop);
   }
   requestAnimationFrame(loop);
