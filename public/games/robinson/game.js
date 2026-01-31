@@ -3,6 +3,34 @@
   if (!canvas) return console.error("[game] Canvas not found");
   const ctx = canvas.getContext("2d");
 
+  // ===== Assets (images) =====
+  function loadImage(src) {
+    return new Promise((resolve) => {
+      const img = new Image();
+      img.onload = () => resolve(img);
+      img.onerror = () => resolve(null);
+      img.src = src;
+    });
+  }
+
+  const GFX = {
+    bg: null,
+    robinson: null,
+    island: null,
+    ready: false,
+  };
+
+  Promise.all([
+    loadImage("./assets/splash_bg.png"),
+    loadImage("./assets/robinson.png"),
+    loadImage("./assets/island_long.png"),
+  ]).then(([bg, robinson, island]) => {
+    GFX.bg = bg;
+    GFX.robinson = robinson;
+    GFX.island = island;
+    GFX.ready = true;
+  });
+
   // ===== Resize / DPR =====
   let W = 0, H = 0, dpr = 1;
   function resize() {
@@ -32,41 +60,32 @@
   let state = State.IDLE;
   let lastTime = performance.now();
 
-  // ===== World (в духе старой версии) =====
-  const HERO_X_REL = 0.25;       // как было
-  const WATER_LINE_REL = 0.80;   // как было
+  // ===== World (как старая версия: vy + gravity, остров едет) =====
+  const HERO_X_REL = 0.25;
+  const WATER_LINE_REL = 0.80;
   const PLAYFIELD_TOP_REL = 0.18;
 
-  const GRAVITY = 750;           // подстроим, но уже “чувствуется”
-  const START_VY = -420;         // стартовый “подброс”
-  const OBJECT_SPEED_BASE = 520; // скорость острова/сцены
-
-  const ISLAND_W = 320;
-  const ISLAND_H = 90;
+  const GRAVITY = 750;
+  const START_VY = -420;
+  const OBJECT_SPEED_BASE = 520;
 
   const world = {
     t: 0,
     roundT: 0,
     roundDur: 3.6,
 
-    // камера
     cam: { x: 0, y: 0, shake: 0 },
 
-    // герой
-    hero: { x: 0, y: 0, vy: 0, w: 65, h: 65, rot: 0 },
+    hero: { x: 0, y: 0, vy: 0, w: 110, h: 110, rot: 0 },
+    island: { x: 0, y: 0, w: 520, h: 170 },
 
-    // основной остров
-    island: { x: 0, y: 0, w: ISLAND_W, h: ISLAND_H },
-
-    // фон
     stars: [],
     trail: [],
 
-    result: null,     // "WIN" | "LOSE"
+    result: null,
     finishT: 0,
 
-    // детерминированный план раунда (только результат)
-    plan: null,       // { result: "WIN"|"LOSE" }
+    plan: null,     // { result: "WIN" | "LOSE" }
     decided: false,
   };
 
@@ -104,15 +123,13 @@
     window.RobinsonBridge?.emitRoundEnd?.({ result, ts: Date.now() });
   }
 
-  // ===== Planning (детерминированно) =====
+  // ===== Planning =====
   function planRound() {
-    // Пока 50/50. Дальше подключим вашу RTP/таблицу/сервер.
-    const isWin = Math.random() < 0.5;
+    const isWin = Math.random() < 0.5; // позже подключим вашу RTP/таблицу
     world.plan = { result: isWin ? "WIN" : "LOSE" };
   }
 
   function resetRound() {
-    world.t = world.t;
     world.roundT = 0;
     world.finishT = 0;
     world.result = null;
@@ -125,11 +142,16 @@
     world.hero.vy = START_VY;
     world.hero.rot = 0;
 
+    // размеры под экран (мобилка/десктоп)
+    const scale = Math.min(W / 1200, H / 800, 1);
+    world.hero.w = Math.round(110 * scale);
+    world.hero.h = Math.round(110 * scale);
+    world.island.w = Math.round(520 * scale);
+    world.island.h = Math.round(170 * scale);
+
     // остров справа
     world.island.x = W * 1.18;
     world.island.y = H * WATER_LINE_REL;
-    world.island.w = ISLAND_W;
-    world.island.h = ISLAND_H;
 
     world.cam.x = 0;
     world.cam.y = 0;
@@ -170,7 +192,7 @@
 
   window.RobinsonUI?.onPlayClick?.(startRound);
 
-  // ===== Decision logic (как было, но без near-miss/skid) =====
+  // ===== Collision decision (как было) =====
   function decideOnIslandContact() {
     if (world.decided) return;
 
@@ -180,25 +202,18 @@
     const heroBottom = hero.y + hero.h / 2;
     const islandTop = isl.y - isl.h / 2;
 
-    // вертикально "рядом с верхом острова"
     const verticalClose = heroBottom >= islandTop - hero.h * 0.4;
-
-    // горизонтально "в пределах ширины острова"
     const horizontalClose = Math.abs(isl.x - hero.x) <= isl.w * 0.45;
 
     if (!(horizontalClose && verticalClose)) return;
 
     world.decided = true;
 
-    // Детерминированный исход: WIN/LOSE из plan
-    // Чтобы визуально гарантировать исход, слегка “дотягиваем” героя в момент контакта:
     if (world.plan.result === "WIN") {
-      // лёгкая посадка
       hero.y = islandTop - hero.h * 0.15;
       hero.vy = 0;
       endRound("WIN");
     } else {
-      // гарантированный промах: чуть ниже/выше и дальше падение
       hero.vy = Math.max(hero.vy, 220);
       endRound("LOSE");
     }
@@ -219,7 +234,7 @@
       world.cam.y = 0;
     }
 
-    // stars
+    // stars (fallback)
     const starSpeed = state === State.RUNNING ? 260 : 90;
     for (const st of world.stars) {
       st.x -= (starSpeed * 0.14) * st.s * dt;
@@ -239,13 +254,12 @@
       world.roundT += dt;
       const p = clamp(world.roundT / world.roundDur, 0, 1);
 
-      // скорость острова по curve
       const speed = OBJECT_SPEED_BASE * (0.9 + 0.55 * easeInOut(p));
 
       // остров едет влево
       world.island.x -= speed * dt;
 
-      // гравитация героя (как было)
+      // гравитация
       world.hero.vy += GRAVITY * dt;
       world.hero.y += world.hero.vy * dt;
 
@@ -256,34 +270,32 @@
         if (world.hero.vy < 0) world.hero.vy = 0;
       }
 
-      // лёгкий наклон от вертикальной скорости (без wobble)
+      // наклон от вертикальной скорости
       world.hero.rot = clamp(world.hero.vy / 1200, -0.35, 0.55);
 
-      // момент контакта с островом → решение
+      // решение на контакте
       decideOnIslandContact();
 
-      // если упал ниже экрана (как было) — LOSE
+      // упал — lose
       if (world.hero.y - world.hero.h / 2 > H + 80 && !world.result) {
         endRound("LOSE");
       }
 
-      // если остров улетел влево, а решения не было — тоже LOSE
-      if (world.island.x < -400 && !world.result) {
+      // остров улетел — lose
+      if (world.island.x < -600 && !world.result) {
         endRound("LOSE");
       }
     }
 
-    // ===== Finish anim =====
+    // finish anim
     if (state === State.FINISH_WIN) {
       world.finishT += dt;
-      // держим возле острова (минимальная посадка)
       world.hero.vy *= 0.85;
       if (world.finishT < 0.35) cameraKick(0.10);
     }
 
     if (state === State.FINISH_LOSE) {
       world.finishT += dt;
-      // продолжение падения
       world.hero.vy += GRAVITY * 0.65 * dt;
       world.hero.y += world.hero.vy * dt;
       world.hero.rot += 1.9 * dt;
@@ -292,71 +304,119 @@
   }
 
   // ===== Render =====
+  function drawCentered(img, x, y, w, h, rot = 0) {
+    if (!img) return false;
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.rotate(rot);
+    ctx.drawImage(img, -w / 2, -h / 2, w, h);
+    ctx.restore();
+    return true;
+  }
+
   function render() {
     ctx.clearRect(0, 0, W, H);
 
     ctx.save();
     ctx.translate(world.cam.x, world.cam.y);
 
-    // bg
-    ctx.fillStyle = "#05070d";
-    ctx.fillRect(-60, -60, W + 120, H + 120);
+    // BG
+    if (GFX.ready && GFX.bg) {
+      const img = GFX.bg;
+      const s = Math.max(W / img.width, H / img.height);
+      const dw = img.width * s;
+      const dh = img.height * s;
+      ctx.globalAlpha = 1;
+      ctx.drawImage(img, (W - dw) / 2, (H - dh) / 2, dw, dh);
 
-    // stars
-    for (const st of world.stars) {
-      ctx.globalAlpha = st.a;
-      ctx.fillStyle = "#9be7ff";
-      ctx.fillRect(st.x, st.y, st.s, st.s);
+      // tint
+      ctx.globalAlpha = 0.18;
+      ctx.fillStyle = "#05070d";
+      ctx.fillRect(0, 0, W, H);
+      ctx.globalAlpha = 1;
+    } else {
+      ctx.fillStyle = "#05070d";
+      ctx.fillRect(-60, -60, W + 120, H + 120);
+
+      for (const st of world.stars) {
+        ctx.globalAlpha = st.a;
+        ctx.fillStyle = "#9be7ff";
+        ctx.fillRect(st.x, st.y, st.s, st.s);
+      }
+      ctx.globalAlpha = 1;
     }
-    ctx.globalAlpha = 1;
 
-    // water line (ориентир)
+    // water line hint
     const waterY = H * WATER_LINE_REL;
-    ctx.globalAlpha = 0.10;
+    ctx.globalAlpha = 0.08;
     ctx.fillStyle = "#2cf2ff";
     ctx.fillRect(0, waterY, W, 2);
     ctx.globalAlpha = 1;
 
-    // island
+    // ISLAND
     const isl = world.island;
-    ctx.fillStyle = "rgba(0,180,255,0.18)";
-    ctx.fillRect(isl.x - isl.w / 2 - 14, isl.y - isl.h / 2 - 18, isl.w + 28, isl.h + 36);
 
-    ctx.fillStyle = "rgba(0,180,255,0.70)";
-    ctx.fillRect(isl.x - isl.w / 2, isl.y - isl.h / 2, isl.w, isl.h);
+    // glow
+    ctx.globalAlpha = 0.16;
+    ctx.fillStyle = "#2cf2ff";
+    ctx.fillRect(isl.x - isl.w / 2 - 20, isl.y - isl.h / 2 - 20, isl.w + 40, isl.h + 40);
+    ctx.globalAlpha = 1;
 
-    // hero (пока шар — дальше заменим на LEGO Robinson sprite)
+    const islandDrawn = drawCentered(GFX.island, isl.x, isl.y, isl.w, isl.h, 0);
+    if (!islandDrawn) {
+      ctx.fillStyle = "rgba(0,180,255,0.70)";
+      ctx.fillRect(isl.x - isl.w / 2, isl.y - isl.h / 2, isl.w, isl.h);
+    }
+
+    // TRAIL
+    for (let i = 0; i < world.trail.length; i++) {
+      const p = world.trail[i];
+      const a = i / world.trail.length;
+      ctx.globalAlpha = 0.12 * a;
+      ctx.fillStyle = "#2cf2ff";
+      ctx.beginPath();
+      ctx.arc(p.x - 10, p.y, 10 * a, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+
+    // HERO
     const h = world.hero;
-    ctx.save();
-    ctx.translate(h.x, h.y);
-    ctx.rotate(h.rot);
 
+    // glow
     ctx.globalAlpha = 0.22;
     ctx.fillStyle = "#2cf2ff";
     ctx.beginPath();
-    ctx.arc(0, 0, 42, 0, Math.PI * 2);
+    ctx.arc(h.x, h.y, Math.max(h.w, h.h) * 0.55, 0, Math.PI * 2);
     ctx.fill();
-
     ctx.globalAlpha = 1;
-    ctx.fillStyle = "#00c8ff";
-    ctx.beginPath();
-    ctx.arc(0, 0, 18, 0, Math.PI * 2);
-    ctx.fill();
 
-    ctx.fillStyle = "rgba(255,255,255,0.85)";
-    ctx.beginPath();
-    ctx.arc(-6, -6, 5, 0, Math.PI * 2);
-    ctx.fill();
-
-    ctx.restore();
+    const heroDrawn = drawCentered(GFX.robinson, h.x, h.y, h.w, h.h, h.rot);
+    if (!heroDrawn) {
+      ctx.save();
+      ctx.translate(h.x, h.y);
+      ctx.rotate(h.rot);
+      ctx.fillStyle = "#00c8ff";
+      ctx.beginPath();
+      ctx.arc(0, 0, 18, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    }
 
     ctx.restore(); // camera
 
-    // debug
+    // debug result
     if (world.result) {
       ctx.fillStyle = world.result === "WIN" ? "#2cf2ff" : "#ff3b57";
       ctx.font = "700 18px Arial";
       ctx.fillText(world.result, 24, 34);
+    }
+
+    // loading hint
+    if (!GFX.ready) {
+      ctx.fillStyle = "rgba(255,255,255,0.75)";
+      ctx.font = "600 14px Arial";
+      ctx.fillText("Loading assets...", 24, H - 24);
     }
   }
 
@@ -368,7 +428,6 @@
 
     update(dt);
     render();
-
     requestAnimationFrame(loop);
   }
   requestAnimationFrame(loop);
