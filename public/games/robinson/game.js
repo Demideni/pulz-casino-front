@@ -32,7 +32,9 @@
   });
 
   // ===== Resize / DPR =====
-  let W = 0, H = 0, dpr = 1;
+  let W = 0,
+    H = 0,
+    dpr = 1;
   function resize() {
     dpr = Math.min(window.devicePixelRatio || 1, 2);
     W = window.innerWidth;
@@ -54,13 +56,14 @@
   const State = {
     IDLE: "IDLE",
     RUNNING: "RUNNING",
+    LANDING_ROLL: "LANDING_ROLL",
     FINISH_WIN: "FINISH_WIN",
     FINISH_LOSE: "FINISH_LOSE",
   };
   let state = State.IDLE;
   let lastTime = performance.now();
 
-  // ===== World (как старая версия: vy + gravity, остров едет) =====
+  // ===== Params =====
   const HERO_X_REL = 0.25;
   const WATER_LINE_REL = 0.80;
   const PLAYFIELD_TOP_REL = 0.18;
@@ -69,6 +72,11 @@
   const START_VY = -420;
   const OBJECT_SPEED_BASE = 520;
 
+  // прокат
+  const ROLL_FRICTION = 1700; // px/s^2
+  const ROLL_STOP_VX = 35;
+
+  // ===== World =====
   const world = {
     t: 0,
     roundT: 0,
@@ -76,17 +84,28 @@
 
     cam: { x: 0, y: 0, shake: 0 },
 
-    hero: { x: 0, y: 0, vy: 0, w: 110, h: 110, rot: 0 },
-    island: { x: 0, y: 0, w: 520, h: 170 },
+    hero: { x: 0, y: 0, vy: 0, w: 0, h: 0, rot: 0 },
+    island: { x: 0, y: 0, w: 0, h: 0 },
 
     stars: [],
-    trail: [],
-
     result: null,
     finishT: 0,
 
-    plan: null,     // { result: "WIN" | "LOSE" }
+    plan: null, // { result: "WIN" | "LOSE" }
     decided: false,
+
+    roll: { vx: 0 },
+
+    // trail FX
+    fx: {
+      particles: [],
+      mode: "BLUE", // "BLUE" | "FIRE"
+      fireUntil: 0,
+      lastHX: 0,
+      lastHY: 0,
+      lastVx: 0,
+      lastVy: 0,
+    },
   };
 
   function initStars() {
@@ -123,9 +142,18 @@
     window.RobinsonBridge?.emitRoundEnd?.({ result, ts: Date.now() });
   }
 
+  function setDamagedTrail(seconds = 1.2) {
+    world.fx.mode = "FIRE";
+    world.fx.fireUntil = world.t + seconds;
+  }
+
+  // публичный тест-хук
+  window.RobinsonGame = window.RobinsonGame || {};
+  window.RobinsonGame.triggerDamage = () => setDamagedTrail(1.4);
+
   // ===== Planning =====
   function planRound() {
-    const isWin = Math.random() < 0.5; // позже подключим вашу RTP/таблицу
+    const isWin = Math.random() < 0.5; // позже подключим вашу математику/RTP
     world.plan = { result: isWin ? "WIN" : "LOSE" };
   }
 
@@ -134,7 +162,6 @@
     world.finishT = 0;
     world.result = null;
     world.decided = false;
-    world.trail = [];
 
     const heroX = W * HERO_X_REL;
     world.hero.x = heroX;
@@ -142,28 +169,36 @@
     world.hero.vy = START_VY;
     world.hero.rot = 0;
 
-    // размеры под экран (мобилка/десктоп)
     const scale = Math.min(W / 1200, H / 800, 1);
-const heroScale = 1.9; // +90%
-world.hero.w = Math.round(110 * scale * heroScale);
-world.hero.h = Math.round(110 * scale * heroScale);
+    const heroScale = 1.9; // +90%
+    world.hero.w = Math.round(110 * scale * heroScale);
+    world.hero.h = Math.round(110 * scale * heroScale);
 
     world.island.w = Math.round(520 * scale);
     world.island.h = Math.round(170 * scale);
 
-    // остров справа
     world.island.x = W * 1.18;
     world.island.y = H * WATER_LINE_REL;
+
+    world.roll.vx = 0;
 
     world.cam.x = 0;
     world.cam.y = 0;
     world.cam.shake = 0;
 
+    // trail baseline
+    world.fx.lastHX = world.hero.x;
+    world.fx.lastHY = world.hero.y;
+    world.fx.lastVx = 0;
+    world.fx.lastVy = 0;
+    world.fx.mode = "BLUE";
+    world.fx.fireUntil = 0;
+
     planRound();
   }
 
   function endRound(result) {
-    if (state !== State.RUNNING) return;
+    if (state !== State.RUNNING && state !== State.LANDING_ROLL) return;
 
     world.result = result;
     emitEnd(result);
@@ -194,38 +229,125 @@ world.hero.h = Math.round(110 * scale * heroScale);
 
   window.RobinsonUI?.onPlayClick?.(startRound);
 
-  // ===== Collision decision (как было) =====
-  function decideOnIslandContact() {
+  // ===== Deck geometry =====
+  function deckTopY() {
+    // верх палубы (подгоним +- пару px если надо)
+    return world.island.y - world.island.h / 2 + 6;
+  }
+  function deckLeftX() {
+    return world.island.x - world.island.w / 2;
+  }
+  function deckRightX() {
+    return world.island.x + world.island.w / 2;
+  }
+
+  // ===== Trail spawn =====
+  function spawnTrailParticles(dt) {
+    if (world.fx.mode === "FIRE" && world.t >= world.fx.fireUntil) {
+      world.fx.mode = "BLUE";
+    }
+
+    const vx = world.fx.lastVx;
+    const vy = world.fx.lastVy;
+    const speed = Math.hypot(vx, vy);
+
+    if (speed < 40) return;
+
+    const nx = vx / speed;
+    const ny = vy / speed;
+
+    const back = 0.55 * Math.max(world.hero.w, world.hero.h);
+    const sx = world.hero.x - nx * back;
+    const sy = world.hero.y - ny * back;
+
+    const rate = world.fx.mode === "BLUE" ? 55 : 85;
+    const count = Math.max(1, Math.floor(rate * dt));
+
+    for (let i = 0; i < count; i++) {
+      const jitter = (Math.random() - 0.5) * 10;
+      const px = sx + (-ny) * jitter;
+      const py = sy + (nx) * jitter;
+
+      if (world.fx.mode === "BLUE") {
+        world.fx.particles.push({
+          kind: "BLUE",
+          x: px,
+          y: py,
+          vx: -nx * (120 + Math.random() * 120) + (Math.random() - 0.5) * 25,
+          vy: -ny * (120 + Math.random() * 120) + (Math.random() - 0.5) * 25,
+          life: 0.45 + Math.random() * 0.25,
+          t: 0,
+          size: 6 + Math.random() * 8,
+          a: 0.24 + Math.random() * 0.18,
+        });
+      } else {
+        const isSmoke = Math.random() < 0.55;
+        world.fx.particles.push({
+          kind: isSmoke ? "SMOKE" : "FIRE",
+          x: px,
+          y: py,
+          vx: -nx * (90 + Math.random() * 90) + (Math.random() - 0.5) * 55,
+          vy:
+            -ny * (90 + Math.random() * 90) +
+            (Math.random() - 0.5) * 55 -
+            (isSmoke ? 25 : 0),
+          life: isSmoke ? 0.9 + Math.random() * 0.55 : 0.35 + Math.random() * 0.25,
+          t: 0,
+          size: isSmoke ? 10 + Math.random() * 18 : 8 + Math.random() * 12,
+          a: isSmoke ? 0.18 + Math.random() * 0.10 : 0.28 + Math.random() * 0.18,
+        });
+      }
+    }
+
+    if (world.fx.particles.length > 900) {
+      world.fx.particles.splice(0, world.fx.particles.length - 900);
+    }
+  }
+
+  // ===== Landing decision (touchdown -> roll) =====
+  function tryTouchdown(speed) {
     if (world.decided) return;
 
     const hero = world.hero;
     const isl = world.island;
 
     const heroBottom = hero.y + hero.h / 2;
-    const islandTop = isl.y - isl.h / 2;
+    const top = deckTopY();
 
-    const verticalClose = heroBottom >= islandTop - hero.h * 0.4;
+    const verticalClose = heroBottom >= top - hero.h * 0.45;
     const horizontalClose = Math.abs(isl.x - hero.x) <= isl.w * 0.45;
 
     if (!(horizontalClose && verticalClose)) return;
 
     world.decided = true;
 
-    if (world.plan.result === "WIN") {
-      hero.y = islandTop - hero.h * 0.15;
-      hero.vy = 0;
-      endRound("WIN");
-    } else {
-      hero.vy = Math.max(hero.vy, 220);
-      endRound("LOSE");
-    }
+    const left = deckLeftX();
+    const right = deckRightX();
+
+    // Вся палуба — посадочная. Разница в том, хватит ли пробега.
+    const safeTouchdownX = left + isl.w * 0.35;   // WIN: есть дистанция
+    const lateTouchdownX = right - isl.w * 0.12;  // LOSE: не хватает
+
+    const touchdownX = world.plan.result === "WIN" ? safeTouchdownX : lateTouchdownX;
+
+    hero.x = touchdownX;
+    hero.y = top - hero.h * 0.45;
+    hero.vy = 0;
+    hero.rot = 0.08;
+
+    state = State.LANDING_ROLL;
+
+    // скорость проката
+    world.roll.vx = Math.max(320, speed * 0.85);
+
+    cameraKick(0.9);
   }
 
   // ===== Update =====
   function update(dt) {
     world.t += dt;
 
-    // camera shake decay
+    // camera shake
     world.cam.shake = Math.max(0, world.cam.shake - dt * 3.6);
     const s = world.cam.shake;
     if (s > 0) {
@@ -236,7 +358,7 @@ world.hero.h = Math.round(110 * scale * heroScale);
       world.cam.y = 0;
     }
 
-    // stars (fallback)
+    // stars
     const starSpeed = state === State.RUNNING ? 260 : 90;
     for (const st of world.stars) {
       st.x -= (starSpeed * 0.14) * st.s * dt;
@@ -246,62 +368,131 @@ world.hero.h = Math.round(110 * scale * heroScale);
       }
     }
 
-    // trail
-    if (state !== State.IDLE) {
-      world.trail.push({ x: world.hero.x, y: world.hero.y });
-      if (world.trail.length > 24) world.trail.shift();
-    }
-
     if (state === State.RUNNING) {
       world.roundT += dt;
       const p = clamp(world.roundT / world.roundDur, 0, 1);
-
       const speed = OBJECT_SPEED_BASE * (0.9 + 0.55 * easeInOut(p));
 
-      // остров едет влево
+      // палуба едет влево
       world.island.x -= speed * dt;
 
-      // гравитация
+      // физика героя
       world.hero.vy += GRAVITY * dt;
       world.hero.y += world.hero.vy * dt;
 
-      // верхний лимит
+      // top limit
       const topLimit = H * PLAYFIELD_TOP_REL;
       if (world.hero.y < topLimit) {
         world.hero.y = topLimit;
         if (world.hero.vy < 0) world.hero.vy = 0;
       }
 
-      // наклон от вертикальной скорости
+      // наклон
       world.hero.rot = clamp(world.hero.vy / 1200, -0.35, 0.55);
 
-      // решение на контакте
-      decideOnIslandContact();
+      // touchdown
+      tryTouchdown(speed);
 
-      // упал — lose
-      if (world.hero.y - world.hero.h / 2 > H + 80 && !world.result) {
+      // если упал ниже — lose
+      if (world.hero.y - world.hero.h / 2 > H + 90 && !world.result) {
         endRound("LOSE");
       }
 
-      // остров улетел — lose
-      if (world.island.x < -600 && !world.result) {
+      // если палуба улетела — lose
+      if (world.island.x < -700 && !world.result) {
         endRound("LOSE");
       }
+
+      // velocity estimate for trail direction
+      const vx = (world.hero.x - world.fx.lastHX) / Math.max(dt, 1e-6);
+      const vy = (world.hero.y - world.fx.lastHY) / Math.max(dt, 1e-6);
+      world.fx.lastVx = vx;
+      world.fx.lastVy = vy;
+      world.fx.lastHX = world.hero.x;
+      world.fx.lastHY = world.hero.y;
+
+      spawnTrailParticles(dt);
     }
 
-    // finish anim
+    if (state === State.LANDING_ROLL) {
+      const hero = world.hero;
+
+      world.roll.vx = Math.max(0, world.roll.vx - ROLL_FRICTION * dt);
+      hero.x += world.roll.vx * dt;
+
+      // держим на палубе
+      hero.y = deckTopY() - hero.h * 0.45;
+
+      // наклон при скольжении
+      hero.rot = 0.10 + (world.roll.vx / 900) * 0.10;
+
+      const rightEdge = deckRightX();
+
+      // дошёл до края — сорвался (LOSE)
+      if (hero.x + hero.w * 0.35 >= rightEdge) {
+        // включим огонь/дым на момент “подбит/упал” — выглядит мощно
+        setDamagedTrail(1.4);
+
+        // задаём падение
+        hero.vy = 420;
+
+        // endRound выставит FINISH_LOSE + UI
+        endRound("LOSE");
+        return;
+      }
+
+      // остановился — WIN
+      if (world.roll.vx <= ROLL_STOP_VX) {
+        endRound("WIN");
+        return;
+      }
+
+      // во время проката — тоже можно спавнить шлейф, но слабее
+      // (пока оставим выключенным; потом сделаем искры)
+    }
+
+    // finish
     if (state === State.FINISH_WIN) {
       world.finishT += dt;
-      world.hero.vy *= 0.85;
-      if (world.finishT < 0.35) cameraKick(0.10);
+      if (world.finishT < 0.35) cameraKick(0.07);
     }
 
     if (state === State.FINISH_LOSE) {
       world.finishT += dt;
-      world.hero.vy += GRAVITY * 0.65 * dt;
+      world.hero.vy += GRAVITY * 0.70 * dt;
       world.hero.y += world.hero.vy * dt;
-      world.hero.rot += 1.9 * dt;
-      if (world.finishT < 0.6) cameraKick(0.16);
+      world.hero.rot += 1.6 * dt;
+      if (world.finishT < 0.6) cameraKick(0.12);
+
+      // можно продолжать подбитый шлейф чуть-чуть
+      const vx = 220;
+      const vy = world.hero.vy;
+      world.fx.lastVx = vx;
+      world.fx.lastVy = vy;
+      world.fx.lastHX = world.hero.x;
+      world.fx.lastHY = world.hero.y;
+      spawnTrailParticles(dt);
+    }
+
+    // update particles
+    for (let i = world.fx.particles.length - 1; i >= 0; i--) {
+      const p = world.fx.particles[i];
+      p.t += dt;
+      p.x += p.vx * dt;
+      p.y += p.vy * dt;
+
+      const k = p.t / p.life;
+      if (p.kind === "SMOKE") {
+        p.size *= 1 + 0.35 * dt;
+        p.vx *= 1 - 0.65 * dt;
+        p.vy *= 1 - 0.65 * dt;
+      } else {
+        p.size *= 1 + 0.22 * dt;
+        p.vx *= 1 - 0.45 * dt;
+        p.vy *= 1 - 0.45 * dt;
+      }
+
+      if (k >= 1) world.fx.particles.splice(i, 1);
     }
   }
 
@@ -314,6 +505,41 @@ world.hero.h = Math.round(110 * scale * heroScale);
     ctx.drawImage(img, -w / 2, -h / 2, w, h);
     ctx.restore();
     return true;
+  }
+
+  function renderParticles() {
+    for (let i = 0; i < world.fx.particles.length; i++) {
+      const p = world.fx.particles[i];
+      const k = p.t / p.life;
+      const alpha = p.a * (1 - k);
+
+      if (p.kind === "BLUE") {
+        ctx.globalAlpha = alpha;
+        ctx.fillStyle = "#2cf2ff";
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.size * (0.55 + 0.55 * (1 - k)), 0, Math.PI * 2);
+        ctx.fill();
+      } else if (p.kind === "FIRE") {
+        ctx.globalAlpha = alpha;
+        ctx.fillStyle = "#ff7a00";
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.size * (0.5 + 0.7 * (1 - k)), 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.globalAlpha = alpha * 0.7;
+        ctx.fillStyle = "#ffd000";
+        ctx.beginPath();
+        ctx.arc(p.x - 2, p.y - 2, p.size * 0.35, 0, Math.PI * 2);
+        ctx.fill();
+      } else {
+        ctx.globalAlpha = alpha;
+        ctx.fillStyle = "rgba(80,85,95,1)";
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.size * (0.65 + 0.75 * k), 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+    ctx.globalAlpha = 1;
   }
 
   function render() {
@@ -331,7 +557,6 @@ world.hero.h = Math.round(110 * scale * heroScale);
       ctx.globalAlpha = 1;
       ctx.drawImage(img, (W - dw) / 2, (H - dh) / 2, dw, dh);
 
-      // tint
       ctx.globalAlpha = 0.18;
       ctx.fillStyle = "#05070d";
       ctx.fillRect(0, 0, W, H);
@@ -348,43 +573,19 @@ world.hero.h = Math.round(110 * scale * heroScale);
       ctx.globalAlpha = 1;
     }
 
-    // water line hint
-    const waterY = H * WATER_LINE_REL;
-    ctx.globalAlpha = 0.08;
-    ctx.fillStyle = "#2cf2ff";
-    ctx.fillRect(0, waterY, W, 2);
-    ctx.globalAlpha = 1;
-
-    // ISLAND
+    // DECK (авианосец)
     const isl = world.island;
-
-    // glow
-   
-
     const islandDrawn = drawCentered(GFX.island, isl.x, isl.y, isl.w, isl.h, 0);
     if (!islandDrawn) {
       ctx.fillStyle = "rgba(0,180,255,0.70)";
       ctx.fillRect(isl.x - isl.w / 2, isl.y - isl.h / 2, isl.w, isl.h);
     }
 
-    // TRAIL
-    for (let i = 0; i < world.trail.length; i++) {
-      const p = world.trail[i];
-      const a = i / world.trail.length;
-      ctx.globalAlpha = 0.12 * a;
-      ctx.fillStyle = "#2cf2ff";
-      ctx.beginPath();
-      ctx.arc(p.x - 10, p.y, 10 * a, 0, Math.PI * 2);
-      ctx.fill();
-    }
-    ctx.globalAlpha = 1;
+    // TRAIL PARTICLES (сзади по направлению движения)
+    renderParticles();
 
-    // HERO
+    // HERO (без голубого круга)
     const h = world.hero;
-
-    // glow
-    
-
     const heroDrawn = drawCentered(GFX.robinson, h.x, h.y, h.w, h.h, h.rot);
     if (!heroDrawn) {
       ctx.save();
@@ -399,13 +600,6 @@ world.hero.h = Math.round(110 * scale * heroScale);
 
     ctx.restore(); // camera
 
-    // debug result
-    if (world.result) {
-      ctx.fillStyle = world.result === "WIN" ? "#2cf2ff" : "#ff3b57";
-      ctx.font = "700 18px Arial";
-      ctx.fillText(world.result, 24, 34);
-    }
-
     // loading hint
     if (!GFX.ready) {
       ctx.fillStyle = "rgba(255,255,255,0.75)";
@@ -419,7 +613,6 @@ world.hero.h = Math.round(110 * scale * heroScale);
     let dt = (time - lastTime) / 1000;
     lastTime = time;
     dt = Math.min(dt, 0.033);
-
     update(dt);
     render();
     requestAnimationFrame(loop);
