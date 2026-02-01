@@ -95,7 +95,7 @@
   const PLATFORM_GAP_MAX = 0.75; // unused (kept for backward compat)
   const PLATFORM_Y_JITTER = 0.0; // no jitter: all decks same height
   // fixed chain spacing: platform centers are evenly spaced
-  const PLATFORM_STEP_MULT = 1.10; // center-to-center = w * mult
+  const PLATFORM_STEP_MULT = 3.00; // center-to-center = w * mult
 
   // landing zones (0..1 along deck)
   const WIN_ZONE_L = 0.18;
@@ -620,112 +620,62 @@
       const speed = OBJECT_SPEED_BASE * (0.9 + 0.55 * easeInOut(p));
       world.fx.worldSpeed = speed;
 
-      // spawn platforms
-      maybeSpawnNextPlatform(dt);
-
-      // move platforms
-      for (let i = world.platforms.length - 1; i >= 0; i--) {
-        const p = world.platforms[i];
-        p.prevX = p.x;
-        p.x -= speed * dt;
-        if (p.x < -(p.w + 300)) world.platforms.splice(i, 1);
-      }
-
-      // spawn pickups
-      maybeSpawnPickup(dt, speed);
-
-      // hero physics
-      world.hero.prevBottom = world.hero.y + world.hero.h / 2;
-      world.hero.vy += GRAVITY * dt;
-      world.hero.y += world.hero.vy * dt;
-
-      // top limit
-      const topLimit = H * PLAYFIELD_TOP_REL;
-      if (world.hero.y < topLimit) {
-        world.hero.y = topLimit;
-        if (world.hero.vy < 0) world.hero.vy = 0;
-      }
-
-      // tilt
-      world.hero.rot = clamp(world.hero.vy / 1200, -0.35, 0.55);
-
-      // touchdown (fixed)
-      tryTouchdown(speed);
-
-      // pickups collision
-      updatePickups(dt, speed);
-
-      // LOSE only if реально ушёл вниз
-      if (world.hero.y - world.hero.h / 2 > H + 110 && !world.result) {
-        endRound("LOSE");
-      }
-
-      // fx
-      spawnRibbonPoint();
-      spawnFireParticles(dt);
-    }
-
-    if (state === State.LANDING_ROLL) {
+      // --- Robust physics: substep integration to prevent tunneling ---
       const hero = world.hero;
+      const MAX_DY_PER_STEP = 10; // px (small = more stable)
+      const MAX_STEPS = 12;
 
-      const pRoll = world.platforms.find((pp) => pp.id === world.roll.platformId);
-      if (!pRoll) {
-        setDamagedTrail(1.1);
-        hero.vy = 420;
-        endRound("LOSE");
-        return;
+      // estimate worst-case vertical travel this frame
+      const vyAbs = Math.abs(hero.vy);
+      const estDy = vyAbs * dt + Math.abs(GRAVITY) * dt * dt;
+      let steps = Math.ceil(estDy / MAX_DY_PER_STEP);
+      steps = clamp(steps, 1, MAX_STEPS);
+      const subDt = dt / steps;
+
+      for (let si = 0; si < steps; si++) {
+        if (world.decided) break;
+
+        // spawn platforms (deterministic chain)
+        maybeSpawnNextPlatform(subDt);
+
+        // move platforms
+        for (let i = world.platforms.length - 1; i >= 0; i--) {
+          const pl = world.platforms[i];
+          pl.prevX = pl.x;
+          pl.x -= speed * subDt;
+          if (pl.x < -(pl.w + 300)) world.platforms.splice(i, 1);
+        }
+
+        // spawn pickups
+        maybeSpawnPickup(subDt, speed);
+
+        // hero physics
+        hero.prevBottom = hero.y + hero.h / 2;
+        hero.vy += GRAVITY * subDt;
+        hero.y += hero.vy * subDt;
+
+        // top limit
+        const topLimit = H * PLAYFIELD_TOP_REL;
+        if (hero.y < topLimit) {
+          hero.y = topLimit;
+          if (hero.vy < 0) hero.vy = 0;
+        }
+
+        // tilt
+        hero.rot = clamp(hero.vy / 1200, -0.35, 0.55);
+
+        // touchdown (continuous + substeps)
+        tryTouchdown(speed);
+
+        // pickups collision (also benefits from substeps)
+        updatePickups(subDt, speed);
+
+        // LOSE only if реально ушёл вниз
+        if (hero.y - hero.h / 2 > H + 140) {
+          onLose();
+          break;
+        }
       }
-
-      world.fx.worldSpeed = Math.max(world.fx.worldSpeed, OBJECT_SPEED_BASE * 0.9);
-
-      // roll right
-      world.roll.vx = Math.max(0, world.roll.vx - ROLL_FRICTION * dt);
-      hero.x += world.roll.vx * dt;
-
-      hero.y = deckTopY(pRoll) - hero.h * 0.45;
-      hero.rot = 0.10 + (world.roll.vx / 900) * 0.10;
-
-      const rightEdge = deckRightX(pRoll);
-
-      if (hero.x + hero.w * 0.35 >= rightEdge) {
-        setDamagedTrail(1.4);
-        hero.vy = 420;
-
-        hitPause(0.08, 0.18, 0.18);
-        cameraPunch(-14, 10);
-        cameraKick(1.8);
-
-        endRound("LOSE");
-        return;
-      }
-
-      if (world.roll.vx <= ROLL_STOP_VX) {
-        endRound("WIN");
-        return;
-      }
-    }
-
-    if (state === State.FINISH_LOSE) {
-      world.fx.worldSpeed = Math.max(world.fx.worldSpeed, OBJECT_SPEED_BASE);
-      spawnFireParticles(dt);
-
-      world.finishT += dt;
-      world.hero.vy += GRAVITY * 0.70 * dt;
-      world.hero.y += world.hero.vy * dt;
-      world.hero.rot += 1.6 * dt;
-      if (world.finishT < 0.6) cameraKick(0.12);
-    }
-
-    if (state === State.FINISH_WIN) {
-      world.finishT += dt;
-      if (world.finishT < 0.35) cameraKick(0.07);
-    }
-
-    // ribbon life
-    for (let i = world.fx.ribbon.length - 1; i >= 0; i--) {
-      const rp = world.fx.ribbon[i];
-      rp.t += dt;
-      if (rp.t >= rp.life) world.fx.ribbon.splice(i, 1);
     }
 
     // particles
