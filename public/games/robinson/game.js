@@ -16,7 +16,7 @@
   const GFX = {
     bg: null,
     robinson: null,
-    island: null,
+    island: null, // используем как "секцию палубы"
     ready: false,
   };
 
@@ -52,6 +52,16 @@
   // ===== Utils =====
   const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
   const easeInOut = (t) => 0.5 - 0.5 * Math.cos(Math.PI * clamp(t, 0, 1));
+  const rnd = (a, b) => a + Math.random() * (b - a);
+
+  function aabb(ax, ay, aw, ah, bx, by, bw, bh) {
+    return (
+      ax < bx + bw &&
+      ax + aw > bx &&
+      ay < by + bh &&
+      ay + ah > by
+    );
+  }
 
   // ===== State =====
   const State = {
@@ -84,6 +94,18 @@
   const RIBBON_MIN_DIST = 6;
   const RIBBON_SHIFT_K = 0.70;
 
+  // platforms
+  const PLATFORM_POOL = 8;             // макс платформ одновременно
+  const PLATFORM_GAP_MIN = 0.55;        // секунды
+  const PLATFORM_GAP_MAX = 0.95;        // секунды
+  const PLATFORM_Y_JITTER = 0.02;       // +/- от WATER_LINE_REL
+
+  // bonuses
+  const BONUS_CHANCE = 0.55;            // шанс бонуса на платформе
+  const BONUS_SIZE = 26;               // px (screen units)
+  const BONUS_LIFE = 4.0;              // сек максимум до исчезновения (если улетело - удалим по offscreen)
+  const BONUS_COLOR = "#ffd54a";
+
   // ===== World =====
   const world = {
     t: 0,
@@ -93,7 +115,16 @@
     cam: { x: 0, y: 0, shake: 0 },
 
     hero: { x: 0, y: 0, vy: 0, w: 0, h: 0, rot: 0 },
-    island: { x: 0, y: 0, w: 0, h: 0 },
+
+    // platforms list
+    platforms: [], // {id,x,y,w,h,spawnT}
+    nextPlatformId: 1,
+    nextSpawnIn: 0,  // seconds until next procedural spawn
+
+    // bonuses list
+    bonuses: [], // {id,x,y,w,h,type,age}
+    nextBonusId: 1,
+    bonusCount: 0,
 
     stars: [],
     result: null,
@@ -102,22 +133,19 @@
     plan: null,
     decided: false,
 
-    roll: { vx: 0 },
+    roll: { vx: 0, platformId: null },
 
     fx: {
       mode: "BLUE", // "BLUE" | "FIRE"
       fireUntil: 0,
 
-      // world speed for ribbon shift
       worldSpeed: OBJECT_SPEED_BASE,
 
-      // ribbon
       ribbon: [], // {x,y,t,life}
       ribbonMax: RIBBON_MAX,
       lastRibbonX: 0,
       lastRibbonY: 0,
 
-      // fire particles
       particles: [],
     },
   };
@@ -181,7 +209,10 @@
     window.RobinsonBridge?.emitRoundStart?.({ ts: Date.now() });
   }
   function emitEnd(result) {
-    window.RobinsonBridge?.emitRoundEnd?.({ result, ts: Date.now() });
+    window.RobinsonBridge?.emitRoundEnd?.({ result, ts: Date.now(), bonuses: world.bonusCount });
+  }
+  function emitBonus(type) {
+    window.RobinsonBridge?.emitBonusCollect?.({ type, ts: Date.now(), total: world.bonusCount });
   }
 
   function setDamagedTrail(seconds = 1.2) {
@@ -199,11 +230,61 @@
     world.plan = { result: isWin ? "WIN" : "LOSE" };
   }
 
+  function platformBaseSize() {
+    const scale = Math.min(W / 1200, H / 800, 1);
+    return {
+      w: Math.round(520 * scale),
+      h: Math.round(170 * scale),
+    };
+  }
+
+  function spawnPlatform(x, y) {
+    const { w, h } = platformBaseSize();
+    const p = {
+      id: world.nextPlatformId++,
+      x,
+      y,
+      w,
+      h,
+      spawnT: world.t,
+    };
+    world.platforms.push(p);
+    if (world.platforms.length > PLATFORM_POOL) {
+      world.platforms.shift();
+    }
+    return p;
+  }
+
+  function spawnBonusOnPlatform(p) {
+    if (Math.random() > BONUS_CHANCE) return;
+
+    // бонус на верхней части палубы
+    const top = p.y - p.h / 2 + 6;
+    const bx = p.x + rnd(-p.w * 0.20, p.w * 0.20);
+    const by = top - BONUS_SIZE * 0.9;
+
+    world.bonuses.push({
+      id: world.nextBonusId++,
+      x: bx,
+      y: by,
+      w: BONUS_SIZE,
+      h: BONUS_SIZE,
+      type: "COIN", // потом можно MULTI / ENERGY
+      age: 0,
+    });
+  }
+
   function resetRound() {
     world.roundT = 0;
     world.finishT = 0;
     world.result = null;
     world.decided = false;
+
+    world.platforms = [];
+    world.bonuses = [];
+    world.nextPlatformId = 1;
+    world.nextBonusId = 1;
+    world.bonusCount = 0;
 
     const heroX = W * HERO_X_REL;
     world.hero.x = heroX;
@@ -216,13 +297,8 @@
     world.hero.w = Math.round(110 * scale * heroScale);
     world.hero.h = Math.round(110 * scale * heroScale);
 
-    world.island.w = Math.round(520 * scale);
-    world.island.h = Math.round(170 * scale);
-
-    world.island.x = W * 1.18;
-    world.island.y = H * WATER_LINE_REL;
-
     world.roll.vx = 0;
+    world.roll.platformId = null;
 
     world.cam.x = 0;
     world.cam.y = 0;
@@ -234,11 +310,31 @@
     world.fx.particles = [];
     world.fx.ribbon = [];
     world.fx.worldSpeed = OBJECT_SPEED_BASE;
-
     world.fx.lastRibbonX = world.hero.x;
     world.fx.lastRibbonY = world.hero.y;
 
+    // планируем WIN/LOSE
     planRound();
+
+    // 1) первая "сценарная" платформа — под решение
+    // хотим, чтобы она дошла до героя примерно на 70-85% времени раунда
+    const targetT = world.roundDur * 0.78;
+    const approxSpeed = OBJECT_SPEED_BASE * 1.15;
+
+    // расстояние по X: от текущего спавна (справа) до hero.x
+    const startX = W * 1.20;
+    const travel = (startX - heroX);
+    const timeToHero = travel / approxSpeed;
+
+    // подгоняем: если слишком быстро/медленно — поправим стартовую позицию
+    const x0 = startX + (targetT - timeToHero) * approxSpeed;
+    const y0 = H * (WATER_LINE_REL + rnd(-PLATFORM_Y_JITTER, PLATFORM_Y_JITTER));
+
+    const first = spawnPlatform(x0, y0);
+    spawnBonusOnPlatform(first);
+
+    // 2) сразу подготовим следующую платформу через небольшой интервал
+    world.nextSpawnIn = rnd(PLATFORM_GAP_MIN, PLATFORM_GAP_MAX);
   }
 
   function endRound(result) {
@@ -273,15 +369,30 @@
 
   window.RobinsonUI?.onPlayClick?.(startRound);
 
-  // ===== Deck geometry =====
-  function deckTopY() {
-    return world.island.y - world.island.h / 2 + 6;
+  // ===== Deck geometry helpers =====
+  function deckTopY(p) {
+    return p.y - p.h / 2 + 6;
   }
-  function deckLeftX() {
-    return world.island.x - world.island.w / 2;
+  function deckLeftX(p) {
+    return p.x - p.w / 2;
   }
-  function deckRightX() {
-    return world.island.x + world.island.w / 2;
+  function deckRightX(p) {
+    return p.x + p.w / 2;
+  }
+
+  function findClosestPlatformToHero() {
+    // ищем платформу, которая ближе всего по X к герою (и ещё не ушла далеко)
+    const hx = world.hero.x;
+    let best = null;
+    let bestDx = 1e9;
+    for (const p of world.platforms) {
+      const dx = Math.abs(p.x - hx);
+      if (dx < bestDx) {
+        bestDx = dx;
+        best = p;
+      }
+    }
+    return best;
   }
 
   // ===== Ribbon =====
@@ -299,11 +410,9 @@
 
   function spawnRibbonPoint() {
     if (world.fx.mode !== "BLUE") return;
-
     const back = 0.55 * Math.max(world.hero.w, world.hero.h);
     const x = world.hero.x - back * 0.10;
     const y = world.hero.y + back * 0.15;
-
     pushRibbonPoint(x, y);
   }
 
@@ -315,7 +424,6 @@
     if (world.fx.mode !== "FIRE") return;
 
     const speed = Math.max(300, world.fx.worldSpeed || OBJECT_SPEED_BASE);
-
     const back = 0.55 * Math.max(world.hero.w, world.hero.h);
     const sx = world.hero.x - back * 0.10;
     const sy = world.hero.y + back * 0.15;
@@ -347,28 +455,71 @@
     }
   }
 
+  // ===== Platform spawner (procedural) =====
+  function maybeSpawnNextPlatform(dt) {
+    world.nextSpawnIn -= dt;
+    if (world.nextSpawnIn > 0) return;
+
+    // спавним справа за экраном
+    const x = W + rnd(W * 0.30, W * 0.55);
+    const y = H * (WATER_LINE_REL + rnd(-PLATFORM_Y_JITTER, PLATFORM_Y_JITTER));
+
+    const p = spawnPlatform(x, y);
+    spawnBonusOnPlatform(p);
+
+    world.nextSpawnIn = rnd(PLATFORM_GAP_MIN, PLATFORM_GAP_MAX);
+  }
+
+  // ===== Bonus update & collect =====
+  function updateBonuses(dt, worldSpeed) {
+    for (let i = world.bonuses.length - 1; i >= 0; i--) {
+      const b = world.bonuses[i];
+      b.age += dt;
+      b.x -= worldSpeed * dt;
+
+      // offscreen / too old
+      if (b.x < -200 || b.age > BONUS_LIFE) {
+        world.bonuses.splice(i, 1);
+        continue;
+      }
+
+      // collect
+      const hx = world.hero.x - world.hero.w / 2;
+      const hy = world.hero.y - world.hero.h / 2;
+      if (aabb(hx, hy, world.hero.w, world.hero.h, b.x - b.w / 2, b.y - b.h / 2, b.w, b.h)) {
+        world.bonuses.splice(i, 1);
+        world.bonusCount += 1;
+        emitBonus(b.type);
+        window.RobinsonUI?.onBonusCollect?.(b.type, world.bonusCount);
+      }
+    }
+  }
+
   // ===== Landing decision =====
   function tryTouchdown(speed) {
     if (world.decided) return;
 
-    const hero = world.hero;
-    const isl = world.island;
+    const p = findClosestPlatformToHero();
+    if (!p) return;
 
+    const hero = world.hero;
     const heroBottom = hero.y + hero.h / 2;
-    const top = deckTopY();
+    const top = deckTopY(p);
 
     const verticalClose = heroBottom >= top - hero.h * 0.45;
-    const horizontalClose = Math.abs(isl.x - hero.x) <= isl.w * 0.45;
+    const horizontalClose = Math.abs(p.x - hero.x) <= p.w * 0.45;
 
     if (!(horizontalClose && verticalClose)) return;
 
     world.decided = true;
 
-    const left = deckLeftX();
-    const right = deckRightX();
+    const left = deckLeftX(p);
+    const right = deckRightX(p);
 
-    const safeTouchdownX = left + isl.w * 0.35;   // WIN
-    const lateTouchdownX = right - isl.w * 0.12;  // LOSE
+    // WIN -> посадка ближе к левой части (есть дистанция проката)
+    // LOSE -> поздняя посадка почти на правом краю (скатится)
+    const safeTouchdownX = left + p.w * 0.35;
+    const lateTouchdownX = right - p.w * 0.12;
 
     const touchdownX = world.plan.result === "WIN" ? safeTouchdownX : lateTouchdownX;
 
@@ -380,10 +531,11 @@
     state = State.LANDING_ROLL;
 
     world.roll.vx = Math.max(320, speed * 0.85);
+    world.roll.platformId = p.id;
 
     cameraKick(0.9);
 
-    // ===== FEEL: touchdown impact =====
+    // FEEL: touchdown impact
     hitPause(0.055, 0.22, 0.14);
     cameraPunch(-8, 6);
     cameraKick(1.25);
@@ -421,24 +573,42 @@
 
       world.fx.worldSpeed = speed;
 
-      world.island.x -= speed * dt;
+      // spawn platforms over time
+      maybeSpawnNextPlatform(dt);
 
+      // move platforms
+      for (let i = world.platforms.length - 1; i >= 0; i--) {
+        world.platforms[i].x -= speed * dt;
+        if (world.platforms[i].x < -800) world.platforms.splice(i, 1);
+      }
+
+      // hero physics
       world.hero.vy += GRAVITY * dt;
       world.hero.y += world.hero.vy * dt;
 
+      // top limit
       const topLimit = H * PLAYFIELD_TOP_REL;
       if (world.hero.y < topLimit) {
         world.hero.y = topLimit;
         if (world.hero.vy < 0) world.hero.vy = 0;
       }
 
+      // tilt
       world.hero.rot = clamp(world.hero.vy / 1200, -0.35, 0.55);
 
+      // touchdown
       tryTouchdown(speed);
 
-      if (world.hero.y - world.hero.h / 2 > H + 90 && !world.result) endRound("LOSE");
-      if (world.island.x < -700 && !world.result) endRound("LOSE");
+      // bonuses update + collect
+      updateBonuses(dt, speed);
 
+      // fail: fell out
+      if (world.hero.y - world.hero.h / 2 > H + 90 && !world.result) endRound("LOSE");
+
+      // fail: если все платформы ушли и мы долго летим — lose
+      if (world.roundT > world.roundDur + 1.0 && world.platforms.length === 0 && !world.result) endRound("LOSE");
+
+      // fx
       spawnRibbonPoint();
       spawnFireParticles(dt);
     }
@@ -446,21 +616,33 @@
     if (state === State.LANDING_ROLL) {
       const hero = world.hero;
 
+      // находим платформу, по которой катимся
+      const pRoll = world.platforms.find((pp) => pp.id === world.roll.platformId) || findClosestPlatformToHero();
+      if (!pRoll) {
+        // если платформу потеряли — падение
+        setDamagedTrail(1.1);
+        hero.vy = 420;
+        endRound("LOSE");
+        return;
+      }
+
       world.fx.worldSpeed = Math.max(world.fx.worldSpeed, OBJECT_SPEED_BASE * 0.9);
 
+      // катимся вправо по палубе
       world.roll.vx = Math.max(0, world.roll.vx - ROLL_FRICTION * dt);
       hero.x += world.roll.vx * dt;
 
-      hero.y = deckTopY() - hero.h * 0.45;
+      hero.y = deckTopY(pRoll) - hero.h * 0.45;
       hero.rot = 0.10 + (world.roll.vx / 900) * 0.10;
 
-      const rightEdge = deckRightX();
+      const rightEdge = deckRightX(pRoll);
 
+      // дошёл до края — сорвался
       if (hero.x + hero.w * 0.35 >= rightEdge) {
         setDamagedTrail(1.4);
         hero.vy = 420;
 
-        // ===== FEEL: fall-off impact =====
+        // FEEL: fall-off impact
         hitPause(0.08, 0.18, 0.18);
         cameraPunch(-14, 10);
         cameraKick(1.8);
@@ -469,6 +651,7 @@
         return;
       }
 
+      // остановился — WIN
       if (world.roll.vx <= ROLL_STOP_VX) {
         endRound("WIN");
         return;
@@ -478,6 +661,14 @@
     if (state === State.FINISH_LOSE) {
       world.fx.worldSpeed = Math.max(world.fx.worldSpeed, OBJECT_SPEED_BASE);
       spawnFireParticles(dt);
+
+      // платформа/бонусы продолжают ехать чуть-чуть
+      const speed = world.fx.worldSpeed;
+      for (let i = world.platforms.length - 1; i >= 0; i--) {
+        world.platforms[i].x -= speed * dt;
+        if (world.platforms[i].x < -800) world.platforms.splice(i, 1);
+      }
+      updateBonuses(dt, speed);
 
       world.finishT += dt;
       world.hero.vy += GRAVITY * 0.70 * dt;
@@ -536,7 +727,6 @@
     const pts = world.fx.ribbon;
     if (pts.length < 2) return;
 
-    // pull older points left by worldSpeed * age (always behind)
     const ws = Math.max(250, world.fx.worldSpeed || OBJECT_SPEED_BASE);
 
     ctx.save();
@@ -614,6 +804,41 @@
     ctx.globalAlpha = 1;
   }
 
+  function renderBonuses() {
+    for (const b of world.bonuses) {
+      // простая “монетка”
+      const pulse = 0.85 + 0.15 * Math.sin(world.t * 10 + b.id);
+      ctx.save();
+      ctx.globalAlpha = 0.95;
+      ctx.translate(b.x, b.y);
+      ctx.scale(pulse, pulse);
+
+      // glow
+      ctx.globalAlpha = 0.22;
+      ctx.fillStyle = BONUS_COLOR;
+      ctx.beginPath();
+      ctx.arc(0, 0, b.w * 0.75, 0, Math.PI * 2);
+      ctx.fill();
+
+      // core
+      ctx.globalAlpha = 0.92;
+      ctx.fillStyle = BONUS_COLOR;
+      ctx.beginPath();
+      ctx.arc(0, 0, b.w * 0.38, 0, Math.PI * 2);
+      ctx.fill();
+
+      // inner
+      ctx.globalAlpha = 0.55;
+      ctx.fillStyle = "#fff3c1";
+      ctx.beginPath();
+      ctx.arc(-3, -3, b.w * 0.18, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.restore();
+      ctx.globalAlpha = 1;
+    }
+  }
+
   // ===== Render =====
   function render() {
     ctx.clearRect(0, 0, W, H);
@@ -646,13 +871,17 @@
       ctx.globalAlpha = 1;
     }
 
-    // DECK
-    const isl = world.island;
-    const islandDrawn = drawCentered(GFX.island, isl.x, isl.y, isl.w, isl.h, 0);
-    if (!islandDrawn) {
-      ctx.fillStyle = "rgba(0,180,255,0.70)";
-      ctx.fillRect(isl.x - isl.w / 2, isl.y - isl.h / 2, isl.w, isl.h);
+    // PLATFORMS
+    for (const p of world.platforms) {
+      const ok = drawCentered(GFX.island, p.x, p.y, p.w, p.h, 0);
+      if (!ok) {
+        ctx.fillStyle = "rgba(0,180,255,0.70)";
+        ctx.fillRect(p.x - p.w / 2, p.y - p.h / 2, p.w, p.h);
+      }
     }
+
+    // Bonuses
+    renderBonuses();
 
     // FX
     if (world.fx.mode === "BLUE") renderRibbonTwoLayer();
@@ -674,7 +903,7 @@
 
     ctx.restore();
 
-    // loading hint (optional to remove later)
+    // loading hint (можешь потом убрать)
     if (!GFX.ready) {
       ctx.fillStyle = "rgba(255,255,255,0.75)";
       ctx.font = "600 14px Arial";
@@ -688,7 +917,6 @@
     lastTime = time;
     dt = Math.min(dt, 0.033);
 
-    // apply freeze / time scale
     if (TIME.freeze > 0) {
       TIME.freeze = Math.max(0, TIME.freeze - dt);
       dt = 0;
