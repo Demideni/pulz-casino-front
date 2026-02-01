@@ -91,18 +91,21 @@
 
   // platforms
   const PLATFORM_POOL = 9;
-  const PLATFORM_WIDTH_MUL = 1.7; // +70% longer platforms
-  const PLATFORM_SPAWN_AHEAD = 2.4; // screens ahead to keep platforms queued
-
   const PLATFORM_GAP_MIN = 0.55;
   const PLATFORM_GAP_MAX = 0.95;
-  const PLATFORM_Y_JITTER = 0; // fixed deck height (no jitter)
+  const PLATFORM_Y_JITTER = 0; // fixed height
+
+  // platform sizing/spacing (chain)
+  const PLATFORM_WIDTH_MUL = 0.5; // 50% shorter than current
+  const PLATFORM_SPACING_MUL = 1.25; // distance between platform centers = w * mul
+  const PLATFORM_SPAWN_MARGIN = 0.8; // screens
+
 
   // landing zones (0..1 along deck)
-  const WIN_ZONE_L = 0.18;
-  const WIN_ZONE_R = 0.62;
-  const LOSE_ZONE_L = 0.78;
-  const LOSE_ZONE_R = 0.96;
+  const WIN_ZONE_L = 0.10;
+  const WIN_ZONE_R = 0.75;
+  const LOSE_ZONE_L = 0.80;
+  const LOSE_ZONE_R = 0.98;
 
   // pickups (air)
   const PICKUP_POOL = 20;
@@ -126,6 +129,7 @@
     platforms: [], // {id,x,y,w,h}
     nextPlatformId: 1,
     nextSpawnIn: 0,
+    lastPlatformX: 0,
 
     pickups: [], // {id,x,y,w,h,type,age}
     nextPickupId: 1,
@@ -241,7 +245,6 @@
     return {
       w: Math.round(520 * scale * PLATFORM_WIDTH_MUL),
       h: Math.round(170 * scale),
-      scale,
     };
   }
 
@@ -311,8 +314,10 @@
     const x0 = startX + (targetT - timeToHero) * approxSpeed;
     const y0 = H * (WATER_LINE_REL + rnd(-PLATFORM_Y_JITTER, PLATFORM_Y_JITTER));
     spawnPlatform(x0, y0);
+    world.lastPlatformX = x0;
 
-    world.nextSpawnIn = rnd(PLATFORM_GAP_MIN, PLATFORM_GAP_MAX);
+    // chain will continue from lastPlatformX
+    world.nextSpawnIn = 0; // unused with chain, kept for compatibility
     world.nextPickupIn = rnd(PICKUP_GAP_MIN, PICKUP_GAP_MAX);
   }
 
@@ -420,24 +425,23 @@
   }
 
   // ===== Spawners =====
-  function ensurePlatformChain() {
-    if (!world.platforms.length) return;
+  function maybeSpawnNextPlatform(dt) {
+  // spawn platforms as an even chain (no random gaps, no random height)
+  const { w } = platformBaseSize();
+  const spacing = w * PLATFORM_SPACING_MUL;
+  const y = H * WATER_LINE_REL; // fixed deck height
 
-    // keep platforms queued ahead at fixed spacing and fixed height
-    let rightmost = -Infinity;
-    for (const p of world.platforms) rightmost = Math.max(rightmost, p.x);
+  // ensure the chain always extends beyond the right edge
+  const targetRight = W * (1 + PLATFORM_SPAWN_MARGIN);
 
-    const spacing = world.platformSpacing || 720;
-    const y = world.platformY || H * WATER_LINE_REL;
-
-    const targetX = W * PLATFORM_SPAWN_AHEAD;
-    while (rightmost < targetX) {
-      rightmost += spacing;
-      spawnPlatform(rightmost, y);
-    }
+  // spawn multiple if needed (in case of lag / large dt)
+  while (world.lastPlatformX < targetRight) {
+    world.lastPlatformX = world.lastPlatformX + spacing;
+    spawnPlatform(world.lastPlatformX, y);
   }
+}
 
-  function spawnPickup(worldSpeed) {(worldSpeed) {
+  function spawnPickup(worldSpeed) {
     const x = W + rnd(W * 0.20, W * 0.55);
     const yMin = H * PLAYFIELD_TOP_REL + 40;
     const yMax = H * (WATER_LINE_REL - 0.22);
@@ -508,19 +512,19 @@
   }
 
   // ===== Landing (FIXED): landing strip collider, no nearest, no teleport =====
-  function tryTouchdown(speed) {
+  function tryTouchdown(speed, dt) {
     if (world.decided) return;
 
     const hero = world.hero;
-
-    // only when falling down
-    if (hero.vy < 0) return;
-
     const bottomNow = hero.y + hero.h / 2;
     const bottomPrev = hero.prevBottom;
 
+    // садимся только когда падаем вниз
+    if (hero.vy < 0) return;
+
     const PAD_X = hero.w * 0.18;
 
+    // перебираем все платформы и ищем реальный контакт
     for (let i = 0; i < world.platforms.length; i++) {
       const p = world.platforms[i];
 
@@ -528,34 +532,34 @@
       const left = deckLeftX(p);
       const right = deckRightX(p);
 
-      // X overlap (with small tolerance)
+      // по X должен быть над палубой
       if (hero.x < left - PAD_X || hero.x > right + PAD_X) continue;
 
-      // Robust swept test:
-      // 1) classic cross of the deck top between frames
+      // swept vertical contact
       const crossed = bottomPrev < top && bottomNow >= top;
 
-      // 2) penetration fallback (if we already ended up slightly inside due to dt)
-      const heroTopNow = hero.y - hero.h / 2;
-      const penetratedFromAbove = heroTopNow < top && bottomNow > top;
+      // penetration fallback (rare tunneling cases): already slightly below top but still near it
+      const penetration = bottomNow - top;
+      const nearTop = penetration > 0 && penetration < hero.h * 0.55;
 
-      if (!crossed && !penetratedFromAbove) continue;
+      if (!crossed && !nearTop) continue;
 
-      // must be truly over the deck bounds
-      if (hero.x < left || hero.x > right) return;
+      // must be over the deck for a real landing; if not, keep checking other platforms
+      if (hero.x < left || hero.x > right) continue;
 
-      // landing zone selection
-      const u = (hero.x - left) / (right - left);
-      const inWinZone = u >= WIN_ZONE_L && u <= WIN_ZONE_R;
-      const inLoseZone = u >= LOSE_ZONE_L && u <= LOSE_ZONE_R;
+      // зона по реальному X (0..1)
+      const norm = (hero.x - left) / (right - left);
+
+      const inWinZone = norm >= WIN_ZONE_L && norm <= WIN_ZONE_R;
+      const inLoseZone = norm >= LOSE_ZONE_L && norm <= LOSE_ZONE_R;
 
       const wantWin = world.plan.result === "WIN";
       const okZone = wantWin ? inWinZone : inLoseZone;
 
-      // if not in the planned zone, treat as miss and keep flying
+      // если не в нужной зоне — это промах, НЕ садимся
       if (!okZone) return;
 
-      // LAND: snap only Y, never teleport X
+      // САДИМСЯ: фиксируем только Y, X не трогаем
       world.decided = true;
 
       hero.y = top - hero.h * 0.45;
@@ -566,6 +570,7 @@
       world.roll.vx = Math.max(320, speed * 0.85);
       world.roll.platformId = p.id;
 
+      // FEEL
       hitPause(0.055, 0.22, 0.14);
       cameraPunch(-8, 6);
       cameraKick(1.25);
@@ -604,15 +609,14 @@
       const speed = OBJECT_SPEED_BASE * (0.9 + 0.55 * easeInOut(p));
       world.fx.worldSpeed = speed;
 
+      // spawn platforms
+      maybeSpawnNextPlatform(dt);
+
       // move platforms
       for (let i = world.platforms.length - 1; i >= 0; i--) {
         world.platforms[i].x -= speed * dt;
         if (world.platforms[i].x < -900) world.platforms.splice(i, 1);
       }
-
-      // spawn pickups
-      // keep a fixed platform chain queued ahead
-      ensurePlatformChain();
 
       // spawn pickups
       maybeSpawnPickup(dt, speed);
@@ -633,7 +637,7 @@
       world.hero.rot = clamp(world.hero.vy / 1200, -0.35, 0.55);
 
       // touchdown (fixed)
-      tryTouchdown(speed);
+      tryTouchdown(speed, dt);
 
       // pickups collision
       updatePickups(dt, speed);
@@ -860,7 +864,7 @@
         ctx.globalAlpha = 0.95;
         ctx.fillStyle = "#ff3b3b";
         ctx.beginPath();
-        ctx.arc(0, 0, p.w * 0.32, 0, Math.PI * 2);
+        ctx.arc(0, 0, p.w * 0.32, 0, Math.PI * Math.PI);
         ctx.fill();
 
         ctx.globalAlpha = 0.75;
@@ -965,152 +969,4 @@
 
   requestAnimationFrame(loop);
 
-  // ===== Update =====
-  function update(dt) {
-    world.t += dt;
-
-    world.cam.shake = Math.max(0, world.cam.shake - dt * 3.6);
-    const s = world.cam.shake;
-    if (s > 0) {
-      world.cam.x = Math.sin(world.t * 41.3) * 6 * s;
-      world.cam.y = Math.cos(world.t * 37.7) * 5 * s;
-    } else {
-      world.cam.x = 0;
-      world.cam.y = 0;
-    }
-
-    const starSpeed = state === State.RUNNING ? 260 : 90;
-    for (const st of world.stars) {
-      st.x -= (starSpeed * 0.14) * st.s * dt;
-      if (st.x < -20) {
-        st.x = W + 20;
-        st.y = Math.random() * H;
-      }
-    }
-
-    if (state === State.RUNNING) {
-      world.roundT += dt;
-      const p = clamp(world.roundT / world.roundDur, 0, 1);
-      const speed = OBJECT_SPEED_BASE * (0.9 + 0.55 * easeInOut(p));
-      world.fx.worldSpeed = speed;
-
-      // platforms spawn
-      world.nextSpawnIn -= dt;
-      if (world.nextSpawnIn <= 0) {
-        const x = W + rnd(W * 0.30, W * 0.55);
-        const y = H * (WATER_LINE_REL + rnd(-PLATFORM_Y_JITTER, PLATFORM_Y_JITTER));
-        spawnPlatform(x, y);
-        world.nextSpawnIn = rnd(PLATFORM_GAP_MIN, PLATFORM_GAP_MAX);
-      }
-
-      // move platforms
-      for (let i = world.platforms.length - 1; i >= 0; i--) {
-        world.platforms[i].x -= speed * dt;
-        if (world.platforms[i].x < -900) world.platforms.splice(i, 1);
-      }
-
-      // pickups spawn + update
-      maybeSpawnPickup(dt, speed);
-      updatePickups(dt, speed);
-
-      // hero physics
-      world.hero.prevBottom = world.hero.y + world.hero.h / 2;
-      world.hero.vy += GRAVITY * dt;
-      world.hero.y += world.hero.vy * dt;
-
-      const topLimit = H * PLAYFIELD_TOP_REL;
-      if (world.hero.y < topLimit) {
-        world.hero.y = topLimit;
-        if (world.hero.vy < 0) world.hero.vy = 0;
-      }
-
-      world.hero.rot = clamp(world.hero.vy / 1200, -0.35, 0.55);
-
-      tryTouchdown(speed);
-
-      if (world.hero.y - world.hero.h / 2 > H + 110 && !world.result) {
-        endRound("LOSE");
-      }
-
-      spawnRibbonPoint();
-      spawnFireParticles(dt);
-    }
-
-    if (state === State.LANDING_ROLL) {
-      const hero = world.hero;
-      const pRoll = world.platforms.find((pp) => pp.id === world.roll.platformId);
-      if (!pRoll) {
-        setDamagedTrail(1.1);
-        hero.vy = 420;
-        endRound("LOSE");
-        return;
-      }
-
-      world.roll.vx = Math.max(0, world.roll.vx - ROLL_FRICTION * dt);
-      hero.x += world.roll.vx * dt;
-
-      hero.y = deckTopY(pRoll) - hero.h * 0.45;
-      hero.rot = 0.10 + (world.roll.vx / 900) * 0.10;
-
-      const rightEdge = deckRightX(pRoll);
-      if (hero.x + hero.w * 0.35 >= rightEdge) {
-        setDamagedTrail(1.4);
-        hero.vy = 420;
-
-        hitPause(0.08, 0.18, 0.18);
-        cameraPunch(-14, 10);
-        cameraKick(1.8);
-
-        endRound("LOSE");
-        return;
-      }
-
-      if (world.roll.vx <= ROLL_STOP_VX) {
-        endRound("WIN");
-        return;
-      }
-    }
-
-    if (state === State.FINISH_LOSE) {
-      world.fx.worldSpeed = Math.max(world.fx.worldSpeed, OBJECT_SPEED_BASE);
-      spawnFireParticles(dt);
-
-      world.finishT += dt;
-      world.hero.vy += GRAVITY * 0.70 * dt;
-      world.hero.y += world.hero.vy * dt;
-      world.hero.rot += 1.6 * dt;
-      if (world.finishT < 0.6) cameraKick(0.12);
-    }
-
-    if (state === State.FINISH_WIN) {
-      world.finishT += dt;
-      if (world.finishT < 0.35) cameraKick(0.07);
-    }
-
-    for (let i = world.fx.ribbon.length - 1; i >= 0; i--) {
-      const rp = world.fx.ribbon[i];
-      rp.t += dt;
-      if (rp.t >= rp.life) world.fx.ribbon.splice(i, 1);
-    }
-
-    for (let i = world.fx.particles.length - 1; i >= 0; i--) {
-      const pp = world.fx.particles[i];
-      pp.t += dt;
-      pp.x += pp.vx * dt;
-      pp.y += pp.vy * dt;
-
-      const k = pp.t / pp.life;
-      if (pp.kind === "SMOKE") {
-        pp.size *= 1 + 0.35 * dt;
-        pp.vx *= 1 - 0.65 * dt;
-        pp.vy *= 1 - 0.65 * dt;
-      } else {
-        pp.size *= 1 + 0.22 * dt;
-        pp.vx *= 1 - 0.45 * dt;
-        pp.vy *= 1 - 0.45 * dt;
-      }
-
-      if (k >= 1) world.fx.particles.splice(i, 1);
-    }
-  }
 })();
