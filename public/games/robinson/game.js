@@ -103,10 +103,10 @@
   const LOSE_ZONE_R = 0.96;
 
   // pickups (air)
-  const PICKUP_POOL = 36;
-  const PICKUP_GAP_MIN = 0.14;
-  const PICKUP_GAP_MAX = 0.26;
-  const BONUS_CHANCE = 0.55;
+  const PICKUP_POOL = 60;
+  const PICKUP_GAP_MIN = 0.10;
+  const PICKUP_GAP_MAX = 0.18;
+  const BONUS_CHANCE = 0.52;
   const PICKUP_SIZE = 26;
   const BONUS_IMPULSE = 260; // up
   const HIT_IMPULSE = 220; // down
@@ -123,8 +123,8 @@
 
     platforms: [], // {id,x,y,w,h}
     nextPlatformId: 1,
-    nextSpawnIn: 0,
     nextPlatformX: 0,
+    nextSpawnIn: 0,
 
     ignoreTouchdownUntil: 0,
 
@@ -239,10 +239,21 @@
 
   function platformBaseSize() {
     const scale = Math.min(W / 1200, H / 800, 1);
+    const baseH = Math.round(170 * scale);
+    // match the real sprite aspect if available, then apply +70% width
+    const aspect = (GFX.island && GFX.island.width && GFX.island.height)
+      ? (GFX.island.width / GFX.island.height)
+      : (520 / 170);
+    const baseW = Math.round(baseH * aspect);
     return {
-      w: Math.round(520 * scale * 1.70),
-      h: Math.round(170 * scale),
+      w: Math.round(baseW * 1.70),
+      h: baseH,
     };
+  }
+
+  function platformStep() {
+    const { w } = platformBaseSize();
+    return w * PLATFORM_STEP_MULT;
   }
 
   function spawnPlatform(x, y) {
@@ -301,24 +312,21 @@
 
     planRound();
 
-    // стартовая палуба: Робинзон стоит на платформе (как в Aviamasters)
+    // стартовая палуба: Робинзон стоит на платформе (IDLE)
     const yDeck = H * WATER_LINE_REL;
-    const { w: pW } = platformBaseSize();
-
     const p0 = spawnPlatform(heroX, yDeck);
     world.nextPlatformX = p0.x;
-    // поставить героя на палубу, без движения
+
+    // поставить героя на палубу (snap только по Y)
     world.hero.y = deckTopY(p0) - world.hero.h * 0.45;
     world.hero.vy = 0;
     world.hero.prevBottom = world.hero.y + world.hero.h / 2;
 
-    // заполнить цепочку платформ вправо
+    // заполнить цепочку платформ вправо по фиксированному шагу
     ensurePlatformChain();
 
-    // pickups
-    world.nextSpawnIn = 0; // больше не используем таймерный спавн платформ
-    world.nextPickupIn = 0.08; // первый спавн рядом после старта
-    spawnPickupBurst(world.fx.worldSpeed, world.hero.x + W * 0.55);
+    world.nextSpawnIn = 999; // legacy (больше не используем таймерный спавн платформ)
+    world.nextPickupIn = 0.12;
   }
 
   function endRound(result) {
@@ -349,9 +357,12 @@
     resetRound();
 
     // взлёт с палубы
-    world.ignoreTouchdownUntil = world.t + 0.22;
     world.hero.vy = START_VY;
-    world.hero.y -= 2;
+    world.ignoreTouchdownUntil = world.t + 0.22;
+
+    // первый пак бонусов/ракет — сразу впереди (чтобы не падал в пустоту)
+    spawnPickupBurst(world.fx.worldSpeed, world.hero.x + W * 0.65);
+    world.nextPickupIn = 0.12;
 
     kickStartFeel();
     emitStart();
@@ -431,11 +442,6 @@
   }
 
   // ===== Spawners =====
-  function platformStep() {
-    const { w } = platformBaseSize();
-    return w * PLATFORM_STEP_MULT;
-  }
-
   function ensurePlatformChain() {
     const step = platformStep();
     const y = H * WATER_LINE_REL;
@@ -443,10 +449,10 @@
     // prune left
     for (let i = world.platforms.length - 1; i >= 0; i--) {
       const p = world.platforms[i];
-      if (p.x < -(p.w + 500)) world.platforms.splice(i, 1);
+      if (p.x < -(p.w + 600)) world.platforms.splice(i, 1);
     }
 
-    // recompute rightmost and keep world.nextPlatformX in sync
+    // find rightmost center
     let rightmost = -Infinity;
     for (const p of world.platforms) rightmost = Math.max(rightmost, p.x);
     if (!isFinite(rightmost)) {
@@ -454,60 +460,71 @@
       const p0 = spawnPlatform(heroX, y);
       rightmost = p0.x;
     }
+
     world.nextPlatformX = rightmost;
 
-    // keep buffer to the right (in distance, not time)
-    const targetRight = W + step * 2.2;
+    // keep buffer to the right: platforms should NOT be close; spacing is strict
+    const targetRight = W + step * 2.5;
     while (world.nextPlatformX < targetRight) {
       world.nextPlatformX += step;
       spawnPlatform(world.nextPlatformX, y);
     }
   }
 
-  
+function maybeSpawnNextPlatform(dt) {
+    world.nextSpawnIn -= dt;
+    if (world.nextSpawnIn > 0) return;
+
+    const x = W + rnd(W * 0.30, W * 0.55);
+    const y = H * (WATER_LINE_REL + rnd(-PLATFORM_Y_JITTER, PLATFORM_Y_JITTER));
+    spawnPlatform(x, y);
+
+    world.nextSpawnIn = rnd(PLATFORM_GAP_MIN, PLATFORM_GAP_MAX);
+  }
+
   function spawnPickupBurst(worldSpeed, xStart) {
     const hx = world.hero.x;
-    const x0 = (xStart !== undefined ? xStart : (W + rnd(W * 0.06, W * 0.18)));
-    const baseX = Math.max(x0, hx + W * 0.32);
+    const baseX = Math.max(
+      (xStart !== undefined ? xStart : (hx + W * 0.55)),
+      hx + W * 0.45
+    );
 
-    // лэйны по высоте (как у рефа) — выше/ниже
     const yLanes = [
-      H * (PLAYFIELD_TOP_REL + 0.08),
-      H * (PLAYFIELD_TOP_REL + 0.18),
-      H * (PLAYFIELD_TOP_REL + 0.30),
+      H * (PLAYFIELD_TOP_REL + 0.10),
+      H * (PLAYFIELD_TOP_REL + 0.20),
+      H * (PLAYFIELD_TOP_REL + 0.32),
+      H * (WATER_LINE_REL - 0.30),
       H * (WATER_LINE_REL - 0.20),
-      H * (WATER_LINE_REL - 0.12),
     ];
 
-    const lane = yLanes[Math.floor(Math.random() * yLanes.length)];
-    const count = 3 + Math.floor(Math.random() * 5); // 3..7 (больше объектов)
-
+    const count = Math.floor(rnd(3, 7)); // больше объектов, как в рефе
     let x = baseX;
     for (let i = 0; i < count; i++) {
-      const y = lane + rnd(-55, 55);
       const type = Math.random() < BONUS_CHANCE ? "BONUS" : "ROCKET";
-
+      const lane = yLanes[Math.floor(Math.random() * yLanes.length)];
       world.pickups.push({
         id: world.nextPickupId++,
         x,
-        y,
+        y: lane + rnd(-18, 18),
         w: PICKUP_SIZE,
         h: PICKUP_SIZE,
         type,
         age: 0,
       });
-
-      x += 80 + Math.random() * 70; // цепочка по X
-      if (world.pickups.length > PICKUP_POOL) world.pickups.shift();
+      x += rnd(70, 120);
     }
+
+    while (world.pickups.length > PICKUP_POOL) world.pickups.shift();
   }
 
   function maybeSpawnPickup(dt, worldSpeed) {
     world.nextPickupIn -= dt;
     if (world.nextPickupIn > 0) return;
-    spawnPickupBurst(worldSpeed);
-    world.nextPickupIn = 0.08; // первый спавн рядом после старта
-    spawnPickupBurst(world.fx.worldSpeed, world.hero.x + W * 0.55);
+
+    // spawn closer so Robinson can actually reach them
+    spawnPickupBurst(worldSpeed, world.hero.x + W * 0.60);
+
+    world.nextPickupIn = 0.12;
   }
 
   function updatePickups(dt, worldSpeed) {
@@ -521,7 +538,7 @@
       p.age += dt;
       p.x -= worldSpeed * dt;
 
-      if (p.x < -220 || p.age > 6.0) {
+      if (p.x < -260 || p.age > 25.0) {
         world.pickups.splice(i, 1);
         continue;
       }
@@ -555,7 +572,7 @@
   // ===== Landing (FIXED): landing strip collider, no nearest, no teleport =====
   function tryTouchdown(speed) {
     if (world.decided) return;
-    if (world.t < world.ignoreTouchdownUntil) return;
+    if (world.t < (world.ignoreTouchdownUntil || 0)) return;
 
     const hero = world.hero;
     if (hero.vy < 0) return; // only falling
@@ -565,38 +582,37 @@
 
     if (bottomNow <= bottomPrev) return;
 
+    // use a probe point (sprite anchor is not perfect center)
+    const probeX = hero.x + hero.w * 0.10;
     const PAD_X = hero.w * 0.18;
 
     for (let i = 0; i < world.platforms.length; i++) {
       const p = world.platforms[i];
-
       const top = deckTopY(p);
 
-      // swept crossing time (0..1) for bottom crossing deck top
+      // swept crossing check for deck top
       if (!(bottomPrev < top && bottomNow >= top)) continue;
       const tCross = clamp((top - bottomPrev) / (bottomNow - bottomPrev), 0, 1);
 
-      // platform moves in the same step: use prevX->x at crossing time
+      // platform moves while we fall: evaluate platform X at crossing time
       const prevX = (p.prevX !== undefined ? p.prevX : p.x);
       const px = prevX + (p.x - prevX) * tCross;
       const left = px - p.w / 2;
       const right = px + p.w / 2;
 
-      // X overlap (allow small padding)
-      if (hero.x < left - PAD_X || hero.x > right + PAD_X) continue;
+      if (probeX < left - PAD_X || probeX > right + PAD_X) continue;
 
-      // normalize landing u in [0..1]
-      const u = clamp((hero.x - left) / Math.max(1, right - left), 0, 1);
+      const u = clamp((probeX - left) / Math.max(1, right - left), 0, 1);
       const inWinZone = u >= WIN_ZONE_L && u <= WIN_ZONE_R;
       const inLoseZone = u >= LOSE_ZONE_L && u <= LOSE_ZONE_R;
 
       const wantWin = world.plan && world.plan.result === "WIN";
       const okZone = wantWin ? inWinZone : inLoseZone;
 
-      // crossed outside required zone -> miss, keep flying (no snap, no teleport)
+      // crossed deck but outside required zone -> miss, keep flying (no snap)
       if (!okZone) continue;
 
-      // === LAND (snap only by Y, never change X) ===
+      // === LAND (snap only by Y; never change X) ===
       hero.y = top - hero.h * 0.45;
       hero.vy = 0;
       hero.rot = 0.08;
@@ -644,56 +660,49 @@
       const speed = OBJECT_SPEED_BASE * (0.9 + 0.55 * easeInOut(p));
       world.fx.worldSpeed = speed;
 
-      // substeps против туннелинга (и на мобиле при прыгающем dt)
-      const maxStep = 1 / 120; // ~8.3ms
-      const steps = clamp(Math.ceil(dt / maxStep), 1, 8);
-      const hdt = dt / steps;
+      // maintain strict platform chain (distance-based)
+      ensurePlatformChain();
 
-      for (let si = 0; si < steps; si++) {
-        // гарантируем ровную цепочку платформ
-        ensurePlatformChain();
-
-        // move platforms
-        for (let i = world.platforms.length - 1; i >= 0; i--) {
-          const pl = world.platforms[i];
-          pl.prevX = pl.x;
-          pl.x -= speed * hdt;
-        }
-
-        // spawn pickups (больше, чаще)
-        maybeSpawnPickup(hdt, speed);
-
-        // hero physics
-        world.hero.prevBottom = world.hero.y + world.hero.h / 2;
-        world.hero.vy += GRAVITY * hdt;
-        world.hero.y += world.hero.vy * hdt;
-
-        // top limit
-        const topLimit = H * PLAYFIELD_TOP_REL;
-        if (world.hero.y < topLimit) {
-          world.hero.y = topLimit;
-          if (world.hero.vy < 0) world.hero.vy = 0;
-        }
-
-        // tilt
-        world.hero.rot = clamp(world.hero.vy / 1200, -0.35, 0.55);
-
-        // touchdown
-        tryTouchdown(speed);
-
-        // pickups collision
-        updatePickups(hdt, speed);
-
-        // LOSE only if реально ушёл вниз
-        if (world.hero.y - world.hero.h / 2 > H + 110 && !world.result) {
-          endRound("LOSE");
-          break;
-        }
-
-        // fx
-        spawnRibbonPoint();
-        spawnFireParticles(hdt);
+      // move platforms (store prevX for swept collision)
+      for (let i = world.platforms.length - 1; i >= 0; i--) {
+        const pl = world.platforms[i];
+        pl.prevX = pl.x;
+        pl.x -= speed * dt;
+        if (pl.x < -(pl.w + 700)) world.platforms.splice(i, 1);
       }
+
+      // spawn pickups
+      maybeSpawnPickup(dt, speed);
+
+      // hero physics
+      world.hero.prevBottom = world.hero.y + world.hero.h / 2;
+      world.hero.vy += GRAVITY * dt;
+      world.hero.y += world.hero.vy * dt;
+
+      // top limit
+      const topLimit = H * PLAYFIELD_TOP_REL;
+      if (world.hero.y < topLimit) {
+        world.hero.y = topLimit;
+        if (world.hero.vy < 0) world.hero.vy = 0;
+      }
+
+      // tilt
+      world.hero.rot = clamp(world.hero.vy / 1200, -0.35, 0.55);
+
+      // touchdown (fixed)
+      tryTouchdown(speed);
+
+      // pickups collision
+      updatePickups(dt, speed);
+
+      // LOSE only if реально ушёл вниз
+      if (world.hero.y - world.hero.h / 2 > H + 110 && !world.result) {
+        endRound("LOSE");
+      }
+
+      // fx
+      spawnRibbonPoint();
+      spawnFireParticles(dt);
     }
 
     if (state === State.LANDING_ROLL) {
