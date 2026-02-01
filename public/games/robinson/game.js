@@ -16,7 +16,7 @@
   const GFX = {
     bg: null,
     robinson: null,
-    island: null, // используем как "секцию палубы"
+    island: null,
     ready: false,
   };
 
@@ -55,12 +55,7 @@
   const rnd = (a, b) => a + Math.random() * (b - a);
 
   function aabb(ax, ay, aw, ah, bx, by, bw, bh) {
-    return (
-      ax < bx + bw &&
-      ax + aw > bx &&
-      ay < by + bh &&
-      ay + ah > by
-    );
+    return ax < bx + bw && ax + aw > bx && ay < by + bh && ay + ah > by;
   }
 
   // ===== State =====
@@ -88,23 +83,37 @@
   const ROLL_FRICTION = 1700;
   const ROLL_STOP_VX = 35;
 
-  // ribbon look
+  // ribbon
   const RIBBON_LIFE = 0.45;
   const RIBBON_MAX = 36;
   const RIBBON_MIN_DIST = 6;
   const RIBBON_SHIFT_K = 0.70;
 
   // platforms
-  const PLATFORM_POOL = 8;             // макс платформ одновременно
-  const PLATFORM_GAP_MIN = 0.55;        // секунды
-  const PLATFORM_GAP_MAX = 0.95;        // секунды
-  const PLATFORM_Y_JITTER = 0.02;       // +/- от WATER_LINE_REL
+  const PLATFORM_POOL = 9;
+  const PLATFORM_GAP_MIN = 0.55;
+  const PLATFORM_GAP_MAX = 0.95;
+  const PLATFORM_Y_JITTER = 0.02;
 
-  // bonuses
-  const BONUS_CHANCE = 0.55;            // шанс бонуса на платформе
-  const BONUS_SIZE = 26;               // px (screen units)
-  const BONUS_LIFE = 4.0;              // сек максимум до исчезновения (если улетело - удалим по offscreen)
-  const BONUS_COLOR = "#ffd54a";
+  // touchdown gating (ВАЖНО: чтобы не "цепляло в любом месте")
+  const TOUCHDOWN_Y_WINDOW = 18; // px окно по Y вокруг верхней линии палубы
+  const TOUCHDOWN_X_RANGE = 0.52; // герой должен быть в пределах +/- 52% ширины палубы по X
+
+  // landing zones (где разрешено "реально приземлиться")
+  // win-zone ближе к левой части, lose-zone ближе к правой
+  const WIN_ZONE_L = 0.18;
+  const WIN_ZONE_R = 0.62;
+  const LOSE_ZONE_L = 0.78;
+  const LOSE_ZONE_R = 0.96;
+
+  // pickups (bonuses + rockets) — В ВОЗДУХЕ
+  const PICKUP_POOL = 20;
+  const PICKUP_GAP_MIN = 0.28;
+  const PICKUP_GAP_MAX = 0.55;
+  const BONUS_CHANCE = 0.62;   // если pickup спавнится, шанс что это бонус (иначе ракета)
+  const PICKUP_SIZE = 26;
+  const BONUS_IMPULSE = 260;   // вверх
+  const HIT_IMPULSE = 220;     // вниз (подбили)
 
   // ===== World =====
   const world = {
@@ -114,16 +123,16 @@
 
     cam: { x: 0, y: 0, shake: 0 },
 
-    hero: { x: 0, y: 0, vy: 0, w: 0, h: 0, rot: 0 },
+    hero: { x: 0, y: 0, vy: 0, w: 0, h: 0, rot: 0, prevBottom: 0 },
 
-    // platforms list
-    platforms: [], // {id,x,y,w,h,spawnT}
+    platforms: [], // {id,x,y,w,h}
     nextPlatformId: 1,
-    nextSpawnIn: 0,  // seconds until next procedural spawn
+    nextSpawnIn: 0,
 
-    // bonuses list
-    bonuses: [], // {id,x,y,w,h,type,age}
-    nextBonusId: 1,
+    pickups: [], // {id,x,y,w,h,type,age}
+    nextPickupId: 1,
+    nextPickupIn: 0,
+
     bonusCount: 0,
 
     stars: [],
@@ -136,12 +145,12 @@
     roll: { vx: 0, platformId: null },
 
     fx: {
-      mode: "BLUE", // "BLUE" | "FIRE"
+      mode: "BLUE",
       fireUntil: 0,
 
       worldSpeed: OBJECT_SPEED_BASE,
 
-      ribbon: [], // {x,y,t,life}
+      ribbon: [],
       ribbonMax: RIBBON_MAX,
       lastRibbonX: 0,
       lastRibbonY: 0,
@@ -190,7 +199,6 @@
   function cameraKick(amount = 1) {
     world.cam.shake = Math.max(world.cam.shake, amount);
   }
-
   function cameraPunch(dx = 0, dy = 0) {
     world.cam.x += dx;
     world.cam.y += dy;
@@ -214,18 +222,22 @@
   function emitBonus(type) {
     window.RobinsonBridge?.emitBonusCollect?.({ type, ts: Date.now(), total: world.bonusCount });
   }
+  function emitHit(type) {
+    window.RobinsonBridge?.emitHit?.({ type, ts: Date.now() });
+  }
 
   function setDamagedTrail(seconds = 1.2) {
     world.fx.mode = "FIRE";
     world.fx.fireUntil = world.t + seconds;
   }
 
-  // debug hook
+  // debug
   window.RobinsonGame = window.RobinsonGame || {};
   window.RobinsonGame.triggerDamage = () => setDamagedTrail(1.4);
 
   // ===== Planning =====
   function planRound() {
+    // сейчас 50/50. потом подключим вашу математику/RTP как было
     const isWin = Math.random() < 0.5;
     world.plan = { result: isWin ? "WIN" : "LOSE" };
   }
@@ -246,32 +258,10 @@
       y,
       w,
       h,
-      spawnT: world.t,
     };
     world.platforms.push(p);
-    if (world.platforms.length > PLATFORM_POOL) {
-      world.platforms.shift();
-    }
+    if (world.platforms.length > PLATFORM_POOL) world.platforms.shift();
     return p;
-  }
-
-  function spawnBonusOnPlatform(p) {
-    if (Math.random() > BONUS_CHANCE) return;
-
-    // бонус на верхней части палубы
-    const top = p.y - p.h / 2 + 6;
-    const bx = p.x + rnd(-p.w * 0.20, p.w * 0.20);
-    const by = top - BONUS_SIZE * 0.9;
-
-    world.bonuses.push({
-      id: world.nextBonusId++,
-      x: bx,
-      y: by,
-      w: BONUS_SIZE,
-      h: BONUS_SIZE,
-      type: "COIN", // потом можно MULTI / ENERGY
-      age: 0,
-    });
   }
 
   function resetRound() {
@@ -281,9 +271,9 @@
     world.decided = false;
 
     world.platforms = [];
-    world.bonuses = [];
+    world.pickups = [];
     world.nextPlatformId = 1;
-    world.nextBonusId = 1;
+    world.nextPickupId = 1;
     world.bonusCount = 0;
 
     const heroX = W * HERO_X_REL;
@@ -297,6 +287,8 @@
     world.hero.w = Math.round(110 * scale * heroScale);
     world.hero.h = Math.round(110 * scale * heroScale);
 
+    world.hero.prevBottom = world.hero.y + world.hero.h / 2;
+
     world.roll.vx = 0;
     world.roll.platformId = null;
 
@@ -304,7 +296,6 @@
     world.cam.y = 0;
     world.cam.shake = 0;
 
-    // fx reset
     world.fx.mode = "BLUE";
     world.fx.fireUntil = 0;
     world.fx.particles = [];
@@ -313,28 +304,22 @@
     world.fx.lastRibbonX = world.hero.x;
     world.fx.lastRibbonY = world.hero.y;
 
-    // планируем WIN/LOSE
     planRound();
 
-    // 1) первая "сценарная" платформа — под решение
-    // хотим, чтобы она дошла до героя примерно на 70-85% времени раунда
+    // первая платформа (сценарная) — гарантированно подъедет к зоне героя по времени
     const targetT = world.roundDur * 0.78;
     const approxSpeed = OBJECT_SPEED_BASE * 1.15;
 
-    // расстояние по X: от текущего спавна (справа) до hero.x
     const startX = W * 1.20;
-    const travel = (startX - heroX);
+    const travel = startX - heroX;
     const timeToHero = travel / approxSpeed;
 
-    // подгоняем: если слишком быстро/медленно — поправим стартовую позицию
     const x0 = startX + (targetT - timeToHero) * approxSpeed;
     const y0 = H * (WATER_LINE_REL + rnd(-PLATFORM_Y_JITTER, PLATFORM_Y_JITTER));
+    spawnPlatform(x0, y0);
 
-    const first = spawnPlatform(x0, y0);
-    spawnBonusOnPlatform(first);
-
-    // 2) сразу подготовим следующую платформу через небольшой интервал
     world.nextSpawnIn = rnd(PLATFORM_GAP_MIN, PLATFORM_GAP_MAX);
+    world.nextPickupIn = rnd(PICKUP_GAP_MIN, PICKUP_GAP_MAX);
   }
 
   function endRound(result) {
@@ -369,7 +354,7 @@
 
   window.RobinsonUI?.onPlayClick?.(startRound);
 
-  // ===== Deck geometry helpers =====
+  // ===== Platform geometry =====
   function deckTopY(p) {
     return p.y - p.h / 2 + 6;
   }
@@ -380,8 +365,7 @@
     return p.x + p.w / 2;
   }
 
-  function findClosestPlatformToHero() {
-    // ищем платформу, которая ближе всего по X к герою (и ещё не ушла далеко)
+  function findNearestPlatform() {
     const hx = world.hero.x;
     let best = null;
     let bestDx = 1e9;
@@ -455,87 +439,143 @@
     }
   }
 
-  // ===== Platform spawner (procedural) =====
+  // ===== Spawners =====
   function maybeSpawnNextPlatform(dt) {
     world.nextSpawnIn -= dt;
     if (world.nextSpawnIn > 0) return;
 
-    // спавним справа за экраном
     const x = W + rnd(W * 0.30, W * 0.55);
     const y = H * (WATER_LINE_REL + rnd(-PLATFORM_Y_JITTER, PLATFORM_Y_JITTER));
-
-    const p = spawnPlatform(x, y);
-    spawnBonusOnPlatform(p);
+    spawnPlatform(x, y);
 
     world.nextSpawnIn = rnd(PLATFORM_GAP_MIN, PLATFORM_GAP_MAX);
   }
 
-  // ===== Bonus update & collect =====
-  function updateBonuses(dt, worldSpeed) {
-    for (let i = world.bonuses.length - 1; i >= 0; i--) {
-      const b = world.bonuses[i];
-      b.age += dt;
-      b.x -= worldSpeed * dt;
+  function spawnPickup(worldSpeed) {
+    // spawn in air: ahead of hero, within playfield
+    const x = W + rnd(W * 0.20, W * 0.55);
+    const yMin = H * PLAYFIELD_TOP_REL + 40;
+    const yMax = H * (WATER_LINE_REL - 0.22);
+    const y = rnd(yMin, yMax);
 
-      // offscreen / too old
-      if (b.x < -200 || b.age > BONUS_LIFE) {
-        world.bonuses.splice(i, 1);
+    const type = Math.random() < BONUS_CHANCE ? "BONUS" : "ROCKET";
+
+    world.pickups.push({
+      id: world.nextPickupId++,
+      x,
+      y,
+      w: PICKUP_SIZE,
+      h: PICKUP_SIZE,
+      type,
+      age: 0,
+    });
+
+    if (world.pickups.length > PICKUP_POOL) world.pickups.shift();
+  }
+
+  function maybeSpawnPickup(dt, worldSpeed) {
+    world.nextPickupIn -= dt;
+    if (world.nextPickupIn > 0) return;
+
+    spawnPickup(worldSpeed);
+    world.nextPickupIn = rnd(PICKUP_GAP_MIN, PICKUP_GAP_MAX);
+  }
+
+  // ===== Pickup collisions =====
+  function updatePickups(dt, worldSpeed) {
+    const hx = world.hero.x - world.hero.w / 2;
+    const hy = world.hero.y - world.hero.h / 2;
+    const hw = world.hero.w;
+    const hh = world.hero.h;
+
+    for (let i = world.pickups.length - 1; i >= 0; i--) {
+      const p = world.pickups[i];
+      p.age += dt;
+      p.x -= worldSpeed * dt;
+
+      if (p.x < -220 || p.age > 6.0) {
+        world.pickups.splice(i, 1);
         continue;
       }
 
-      // collect
-      const hx = world.hero.x - world.hero.w / 2;
-      const hy = world.hero.y - world.hero.h / 2;
-      if (aabb(hx, hy, world.hero.w, world.hero.h, b.x - b.w / 2, b.y - b.h / 2, b.w, b.h)) {
-        world.bonuses.splice(i, 1);
-        world.bonusCount += 1;
-        emitBonus(b.type);
-        window.RobinsonUI?.onBonusCollect?.(b.type, world.bonusCount);
+      const px = p.x - p.w / 2;
+      const py = p.y - p.h / 2;
+      if (aabb(hx, hy, hw, hh, px, py, p.w, p.h)) {
+        world.pickups.splice(i, 1);
+
+        if (p.type === "BONUS") {
+          world.bonusCount += 1;
+          emitBonus("BONUS");
+          window.RobinsonUI?.onBonusCollect?.("BONUS", world.bonusCount);
+
+          // impulse UP, continue flight
+          world.hero.vy = Math.min(world.hero.vy, 0) - BONUS_IMPULSE;
+          cameraKick(0.45);
+        } else {
+          // ROCKET hit: impulse DOWN, fire trail, continue flight
+          emitHit("ROCKET");
+          setDamagedTrail(1.2);
+          world.hero.vy = Math.max(world.hero.vy, 0) + HIT_IMPULSE;
+          cameraKick(0.85);
+          cameraPunch(-6, 4);
+        }
       }
     }
   }
 
-  // ===== Landing decision =====
+  // ===== Landing decision (NO TELEPORT) =====
   function tryTouchdown(speed) {
     if (world.decided) return;
 
-    const p = findClosestPlatformToHero();
-    if (!p) return;
+    const plat = findNearestPlatform();
+    if (!plat) return;
 
-    const hero = world.hero;
-    const heroBottom = hero.y + hero.h / 2;
-    const top = deckTopY(p);
+    // X must be reasonably near platform center (otherwise ignore completely)
+    const dx = Math.abs(plat.x - world.hero.x);
+    if (dx > plat.w * TOUCHDOWN_X_RANGE) return;
 
-    const verticalClose = heroBottom >= top - hero.h * 0.45;
-    const horizontalClose = Math.abs(p.x - hero.x) <= p.w * 0.45;
+    const top = deckTopY(plat);
+    const bottomNow = world.hero.y + world.hero.h / 2;
+    const bottomPrev = world.hero.prevBottom;
 
-    if (!(horizontalClose && verticalClose)) return;
+    // must cross the deck top line within a small window (prevents "anywhere triggers")
+    const crosses =
+      bottomPrev < top + TOUCHDOWN_Y_WINDOW &&
+      bottomNow >= top - TOUCHDOWN_Y_WINDOW;
+
+    if (!crosses) return;
+
+    const left = deckLeftX(plat);
+    const right = deckRightX(plat);
+
+    // hero must actually be above deck bounds in X
+    if (world.hero.x < left || world.hero.x > right) return;
+
+    // decide landing zone
+    const norm = (world.hero.x - left) / (right - left); // 0..1
+
+    const inWinZone = norm >= WIN_ZONE_L && norm <= WIN_ZONE_R;
+    const inLoseZone = norm >= LOSE_ZONE_L && norm <= LOSE_ZONE_R;
+
+    // Only "land" if hero is in the correct zone for the planned result.
+    // If not, we DO NOTHING (he misses and keeps flying/falling).
+    const wantWin = world.plan.result === "WIN";
+    const okZone = wantWin ? inWinZone : inLoseZone;
+
+    if (!okZone) return;
 
     world.decided = true;
 
-    const left = deckLeftX(p);
-    const right = deckRightX(p);
-
-    // WIN -> посадка ближе к левой части (есть дистанция проката)
-    // LOSE -> поздняя посадка почти на правом краю (скатится)
-    const safeTouchdownX = left + p.w * 0.35;
-    const lateTouchdownX = right - p.w * 0.12;
-
-    const touchdownX = world.plan.result === "WIN" ? safeTouchdownX : lateTouchdownX;
-
-    hero.x = touchdownX;
-    hero.y = top - hero.h * 0.45;
-    hero.vy = 0;
-    hero.rot = 0.08;
+    // snap ONLY Y (to the deck), keep REAL X (NO TELEPORT)
+    world.hero.y = top - world.hero.h * 0.45;
+    world.hero.vy = 0;
+    world.hero.rot = 0.08;
 
     state = State.LANDING_ROLL;
-
     world.roll.vx = Math.max(320, speed * 0.85);
-    world.roll.platformId = p.id;
+    world.roll.platformId = plat.id;
 
-    cameraKick(0.9);
-
-    // FEEL: touchdown impact
+    // FEEL
     hitPause(0.055, 0.22, 0.14);
     cameraPunch(-8, 6);
     cameraKick(1.25);
@@ -570,19 +610,22 @@
       world.roundT += dt;
       const p = clamp(world.roundT / world.roundDur, 0, 1);
       const speed = OBJECT_SPEED_BASE * (0.9 + 0.55 * easeInOut(p));
-
       world.fx.worldSpeed = speed;
 
-      // spawn platforms over time
+      // spawn platforms
       maybeSpawnNextPlatform(dt);
 
       // move platforms
       for (let i = world.platforms.length - 1; i >= 0; i--) {
         world.platforms[i].x -= speed * dt;
-        if (world.platforms[i].x < -800) world.platforms.splice(i, 1);
+        if (world.platforms[i].x < -900) world.platforms.splice(i, 1);
       }
 
+      // spawn pickups (bonus/rocket) in AIR
+      maybeSpawnPickup(dt, speed);
+
       // hero physics
+      world.hero.prevBottom = world.hero.y + world.hero.h / 2;
       world.hero.vy += GRAVITY * dt;
       world.hero.y += world.hero.vy * dt;
 
@@ -599,14 +642,13 @@
       // touchdown
       tryTouchdown(speed);
 
-      // bonuses update + collect
-      updateBonuses(dt, speed);
+      // pickups collisions
+      updatePickups(dt, speed);
 
-      // fail: fell out
-      if (world.hero.y - world.hero.h / 2 > H + 90 && !world.result) endRound("LOSE");
-
-      // fail: если все платформы ушли и мы долго летим — lose
-      if (world.roundT > world.roundDur + 1.0 && world.platforms.length === 0 && !world.result) endRound("LOSE");
+      // LOSE only if реально ушёл вниз за экран
+      if (world.hero.y - world.hero.h / 2 > H + 110 && !world.result) {
+        endRound("LOSE");
+      }
 
       // fx
       spawnRibbonPoint();
@@ -616,10 +658,10 @@
     if (state === State.LANDING_ROLL) {
       const hero = world.hero;
 
-      // находим платформу, по которой катимся
-      const pRoll = world.platforms.find((pp) => pp.id === world.roll.platformId) || findClosestPlatformToHero();
+      const pRoll =
+        world.platforms.find((pp) => pp.id === world.roll.platformId) || findNearestPlatform();
+
       if (!pRoll) {
-        // если платформу потеряли — падение
         setDamagedTrail(1.1);
         hero.vy = 420;
         endRound("LOSE");
@@ -628,7 +670,7 @@
 
       world.fx.worldSpeed = Math.max(world.fx.worldSpeed, OBJECT_SPEED_BASE * 0.9);
 
-      // катимся вправо по палубе
+      // roll right
       world.roll.vx = Math.max(0, world.roll.vx - ROLL_FRICTION * dt);
       hero.x += world.roll.vx * dt;
 
@@ -637,12 +679,11 @@
 
       const rightEdge = deckRightX(pRoll);
 
-      // дошёл до края — сорвался
+      // fall off edge => lose
       if (hero.x + hero.w * 0.35 >= rightEdge) {
         setDamagedTrail(1.4);
         hero.vy = 420;
 
-        // FEEL: fall-off impact
         hitPause(0.08, 0.18, 0.18);
         cameraPunch(-14, 10);
         cameraKick(1.8);
@@ -651,7 +692,7 @@
         return;
       }
 
-      // остановился — WIN
+      // stop => win
       if (world.roll.vx <= ROLL_STOP_VX) {
         endRound("WIN");
         return;
@@ -661,14 +702,6 @@
     if (state === State.FINISH_LOSE) {
       world.fx.worldSpeed = Math.max(world.fx.worldSpeed, OBJECT_SPEED_BASE);
       spawnFireParticles(dt);
-
-      // платформа/бонусы продолжают ехать чуть-чуть
-      const speed = world.fx.worldSpeed;
-      for (let i = world.platforms.length - 1; i >= 0; i--) {
-        world.platforms[i].x -= speed * dt;
-        if (world.platforms[i].x < -800) world.platforms.splice(i, 1);
-      }
-      updateBonuses(dt, speed);
 
       world.finishT += dt;
       world.hero.vy += GRAVITY * 0.70 * dt;
@@ -682,29 +715,29 @@
       if (world.finishT < 0.35) cameraKick(0.07);
     }
 
-    // update ribbon
+    // ribbon life
     for (let i = world.fx.ribbon.length - 1; i >= 0; i--) {
-      const p = world.fx.ribbon[i];
-      p.t += dt;
-      if (p.t >= p.life) world.fx.ribbon.splice(i, 1);
+      const rp = world.fx.ribbon[i];
+      rp.t += dt;
+      if (rp.t >= rp.life) world.fx.ribbon.splice(i, 1);
     }
 
-    // update particles
+    // particles
     for (let i = world.fx.particles.length - 1; i >= 0; i--) {
-      const p = world.fx.particles[i];
-      p.t += dt;
-      p.x += p.vx * dt;
-      p.y += p.vy * dt;
+      const pp = world.fx.particles[i];
+      pp.t += dt;
+      pp.x += pp.vx * dt;
+      pp.y += pp.vy * dt;
 
-      const k = p.t / p.life;
-      if (p.kind === "SMOKE") {
-        p.size *= 1 + 0.35 * dt;
-        p.vx *= 1 - 0.65 * dt;
-        p.vy *= 1 - 0.65 * dt;
+      const k = pp.t / pp.life;
+      if (pp.kind === "SMOKE") {
+        pp.size *= 1 + 0.35 * dt;
+        pp.vx *= 1 - 0.65 * dt;
+        pp.vy *= 1 - 0.65 * dt;
       } else {
-        p.size *= 1 + 0.22 * dt;
-        p.vx *= 1 - 0.45 * dt;
-        p.vy *= 1 - 0.45 * dt;
+        pp.size *= 1 + 0.22 * dt;
+        pp.vx *= 1 - 0.45 * dt;
+        pp.vy *= 1 - 0.45 * dt;
       }
 
       if (k >= 1) world.fx.particles.splice(i, 1);
@@ -804,35 +837,53 @@
     ctx.globalAlpha = 1;
   }
 
-  function renderBonuses() {
-    for (const b of world.bonuses) {
-      // простая “монетка”
-      const pulse = 0.85 + 0.15 * Math.sin(world.t * 10 + b.id);
+  function renderPickups() {
+    for (const p of world.pickups) {
+      const pulse = 0.86 + 0.14 * Math.sin(world.t * 10 + p.id);
+
       ctx.save();
-      ctx.globalAlpha = 0.95;
-      ctx.translate(b.x, b.y);
+      ctx.translate(p.x, p.y);
       ctx.scale(pulse, pulse);
 
-      // glow
-      ctx.globalAlpha = 0.22;
-      ctx.fillStyle = BONUS_COLOR;
-      ctx.beginPath();
-      ctx.arc(0, 0, b.w * 0.75, 0, Math.PI * 2);
-      ctx.fill();
+      if (p.type === "BONUS") {
+        // coin-like glow
+        ctx.globalAlpha = 0.22;
+        ctx.fillStyle = "#ffd54a";
+        ctx.beginPath();
+        ctx.arc(0, 0, p.w * 0.75, 0, Math.PI * 2);
+        ctx.fill();
 
-      // core
-      ctx.globalAlpha = 0.92;
-      ctx.fillStyle = BONUS_COLOR;
-      ctx.beginPath();
-      ctx.arc(0, 0, b.w * 0.38, 0, Math.PI * 2);
-      ctx.fill();
+        ctx.globalAlpha = 0.95;
+        ctx.fillStyle = "#ffd54a";
+        ctx.beginPath();
+        ctx.arc(0, 0, p.w * 0.38, 0, Math.PI * 2);
+        ctx.fill();
 
-      // inner
-      ctx.globalAlpha = 0.55;
-      ctx.fillStyle = "#fff3c1";
-      ctx.beginPath();
-      ctx.arc(-3, -3, b.w * 0.18, 0, Math.PI * 2);
-      ctx.fill();
+        ctx.globalAlpha = 0.55;
+        ctx.fillStyle = "#fff3c1";
+        ctx.beginPath();
+        ctx.arc(-3, -3, p.w * 0.18, 0, Math.PI * 2);
+        ctx.fill();
+      } else {
+        // rocket/hit marker (red glow)
+        ctx.globalAlpha = 0.20;
+        ctx.fillStyle = "#ff3b3b";
+        ctx.beginPath();
+        ctx.arc(0, 0, p.w * 0.80, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.globalAlpha = 0.95;
+        ctx.fillStyle = "#ff3b3b";
+        ctx.beginPath();
+        ctx.arc(0, 0, p.w * 0.32, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.globalAlpha = 0.75;
+        ctx.fillStyle = "#ffd0d0";
+        ctx.beginPath();
+        ctx.arc(2, -2, p.w * 0.14, 0, Math.PI * 2);
+        ctx.fill();
+      }
 
       ctx.restore();
       ctx.globalAlpha = 1;
@@ -871,7 +922,7 @@
       ctx.globalAlpha = 1;
     }
 
-    // PLATFORMS
+    // Platforms
     for (const p of world.platforms) {
       const ok = drawCentered(GFX.island, p.x, p.y, p.w, p.h, 0);
       if (!ok) {
@@ -880,8 +931,8 @@
       }
     }
 
-    // Bonuses
-    renderBonuses();
+    // Pickups in air
+    renderPickups();
 
     // FX
     if (world.fx.mode === "BLUE") renderRibbonTwoLayer();
@@ -903,7 +954,7 @@
 
     ctx.restore();
 
-    // loading hint (можешь потом убрать)
+    // loading hint
     if (!GFX.ready) {
       ctx.fillStyle = "rgba(255,255,255,0.75)";
       ctx.font = "600 14px Arial";
