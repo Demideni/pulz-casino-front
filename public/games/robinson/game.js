@@ -305,7 +305,8 @@
     const yDeck = H * WATER_LINE_REL;
     const { w: pW } = platformBaseSize();
 
-    const p0 = spawnPlatform(heroX + pW * 0.18, yDeck);
+    const p0 = spawnPlatform(heroX, yDeck);
+    world.nextPlatformX = p0.x;
     // поставить героя на палубу, без движения
     world.hero.y = deckTopY(p0) - world.hero.h * 0.45;
     world.hero.vy = 0;
@@ -316,7 +317,8 @@
 
     // pickups
     world.nextSpawnIn = 0; // больше не используем таймерный спавн платформ
-    world.nextPickupIn = rnd(PICKUP_GAP_MIN, PICKUP_GAP_MAX);
+    world.nextPickupIn = 0.08; // первый спавн рядом после старта
+    spawnPickupBurst(world.fx.worldSpeed, world.hero.x + W * 0.55);
   }
 
   function endRound(result) {
@@ -441,31 +443,32 @@
     // prune left
     for (let i = world.platforms.length - 1; i >= 0; i--) {
       const p = world.platforms[i];
-      if (p.x < -(p.w + 400)) world.platforms.splice(i, 1);
+      if (p.x < -(p.w + 500)) world.platforms.splice(i, 1);
     }
 
-    // find rightmost
+    // recompute rightmost and keep world.nextPlatformX in sync
     let rightmost = -Infinity;
     for (const p of world.platforms) rightmost = Math.max(rightmost, p.x);
-
     if (!isFinite(rightmost)) {
-      // should not happen, but recover
       const heroX = W * HERO_X_REL;
-      const p0 = spawnPlatform(heroX + 140, y);
+      const p0 = spawnPlatform(heroX, y);
       rightmost = p0.x;
     }
+    world.nextPlatformX = rightmost;
 
-    // keep some buffer to the right
-    const targetRight = W + step * 1.5;
-    while (rightmost < targetRight) {
-      rightmost += step;
-      spawnPlatform(rightmost, y);
+    // keep buffer to the right (in distance, not time)
+    const targetRight = W + step * 2.2;
+    while (world.nextPlatformX < targetRight) {
+      world.nextPlatformX += step;
+      spawnPlatform(world.nextPlatformX, y);
     }
   }
 
   
-  function spawnPickupBurst(worldSpeed) {
-    const x0 = W + rnd(W * 0.22, W * 0.48);
+  function spawnPickupBurst(worldSpeed, xStart) {
+    const hx = world.hero.x;
+    const x0 = (xStart !== undefined ? xStart : (W + rnd(W * 0.06, W * 0.18)));
+    const baseX = Math.max(x0, hx + W * 0.32);
 
     // лэйны по высоте (как у рефа) — выше/ниже
     const yLanes = [
@@ -477,9 +480,9 @@
     ];
 
     const lane = yLanes[Math.floor(Math.random() * yLanes.length)];
-    const count = 2 + Math.floor(Math.random() * 4); // 2..5
+    const count = 3 + Math.floor(Math.random() * 5); // 3..7 (больше объектов)
 
-    let x = x0;
+    let x = baseX;
     for (let i = 0; i < count; i++) {
       const y = lane + rnd(-55, 55);
       const type = Math.random() < BONUS_CHANCE ? "BONUS" : "ROCKET";
@@ -503,7 +506,8 @@
     world.nextPickupIn -= dt;
     if (world.nextPickupIn > 0) return;
     spawnPickupBurst(worldSpeed);
-    world.nextPickupIn = rnd(PICKUP_GAP_MIN, PICKUP_GAP_MAX);
+    world.nextPickupIn = 0.08; // первый спавн рядом после старта
+    spawnPickupBurst(world.fx.worldSpeed, world.hero.x + W * 0.55);
   }
 
   function updatePickups(dt, worldSpeed) {
@@ -554,12 +558,12 @@
     if (world.t < world.ignoreTouchdownUntil) return;
 
     const hero = world.hero;
+    if (hero.vy < 0) return; // only falling
 
-    // только когда падаем вниз
-    if (hero.vy < 0) return;
-
-    const bottomNow = hero.y + hero.h / 2;
     const bottomPrev = hero.prevBottom;
+    const bottomNow = hero.y + hero.h / 2;
+
+    if (bottomNow <= bottomPrev) return;
 
     const PAD_X = hero.w * 0.18;
 
@@ -567,49 +571,44 @@
       const p = world.platforms[i];
 
       const top = deckTopY(p);
-      const left = deckLeftX(p);
-      const right = deckRightX(p);
 
-      // должен быть над палубой по X
+      // swept crossing time (0..1) for bottom crossing deck top
+      if (!(bottomPrev < top && bottomNow >= top)) continue;
+      const tCross = clamp((top - bottomPrev) / (bottomNow - bottomPrev), 0, 1);
+
+      // platform moves in the same step: use prevX->x at crossing time
+      const prevX = (p.prevX !== undefined ? p.prevX : p.x);
+      const px = prevX + (p.x - prevX) * tCross;
+      const left = px - p.w / 2;
+      const right = px + p.w / 2;
+
+      // X overlap (allow small padding)
       if (hero.x < left - PAD_X || hero.x > right + PAD_X) continue;
 
-      // пересёк линию палубы между кадрами
-      const crossed = bottomPrev < top && bottomNow >= top;
-      if (!crossed) continue;
+      // normalize landing u in [0..1]
+      const u = clamp((hero.x - left) / Math.max(1, right - left), 0, 1);
+      const inWinZone = u >= WIN_ZONE_L && u <= WIN_ZONE_R;
+      const inLoseZone = u >= LOSE_ZONE_L && u <= LOSE_ZONE_R;
 
-      // === Всегда фиксируем контакт, чтобы НЕ было визуального "пролёта" ===
+      const wantWin = world.plan && world.plan.result === "WIN";
+      const okZone = wantWin ? inWinZone : inLoseZone;
+
+      // crossed outside required zone -> miss, keep flying (no snap, no teleport)
+      if (!okZone) continue;
+
+      // === LAND (snap only by Y, never change X) ===
       hero.y = top - hero.h * 0.45;
       hero.vy = 0;
       hero.rot = 0.08;
 
-      // зона по X (0..1)
-      const nx = clamp((hero.x - left) / Math.max(1, right - left), 0, 1);
-      const inWinZone = nx >= WIN_ZONE_L && nx <= WIN_ZONE_R;
-      const inLoseZone = nx >= LOSE_ZONE_L && nx <= LOSE_ZONE_R;
-
-      const wantWin = world.plan.result === "WIN";
-      const okZone = wantWin ? inWinZone : inLoseZone;
-
-      // FEEL удар об палубу в любом случае
       hitPause(0.055, 0.22, 0.14);
       cameraPunch(-8, 6);
       cameraKick(1.25);
 
-      if (okZone) {
-        // WIN: прокат по палубе
-        world.decided = true;
-
-        state = State.LANDING_ROLL;
-        world.roll.vx = Math.max(320, speed * 0.85);
-        world.roll.platformId = p.id;
-        return;
-      }
-
-      // LOSE: попал на палубу, но не в нужную зону — сразу проигрыш (без пролёта)
       world.decided = true;
-      setDamagedTrail(1.2);
-      world.hero.vy = 420;
-      endRound("LOSE");
+      state = State.LANDING_ROLL;
+      world.roll.vx = Math.max(320, speed * 0.85);
+      world.roll.platformId = p.id;
       return;
     }
   }
