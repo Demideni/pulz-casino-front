@@ -499,7 +499,7 @@
     }
   }
 
-  function maybeSpawnPickup(dt, worldSpeed) {(dt, worldSpeed) {
+  function maybeSpawnPickup(dt, worldSpeed) {
     world.nextPickupIn -= dt;
     if (world.nextPickupIn > 0) return;
     spawnPickupBurst(worldSpeed);
