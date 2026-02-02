@@ -148,6 +148,7 @@
   // ===== Params =====
   const HERO_X_REL = 0.25;
   const WATER_LINE_REL = 0.80;
+  const PLATFORM_Y_RAISE_PX = 110; // поднять палубы выше, чтобы не перекрывались инфо-блоком
   const PLAYFIELD_TOP_REL = 0.18;
 
   const GRAVITY = 750;
@@ -188,6 +189,8 @@
   // Размер оставляем базовым, а плотность увеличиваем.
   // По ТЗ: бонусов/ракет больше, заметнее, выше по экрану и уже в самом начале раунда.
   const PICKUP_SIZE = 78;
+  const BONUS_SIZE = Math.round(PICKUP_SIZE * 1.3); // бонусы +30%
+  const ROCKET_SIZE = PICKUP_SIZE; // ракеты без изменений
   const PICKUP_DENSITY = 3.2; // заметно плотнее
   const PICKUP_SPACING_MIN_PX = Math.round(170 / PICKUP_DENSITY);
   const PICKUP_SPACING_MAX_PX = Math.round(330 / PICKUP_DENSITY);
@@ -399,7 +402,7 @@
 
     // ===== Platforms: ровная цепочка (фиксированная высота + фиксированный шаг) =====
     const { w: pw, h: ph } = platformBaseSize();
-    world.platformY = Math.round(H * WATER_LINE_REL);
+    world.platformY = Math.round(H * WATER_LINE_REL) - PLATFORM_Y_RAISE_PX;
     world.platformSpacingPx = Math.max(240, Math.round(pw * PLATFORM_SPACING_MULT));
 
     // стартовая платформа прямо под героем
@@ -636,8 +639,8 @@ window.RobinsonGame = {
       id: world.nextPickupId++,
       x,
       y,
-      w: PICKUP_SIZE,
-      h: PICKUP_SIZE,
+      w: (type === "ROCKET" ? ROCKET_SIZE : BONUS_SIZE),
+      h: (type === "ROCKET" ? ROCKET_SIZE : BONUS_SIZE),
       type,
       age: 0,
     });
@@ -1070,7 +1073,7 @@ window.RobinsonGame = {
       }
 
 if (isBonus) {
-        ctx.globalAlpha = 0.22;
+        ctx.globalAlpha = 0.10;
         ctx.fillStyle = "#ffd54a";
         ctx.beginPath();
         ctx.arc(0, 0, p.w * 0.75, 0, Math.PI * 2);
@@ -1205,8 +1208,8 @@ if (isBonus) {
       const sizeMoon = Math.min(W, H) * 0.34;
       const sizeMars = Math.min(W, H) * 0.26;
 
-      const okMoon = drawPlanet(GFX.moon, W * 0.78, H * 0.30, 0.10, sizeMoon, 0.75);
-      const okMars = drawPlanet(GFX.mars, W * 0.85, H * 0.20, 0.15, sizeMars, 0.72);
+      const okMoon = drawPlanet(GFX.moon, W * 0.78, H * 0.30, 0.10, sizeMoon, 0.30);
+      const okMars = drawPlanet(GFX.mars, W * 0.85, H * 0.20, 0.15, sizeMars, 0.29);
 
       // fallback: simple circles if planets not found
       if (!okMoon || !okMars) {
@@ -1214,7 +1217,7 @@ if (isBonus) {
         const p2x = (W * 0.38) - ((t * ws * 0.028) % (W + 420)) + 210;
 
         ctx.save();
-        ctx.globalAlpha = 0.22;
+        ctx.globalAlpha = 0.10;
         ctx.fillStyle = "#2cf2ff";
         ctx.beginPath();
         ctx.arc(p1x, H * 0.28, 58, 0, Math.PI * 2);
@@ -1293,7 +1296,7 @@ if (world.floaters && world.floaters.length) {
       ctx.font = "900 18px Arial";
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
-      ctx.fillStyle = "rgba(255,255,255,0.92)";
+      ctx.fillStyle = "#FFD84D";
       ctx.shadowColor = "rgba(0,0,0,0.55)";
       ctx.shadowBlur = 12;
       ctx.fillText("$" + pot.toFixed(pot >= 100 ? 0 : 2), sx, sy);
