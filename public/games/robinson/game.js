@@ -1102,8 +1102,8 @@ window.RobinsonGame = {
       const sizeMoon = Math.min(W, H) * 0.34;
       const sizeMars = Math.min(W, H) * 0.26;
 
-      const okMoon = drawPlanet(GFX.moon, W * 0.78, H * 0.30, 0.20, sizeMoon, 0.75);
-      const okMars = drawPlanet(GFX.mars, W * 0.85, H * 0.20, 0.10, sizeMars, 0.72);
+      const okMoon = drawPlanet(GFX.moon, W * 0.78, H * 0.15, 0.20, sizeMoon, 0.75);
+      const okMars = drawPlanet(GFX.mars, W * 0.85, H * 0.10, 0.10, sizeMars, 0.72);
 
       // fallback: simple circles if planets not found
       if (!okMoon || !okMars) {
