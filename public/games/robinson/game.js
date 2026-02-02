@@ -1023,12 +1023,19 @@ window.RobinsonGame = {
   }
 
   // ===== Render =====
-  function render() {
+  function render(alpha = 1) {
     ctx.clearRect(0, 0, W, H);
 
     ctx.save();
-    ctx.translate(W / 2 + world.cam.x, H / 2 + world.cam.y);
-    ctx.scale(world.cam.zoom || 1, world.cam.zoom || 1);
+    const _cp = world.camPrev || world.cam;
+    const _cc = world.cam;
+    const _a = clamp(alpha, 0, 1);
+    const camX = _cp.x + (_cc.x - _cp.x) * _a;
+    const camY = _cp.y + (_cc.y - _cp.y) * _a;
+    const camZ = (_cp.zoom || 1) + ((_cc.zoom || 1) - (_cp.zoom || 1)) * _a;
+
+    ctx.translate(W / 2 + camX, H / 2 + camY);
+    ctx.scale(camZ, camZ);
     ctx.translate(-W / 2, -H / 2);
 
     // BG
@@ -1177,11 +1184,16 @@ if (world.floaters && world.floaters.length) {
     loop.acc = Math.min(loop.acc, FIXED * 6);
 
     while (loop.acc >= FIXED) {
+      // keep previous camera state for render interpolation
+      world.camPrev = { x: world.cam.x, y: world.cam.y, zoom: world.cam.zoom };
       update(FIXED);
       loop.acc -= FIXED;
     }
 
-    render();
+    // if we didn't step, ensure camPrev exists
+    if (!world.camPrev) world.camPrev = { x: world.cam.x, y: world.cam.y, zoom: world.cam.zoom };
+    const alpha = loop.acc / FIXED;
+    render(alpha);
     requestAnimationFrame(loop);
   }
 
