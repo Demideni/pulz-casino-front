@@ -3,25 +3,7 @@
   if (!canvas) return console.error("[game] Canvas not found");
   const ctx = canvas.getContext("2d");
 
-  
-  // ===== Crash overlay (prevents "black screen") =====
-  function showCrash(err) {
-    try {
-      console.error(err);
-      const elId = "robinson-crash";
-      let el = document.getElementById(elId);
-      if (!el) {
-        el = document.createElement("div");
-        el.id = elId;
-        el.style.cssText = "position:fixed;left:12px;right:12px;top:12px;z-index:99999;background:rgba(0,0,0,.75);color:#fff;padding:10px 12px;border-radius:12px;font:12px/1.35 -apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Arial;white-space:pre-wrap;";
-        document.body.appendChild(el);
-      }
-      el.textContent = "[Robinson JS crash]\n" + (err && (err.stack || err.message) ? (err.stack || err.message) : String(err));
-    } catch {}
-  }
-  window.addEventListener("error", (e) => showCrash(e.error || e.message));
-  window.addEventListener("unhandledrejection", (e) => showCrash(e.reason || e));
-// ===== Assets =====
+  // ===== Assets =====
   function loadImage(src) {
     return new Promise((resolve) => {
       const img = new Image();
@@ -31,6 +13,28 @@
     });
   }
 
+  // Try multiple paths to avoid iOS/iframe baseURI weirdness
+  function loadImageAny(src) {
+    const candidates = [
+      src,
+      src.startsWith("./") ? src.slice(2) : src,
+      src.startsWith("assets/") ? "./" + src : src,
+      src.startsWith("assets/") ? "/games/robinson/" + src : src,
+      src.startsWith("./assets/") ? "/games/robinson/" + src.slice(2) : src,
+      "/games/robinson/" + src.replace(/^\.\//, ""),
+    ];
+    // de-dupe
+    const uniq = [...new Set(candidates)];
+    return new Promise(async (resolve) => {
+      for (const u of uniq) {
+        const img = await loadImage(u);
+        if (img) return resolve(img);
+      }
+      return resolve(null);
+    });
+  }
+
+
   const GFX = {
     bg: null,
     bgSpace: null,
@@ -38,43 +42,69 @@
     mars: null,
     robinson: null,
     island: null,
-    bonus: null,
+
+    // pickups
     bonusX2: null,
     bonusX3: null,
     bonusAdd1: null,
     bonusAdd2: null,
     bonusAdd3: null,
     rocket: null,
+
     ready: false,
   };
 
   Promise.all([
-    loadImage("./assets/splash_bg.png"),
-    loadImage("./assets/background/bg_space.png"),
-    loadImage("./assets/background/planet_moon.png"),
-    loadImage("./assets/background/planet_mars.png"),
+    loadImageAny("assets/splash_bg.png"),
+    loadImageAny("assets/background/bg_space.png"),
+    loadImageAny("assets/background/planet_moon.png"),
+    loadImageAny("assets/background/planet_mars.png"),
 
-    loadImage("./assets/robinson.png"),
-    loadImage("./assets/island_long.png"),
-    loadImage("./assets/bonus.png"),
-    loadImage("./assets/bonus_x2.png"),
-    loadImage("./assets/bonus_x3.png"),
-    loadImage("./assets/bonus_add1.png"),
-    loadImage("./assets/bonus_add2.png"),
-    loadImage("./assets/bonus_add3.png"),
-    loadImage("./assets/rocket.png"),
-  ]).then(([bg, bgSpace, moon, mars, robinson, island, bonus, bonusX2, bonusX3, bonusAdd1, bonusAdd2, bonusAdd3, rocket]) => {
-    GFX.bg = bg;
-    GFX.bgSpace = bgSpace;
-    GFX.moon = moon;
-    GFX.mars = mars;
+    loadImageAny("assets/robinson.png"),
+    loadImageAny("assets/island_long.png"),
 
-    GFX.robinson = robinson;
-    GFX.island = island;
-    GFX.bonus = bonus;
-    GFX.rocket = rocket;
-    GFX.ready = true;
-  });
+    // bonus types
+    loadImageAny("assets/bonus_x2.png"),
+    loadImageAny("assets/bonus_x3.png"),
+    loadImageAny("assets/bonus_add1.png"),
+    loadImageAny("assets/bonus_add2.png"),
+    loadImageAny("assets/bonus_add3.png"),
+
+    // hazards
+    loadImageAny("assets/rocket.png"),
+  ]).then(
+    ([
+      bg,
+      bgSpace,
+      moon,
+      mars,
+      robinson,
+      island,
+      bonusX2,
+      bonusX3,
+      bonusAdd1,
+      bonusAdd2,
+      bonusAdd3,
+      rocket,
+    ]) => {
+      GFX.bg = bg;
+      GFX.bgSpace = bgSpace;
+      GFX.moon = moon;
+      GFX.mars = mars;
+
+      GFX.robinson = robinson;
+      GFX.island = island;
+
+      GFX.bonusX2 = bonusX2;
+      GFX.bonusX3 = bonusX3;
+      GFX.bonusAdd1 = bonusAdd1;
+      GFX.bonusAdd2 = bonusAdd2;
+      GFX.bonusAdd3 = bonusAdd3;
+
+      GFX.rocket = rocket;
+      GFX.ready = true;
+    }
+  );
 
   // ===== Resize / DPR =====
   let W = 0,
@@ -157,9 +187,7 @@
   // Ты имел в виду НЕ размер, а количество.
   // Размер оставляем базовым, а плотность увеличиваем.
   // По ТЗ: бонусов/ракет больше, заметнее, выше по экрану и уже в самом начале раунда.
-  const BONUS_SIZE = Math.round(78 * 1.2); // ≈55 (30% smaller)
-
-  const ROCKET_SIZE = 65; // unchanged
+  const PICKUP_SIZE = 78;
   const PICKUP_DENSITY = 3.2; // заметно плотнее
   const PICKUP_SPACING_MIN_PX = Math.round(170 / PICKUP_DENSITY);
   const PICKUP_SPACING_MAX_PX = Math.round(330 / PICKUP_DENSITY);
@@ -192,7 +220,8 @@
 
     bet: 1,
     mult: 1,
-    add: 0,
+    add: 0, // additive winnings in bet currency
+
     roundId: null,
     floaters: [], // {x,y,text,color,age}
 
@@ -262,9 +291,8 @@
   function cameraPunch() {}
 
   function kickStartFeel() {
-    const gs = window.gsap;
-    if (!gs) return;
-    gs.fromTo(
+    if (!window.gsap) return;
+    gsap.fromTo(
       canvas,
       { filter: "brightness(1)" },
       { filter: "brightness(1.18)", duration: 0.12, yoyo: true, repeat: 1, ease: "sine.inOut" }
@@ -339,7 +367,7 @@
     world.hero.rot = 0;
 
     const scale = Math.min(W / 1200, H / 800, 1);
-    const heroScale = 2.47; // +30% bigger
+    const heroScale = 1.9; // +90%
     world.hero.w = Math.round(110 * scale * heroScale);
     world.hero.h = Math.round(110 * scale * heroScale);
     world.hero.prevBottom = world.hero.y + world.hero.h / 2;
@@ -587,15 +615,13 @@ window.RobinsonGame = {
     let type = "ROCKET";
     if (isBonus) {
       const r = Math.random();
-      // distribution: tweakable
-      if (r < 0.24) type = "BONUS_X2";
-      else if (r < 0.34) type = "BONUS_X3";
-      else if (r < 0.64) type = "BONUS_ADD1";
-      else if (r < 0.86) type = "BONUS_ADD2";
+      // tune: more +1/+2, rarer x3/+3
+      if (r < 0.22) type = "BONUS_X2";
+      else if (r < 0.30) type = "BONUS_X3";
+      else if (r < 0.62) type = "BONUS_ADD1";
+      else if (r < 0.88) type = "BONUS_ADD2";
       else type = "BONUS_ADD3";
     }
-
-    const size = type.startsWith("BONUS") ? BONUS_SIZE : ROCKET_SIZE;
 
     // Не даём объектам появляться вплотную друг к другу.
     for (const p of world.pickups) {
@@ -610,8 +636,8 @@ window.RobinsonGame = {
       id: world.nextPickupId++,
       x,
       y,
-      w: size,
-      h: size,
+      w: PICKUP_SIZE,
+      h: PICKUP_SIZE,
       type,
       age: 0,
     });
@@ -657,29 +683,29 @@ window.RobinsonGame = {
       if (aabb(hx, hy, hw, hh, px, py, p.w, p.h)) {
         world.pickups.splice(i, 1);
 
-        if (p.type.startsWith("BONUS")) {
+        if (p.type === "BONUS_X2") {
+          world.mult = clamp(world.mult * 2, 0.1, 999);
+          world.bonusCount += 1;
+          emitBonus("BONUS_X2");
+          world.floaters.push({ x: p.x, y: p.y - 30, text: "x2", color: "rgba(70,255,160,1)", age: 0 });
+          world.hero.vy = Math.min(world.hero.vy, 0) - BONUS_IMPULSE;
+        } else if (p.type === "BONUS_X3") {
+          world.mult = clamp(world.mult * 3, 0.1, 999);
+          world.bonusCount += 1;
+          emitBonus("BONUS_X3");
+          world.floaters.push({ x: p.x, y: p.y - 30, text: "x3", color: "rgba(70,255,160,1)", age: 0 });
+          world.hero.vy = Math.min(world.hero.vy, 0) - BONUS_IMPULSE;
+        } else if (p.type === "BONUS_ADD1" || p.type === "BONUS_ADD2" || p.type === "BONUS_ADD3") {
+          const n = p.type === "BONUS_ADD1" ? 1 : p.type === "BONUS_ADD2" ? 2 : 3;
+          world.add += (Number(world.bet) || 0) * n;
           world.bonusCount += 1;
           emitBonus(p.type);
-
-          if (p.type === "BONUS_X2") {
-            world.mult = clamp(world.mult * 2, 0.1, 999);
-            world.floaters.push({ x: p.x, y: p.y - 30, text: "x2", color: "rgba(70,255,160,1)", age: 0 });
-            world.hero.vy = Math.min(world.hero.vy, 0) - BONUS_IMPULSE;
-          } else if (p.type === "BONUS_X3") {
-            world.mult = clamp(world.mult * 3, 0.1, 999);
-            world.floaters.push({ x: p.x, y: p.y - 30, text: "x3", color: "rgba(70,255,160,1)", age: 0 });
-            world.hero.vy = Math.min(world.hero.vy, 0) - BONUS_IMPULSE;
-          } else {
-            const n = p.type === "BONUS_ADD1" ? 1 : p.type === "BONUS_ADD2" ? 2 : 3;
-            const bet = Number(world.bet) || 0;
-            world.add = (Number(world.add) || 0) + bet * n;
-            world.floaters.push({ x: p.x, y: p.y - 30, text: "+" + n, color: "rgba(70,255,160,1)", age: 0 });
-            world.hero.vy = Math.min(world.hero.vy, 0) - BONUS_IMPULSE * 0.75;
-          }
+          world.floaters.push({ x: p.x, y: p.y - 30, text: "+" + n, color: "rgba(70,255,160,1)", age: 0 });
+          world.hero.vy = Math.min(world.hero.vy, 0) - BONUS_IMPULSE;
         } else {
-          // ROCKET: /2 to BOTH mult and add
+          // ROCKET: /2 on everything
           world.mult = clamp(world.mult * 0.5, 0.1, 999);
-          world.add = (Number(world.add) || 0) * 0.5;
+          world.add *= 0.5;
 
           emitHit("ROCKET");
           world.floaters.push({ x: p.x, y: p.y - 30, text: "/2", color: "rgba(255,90,90,1)", age: 0 });
@@ -692,71 +718,64 @@ window.RobinsonGame = {
   }
 
   // ===== Landing (FIXED): landing strip collider, no nearest, no teleport =====
-  // ===== Landing (FIXED): robust swept landing using hero bbox (prevents "through deck" near edges) =====
-function tryTouchdown(speed) {
-  if (world.decided) return;
+  function tryTouchdown(speed) {
+    if (world.decided) return;
 
-  const hero = world.hero;
+    const hero = world.hero;
+    const bottomNow = hero.y + hero.h / 2;
+    const bottomPrev = hero.prevBottom;
 
-  // bottom edges (for swept Y crossing)
-  const bottomNow = hero.y + hero.h / 2;
-  const bottomPrev = hero.prevBottom;
+    // садимся только когда летим вниз
+    if (hero.vy < 0) return;
 
-  // land only while moving down
-  if (hero.vy < 0) return;
+    // небольшой допуск по X, чтобы не было "почти попал"
+    const PAD_X = hero.w * 0.16;
 
-  // Use hero bbox in X (not just hero.x point) so edge contacts count
-  const heroLeft = hero.x - hero.w / 2;
-  const heroRight = hero.x + hero.w / 2;
+    for (let i = 0; i < world.platforms.length; i++) {
+      const p = world.platforms[i];
 
-  // small tolerances to avoid missing by 1-2px due to dt/rounding
-  const EPS_Y = 14;
-  const EPS_X = 10;
+      const top = deckTopY(p);
 
-  for (let i = 0; i < world.platforms.length; i++) {
-    const p = world.platforms[i];
+      // swept по X (платформа сдвигается за кадр)
+      const leftNow = deckLeftX(p);
+      const rightNow = deckRightX(p);
+      const prevX = typeof p.prevX === "number" ? p.prevX : p.x;
+      const leftPrev = prevX - p.w / 2;
+      const rightPrev = prevX + p.w / 2;
+      const leftSweep = Math.min(leftPrev, leftNow);
+      const rightSweep = Math.max(rightPrev, rightNow);
 
-    const top = deckTopY(p);
+      // должен быть над палубой по X (учитывая sweep и допуск)
+      if (hero.x < leftSweep - PAD_X || hero.x > rightSweep + PAD_X) continue;
 
-    // platform swept X between prevX and current X (platform moves left each frame)
-    const leftNow = deckLeftX(p);
-    const rightNow = deckRightX(p);
+      // пересёк верх палубы между кадрами
+      const crossed = bottomPrev < top && bottomNow >= top;
+      if (!crossed) continue;
 
-    const prevX = typeof p.prevX === "number" ? p.prevX : p.x;
-    const leftPrev = prevX - p.w / 2;
-    const rightPrev = prevX + p.w / 2;
+      // финальная проверка X в swept-границах
+      if (hero.x < leftSweep || hero.x > rightSweep) continue;
 
-    const leftSweep = Math.min(leftPrev, leftNow) - EPS_X;
-    const rightSweep = Math.max(rightPrev, rightNow) + EPS_X;
+      // === САДИМСЯ В ЛЮБОЙ ТОЧКЕ ВЕРХНЕЙ ПАЛУБЫ ===
+      world.decided = true;
 
-    // hero bbox overlaps swept deck interval?
-    const overlapX = heroRight > leftSweep && heroLeft < rightSweep;
-    if (!overlapX) continue;
+      hero.y = top - hero.h * 0.45;
+      hero.vy = 0;
+      hero.rot = 0.06;
 
-    // swept Y: did hero cross the deck top between frames?
-    const crossedY = bottomPrev <= top + EPS_Y && bottomNow >= top - EPS_Y;
-    if (!crossedY) continue;
+      state = State.LANDING_ROLL;
 
-    // === LAND: any point on the top deck ===
-    world.decided = true;
+      // катится РОВНО половину длины палубы
+      world.roll.platformId = p.id;
+      world.roll.remain = Math.max(10, p.w * 0.5);
 
-    // snap hero onto deck
-    hero.y = top - hero.h * 0.45;
-    hero.vy = 0;
-    hero.rot = 0.06;
+      // скорость качения зависит от текущей скорости мира (feel)
+      world.roll.speed = clamp(speed * 0.85, 340, 860);
 
-    state = State.LANDING_ROLL;
+      // no camera FX on landing (requested)
 
-    // roll exactly half the deck length
-    world.roll.platformId = p.id;
-    world.roll.remain = Math.max(10, p.w * 0.5);
-
-    // rolling speed depends on current world speed for feel
-    world.roll.speed = clamp(speed * 0.85, 340, 860);
-
-    return;
+      return;
+    }
   }
-}
 
 
   // ===== Update =====
@@ -834,16 +853,6 @@ function tryTouchdown(speed) {
         if (f.age > 0.75) world.floaters.splice(i, 1);
       }
 
-
-      // HUD stats (for info panel)
-      try {
-        window.RobinsonUI?.setStats?.({
-          time: world.roundT,
-          altitude: Math.max(0, (H * WATER_LINE_REL - world.hero.y) / 10),
-          distance: Math.max(0, (world.hero.x - W * HERO_X_REL) / 10),
-          multiplier: world.mult,
-        });
-      } catch (e) {}
       // LOSE only if реально ушёл вниз
       if (world.hero.y - world.hero.h / 2 > H + 110 && !world.result) {
         endRound("LOSE");
@@ -1037,39 +1046,30 @@ function tryTouchdown(speed) {
 
   function renderPickups() {
     for (const p of world.pickups) {
-      const pulse =
-        p.type.startsWith("BONUS")
-          ? 0.94 + 0.06 * Math.sin(world.t * 2.5 + p.id) // slower pulse (x2)
-          : 1; // rockets no pulse
+      const isBonus = p.type.startsWith("BONUS");
+      const pulse = isBonus ? (0.92 + 0.08 * Math.sin(world.t * 5 + p.id)) : 1;
 
       ctx.save();
       ctx.translate(p.x, p.y);
       ctx.scale(pulse, pulse);
 
       // Если есть спрайты — рисуем их (это приоритет).
-      const bonusImg = (
-        p.type === "BONUS_X2" ? GFX.bonusX2 :
-        p.type === "BONUS_X3" ? GFX.bonusX3 :
-        p.type === "BONUS_ADD1" ? GFX.bonusAdd1 :
-        p.type === "BONUS_ADD2" ? GFX.bonusAdd2 :
-        p.type === "BONUS_ADD3" ? GFX.bonusAdd3 :
-        GFX.bonus
-      );
+      let img = null;
+      if (p.type === "BONUS_X2") img = GFX.bonusX2;
+      else if (p.type === "BONUS_X3") img = GFX.bonusX3;
+      else if (p.type === "BONUS_ADD1") img = GFX.bonusAdd1;
+      else if (p.type === "BONUS_ADD2") img = GFX.bonusAdd2;
+      else if (p.type === "BONUS_ADD3") img = GFX.bonusAdd3;
+      else if (p.type === "ROCKET") img = GFX.rocket;
 
-      if (p.type.startsWith("BONUS") && bonusImg) {
+      if (img) {
         ctx.globalAlpha = 1;
-        ctx.drawImage(bonusImg, -p.w / 2, -p.h / 2, p.w, p.h);
-        ctx.restore();
-        continue;
-      }
-      if (p.type === "ROCKET" && GFX.rocket) {
-        ctx.globalAlpha = 1;
-        ctx.drawImage(GFX.rocket, -p.w / 2, -p.h / 2, p.w, p.h);
+        ctx.drawImage(img, -p.w / 2, -p.h / 2, p.w, p.h);
         ctx.restore();
         continue;
       }
 
-      if (p.type.startsWith("BONUS")) {
+if (isBonus) {
         ctx.globalAlpha = 0.22;
         ctx.fillStyle = "#ffd54a";
         ctx.beginPath();
@@ -1293,7 +1293,7 @@ if (world.floaters && world.floaters.length) {
       ctx.font = "900 18px Arial";
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
-      ctx.fillStyle = "#FFD84D"; // yellow potential win
+      ctx.fillStyle = "rgba(255,255,255,0.92)";
       ctx.shadowColor = "rgba(0,0,0,0.55)";
       ctx.shadowBlur = 12;
       ctx.fillText("$" + pot.toFixed(pot >= 100 ? 0 : 2), sx, sy);
