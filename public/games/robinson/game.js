@@ -180,7 +180,7 @@
   // Шаг = длина 3 платформ (по ТЗ).
   // По ТЗ: авианосцы длиннее в 1.5 раза и стоят в 2 раза дальше.
   // Было: width_mul=1.0, spacing=3.0 длины → станет: width_mul=1.5, spacing=6.0 длины.
-  const PLATFORM_WIDTH_MUL = 1.5;
+  const PLATFORM_WIDTH_MUL = 1.95; // +30% длина авианосцев
   const PLATFORM_SPACING_MULT = 6.0; // расстояние между платформами = 6 длины платформы
 
   // landing zones (0..1 along deck)
@@ -1341,7 +1341,7 @@ if (isBonus) {
     {
       const h = world.hero;
       const sx = h.x + world.cam.x;
-      const sy = h.y + world.cam.y - h.h * 0.75;
+      const sy = h.y + world.cam.y - h.h * 0.60; // ближе к Робинзону
       const bet = Number(world.bet) || 0;
       const mult = Number(world.mult) || 1;
       const add = Number(world.add) || 0;
@@ -1349,7 +1349,7 @@ if (isBonus) {
 
       ctx.save();
       ctx.globalAlpha = state === State.RUNNING || state === State.LANDING_ROLL ? 1 : 0;
-      ctx.font = "900 18px Arial";
+      ctx.font = "900 26px Arial"; // +40% размер
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
       ctx.fillStyle = "#FFD84D";
