@@ -129,7 +129,9 @@
   // Ты имел в виду НЕ размер, а количество.
   // Размер оставляем базовым, а плотность увеличиваем.
   // По ТЗ: бонусов/ракет больше, заметнее, выше по экрану и уже в самом начале раунда.
-  const PICKUP_SIZE = 78;
+  const BONUS_SIZE = Math.round(78 * 0.7); // ≈55 (30% smaller)
+
+  const ROCKET_SIZE = 78; // unchanged
   const PICKUP_DENSITY = 3.2; // заметно плотнее
   const PICKUP_SPACING_MIN_PX = Math.round(170 / PICKUP_DENSITY);
   const PICKUP_SPACING_MAX_PX = Math.round(330 / PICKUP_DENSITY);
@@ -307,7 +309,7 @@
     world.hero.rot = 0;
 
     const scale = Math.min(W / 1200, H / 800, 1);
-    const heroScale = 1.9; // +90%
+    const heroScale = 2.47; // +30% bigger
     world.hero.w = Math.round(110 * scale * heroScale);
     world.hero.h = Math.round(110 * scale * heroScale);
     world.hero.prevBottom = world.hero.y + world.hero.h / 2;
@@ -552,6 +554,8 @@ window.RobinsonGame = {
 
     const type = Math.random() < BONUS_CHANCE ? "BONUS" : "ROCKET";
 
+    const size = type === "BONUS" ? BONUS_SIZE : ROCKET_SIZE;
+
     // Не даём объектам появляться вплотную друг к другу.
     for (const p of world.pickups) {
       const dx = p.x - x;
@@ -565,8 +569,8 @@ window.RobinsonGame = {
       id: world.nextPickupId++,
       x,
       y,
-      w: PICKUP_SIZE,
-      h: PICKUP_SIZE,
+      w: size,
+      h: size,
       type,
       age: 0,
     });
@@ -782,6 +786,16 @@ function tryTouchdown(speed) {
         if (f.age > 0.75) world.floaters.splice(i, 1);
       }
 
+
+      // HUD stats (for info panel)
+      try {
+        window.RobinsonUI?.setStats?.({
+          time: world.roundT,
+          altitude: Math.max(0, (H * WATER_LINE_REL - world.hero.y) / 10),
+          distance: Math.max(0, (world.hero.x - W * HERO_X_REL) / 10),
+          multiplier: world.mult,
+        });
+      } catch (e) {}
       // LOSE only if реально ушёл вниз
       if (world.hero.y - world.hero.h / 2 > H + 110 && !world.result) {
         endRound("LOSE");
@@ -975,7 +989,10 @@ function tryTouchdown(speed) {
 
   function renderPickups() {
     for (const p of world.pickups) {
-      const pulse = 0.86 + 0.14 * Math.sin(world.t * 10 + p.id);
+      const pulse =
+        p.type === "BONUS"
+          ? 0.92 + 0.08 * Math.sin(world.t * 5 + p.id) // slower pulse
+          : 1; // rockets no pulse
 
       ctx.save();
       ctx.translate(p.x, p.y);
@@ -1218,7 +1235,7 @@ if (world.floaters && world.floaters.length) {
       ctx.font = "900 18px Arial";
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
-      ctx.fillStyle = "rgba(255,255,255,0.92)";
+      ctx.fillStyle = "#FFD84D"; // yellow potential win
       ctx.shadowColor = "rgba(0,0,0,0.55)";
       ctx.shadowBlur = 12;
       ctx.fillText("$" + pot.toFixed(pot >= 100 ? 0 : 2), sx, sy);
