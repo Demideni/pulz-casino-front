@@ -6,9 +6,20 @@ import BottomNav from "@/components/BottomNav";
 import PulzBootOverlay from "@/components/PulzBootOverlay";
 import TopBar from "@/components/TopBar";
 
+export const metadata = {
+  title: "Robinson",
+  manifest: "/manifest.json",
+  themeColor: "#000000",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "black"
+  },
+};
+
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="ru" className="bg-black text-slate-100">
+      <link rel="apple-touch-icon" href="/pwa/apple-touch-icon.png" />
       <body className="bg-black text-slate-100 antialiased">
         {/* фирменная загрузка (overlay) */}
         <PulzBootOverlay />
