@@ -110,9 +110,10 @@
   const PLATFORM_POOL = 9;
   // Платформы (палубы) должны идти ровной цепочкой: фиксированная высота и шаг.
   // Шаг = длина 3 платформ (по ТЗ).
-  // Возвращаем “нормальный” размер палубы (как было до экспериментов).
-  const PLATFORM_WIDTH_MUL = 1.0;
-  const PLATFORM_SPACING_MULT = 3.0; // расстояние между платформами = 3 длины платформы
+  // По ТЗ: авианосцы длиннее в 1.5 раза и стоят в 2 раза дальше.
+  // Было: width_mul=1.0, spacing=3.0 длины → станет: width_mul=1.5, spacing=6.0 длины.
+  const PLATFORM_WIDTH_MUL = 1.5;
+  const PLATFORM_SPACING_MULT = 6.0; // расстояние между платформами = 6 длины платформы
 
   // landing zones (0..1 along deck)
   // Посадочные зоны под “нормальную” палубу.
@@ -127,17 +128,20 @@
   const BONUS_CHANCE = 0.66;
   // Ты имел в виду НЕ размер, а количество.
   // Размер оставляем базовым, а плотность увеличиваем.
-  const PICKUP_SIZE = 56;
-  const PICKUP_DENSITY = 1.8; // >1.5, потому что у тебя стало слишком редко
-  const PICKUP_SPACING_MIN_PX = Math.round(220 / PICKUP_DENSITY);
-  const PICKUP_SPACING_MAX_PX = Math.round(420 / PICKUP_DENSITY);
-  const PICKUP_MIN_SEP_PX = 120; // защита от “вплотную” даже при высокой плотности
+  // По ТЗ: бонусов/ракет больше, заметнее, выше по экрану и уже в самом начале раунда.
+  const PICKUP_SIZE = 78;
+  const PICKUP_DENSITY = 3.2; // заметно плотнее
+  const PICKUP_SPACING_MIN_PX = Math.round(170 / PICKUP_DENSITY);
+  const PICKUP_SPACING_MAX_PX = Math.round(330 / PICKUP_DENSITY);
+  const PICKUP_MIN_SEP_PX = 135; // защита от “вплотную” даже при высокой плотности
   const BONUS_IMPULSE = 260; // up
   const HIT_IMPULSE = 220; // down
 
   // ===== World =====
   const world = {
     t: 0,
+    // Parallax time runs at a stable base speed and must NOT accelerate with gameplay speed.
+    parallaxT: 0,
     roundT: 0,
     roundDur: 3.6,
 
@@ -328,6 +332,9 @@
     world.fx.lastRibbonX = world.hero.x;
     world.fx.lastRibbonY = world.hero.y;
 
+    // Keep parallax scrolling stable (no acceleration tied to worldSpeed)
+    world.parallaxT = 0;
+
     planRound();
 
     // ===== Platforms: ровная цепочка (фиксированная высота + фиксированный шаг) =====
@@ -357,9 +364,12 @@
     }
 
     // ===== Pickups =====
-    // Будем спавнить по "пройденному расстоянию" (в пикселях), чтобы на любой скорости
-    // объекты не появлялись вплотную.
-    world.nextPickupX = 40; // первые бонусы почти сразу
+    // Спавним сразу несколько объектов ближе к старту + дальше поддерживаем плотный спавн.
+    world.nextPickupX = 0; // сразу активируем catch-up
+    const startX = W * 0.62;
+    for (let i = 0; i < 6; i++) {
+      spawnPickupAtX(startX + i * 120);
+    }
   }
 
   function endRound(result) {
@@ -522,22 +532,23 @@ window.RobinsonGame = {
     }
   }
 
-  function spawnPickup() {
-    const x = W + rnd(110, 260);
+  function spawnPickupAtX(x) {
 
     // Два "коридора" по Y: верхний и нижний, но без прилипания к палубе.
     const topMin = H * PLAYFIELD_TOP_REL + 40;
-    const topMax = H * 0.42;
+    // Делаем воздушные объекты выше и заметнее.
+    const topMax = H * 0.36;
 
     // низ — выше палубы, чтобы бонусы/ракеты не оказывались "на платформе"
     const { h: ph } = platformBaseSize();
     const deckTop = world.platformY - ph / 2;
-    const lowMin = H * 0.54;
-    const lowMax = Math.min(deckTop - 70, H * (WATER_LINE_REL - 0.10));
+    // "Низ" всё равно выше палубы, но не сваливаемся в самый низ экрана.
+    const lowMin = H * 0.48;
+    const lowMax = Math.min(deckTop - 120, H * (WATER_LINE_REL - 0.16));
 
-    const target = clamp(world.hero.y + rnd(-170, 170), topMin, lowMax);
-    // держим рядом с траекторией героя, но с живым разбросом
-    const y = clamp(target + rnd(-35, 35), topMin, lowMax);
+    // Держим вокруг траектории героя, но специально сдвигаем вверх.
+    const target = clamp(world.hero.y - 120 + rnd(-210, 210), topMin, lowMax);
+    const y = clamp(target + rnd(-45, 45), topMin, lowMax);
 
     const type = Math.random() < BONUS_CHANCE ? "BONUS" : "ROCKET";
 
@@ -561,6 +572,11 @@ window.RobinsonGame = {
     });
 
     if (world.pickups.length > PICKUP_POOL) world.pickups.shift();
+  }
+
+  function spawnPickup() {
+    const x = W + rnd(110, 260);
+    spawnPickupAtX(x);
   }
 
   function maybeSpawnPickup(dt, worldSpeed) {
@@ -688,6 +704,9 @@ window.RobinsonGame = {
   function update(dt) {
     world.tPrev = world.t;
     world.t += dt;
+
+    // Parallax runs at stable base speed (must not accelerate with worldSpeed)
+    world.parallaxT += dt;
 
     // camera FX disabled (keep stable)
     world.cam.shake = 0;
@@ -1020,7 +1039,9 @@ window.RobinsonGame = {
     // Camera FX removed: render in screen-space (no shake/zoom/translate)
 
     // BG + Parallax (space)
-    const ws = Math.max(240, world.fx.worldSpeed || OBJECT_SPEED_BASE);
+    // Use stable parallax time (no coupling to worldSpeed acceleration)
+    const ws = OBJECT_SPEED_BASE;
+    const pt = world.parallaxT;
 
     function drawTiledX(img, speedFactor, alpha = 1) {
       if (!img) return;
@@ -1031,7 +1052,7 @@ window.RobinsonGame = {
 
       // horizontal parallax scroll
       const period = Math.max(1, dw);
-      let ox = -((world.t * ws * speedFactor) % period);
+      let ox = -((pt * ws * speedFactor) % period);
 
       ctx.save();
       ctx.globalAlpha = alpha;
@@ -1082,7 +1103,7 @@ window.RobinsonGame = {
 
     // 2) parallax planets (moon/mars)
     {
-      const t = world.t;
+      const t = pt;
 
       function drawPlanet(img, baseX, baseY, speedFactor, targetSize, alpha) {
         if (!img) return false;
@@ -1103,8 +1124,8 @@ window.RobinsonGame = {
       const sizeMoon = Math.min(W, H) * 0.34;
       const sizeMars = Math.min(W, H) * 0.26;
 
-      const okMoon = drawPlanet(GFX.moon, W * 0.78, H * 0.30, 0.28, sizeMoon, 0.75);
-      const okMars = drawPlanet(GFX.mars, W * 0.38, H * 0.20, 0.42, sizeMars, 0.72);
+      const okMoon = drawPlanet(GFX.moon, W * 0.78, H * 0.30, 0.10, sizeMoon, 0.75);
+      const okMars = drawPlanet(GFX.mars, W * 0.85, H * 0.20, 0.15, sizeMars, 0.72);
 
       // fallback: simple circles if planets not found
       if (!okMoon || !okMars) {
