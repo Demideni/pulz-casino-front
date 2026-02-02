@@ -1,116 +1,111 @@
 (() => {
-  const $ = (id) => document.getElementById(id);
-
-  const $play = $("play-btn");
-  const $speed = $("speed-btn");
-  const $betVal = $("bet-value");
-  const $balVal = $("balance-value");
-  const $betUp = $("bet-up");
-  const $betDown = $("bet-down");
-  const $alt = $("stat-alt");
-  const $dist = $("stat-dist");
-  const $mult = $("stat-mult");
-  const $timer = $("stat-timer");
-
+  const $play = document.getElementById("play-btn");
   if (!$play) {
-    console.error("[ui] missing #play-btn");
+    console.error("[ui] #play-btn not found");
     return;
   }
 
-  const SPEEDS = [
-    { key: "x1", factor: 1 },
-    { key: "x2", factor: 2 },
-    { key: "x3", factor: 3 },
-  ];
-  let speedIdx = 0;
+  let state = "IDLE"; // IDLE | RUNNING | LOCKED
+  let idleTween = null;
 
-  // BET model (dev defaults; can be overridden by bridge context)
-  const BET_STEPS = [0.1, 0.2, 0.5, 1, 2, 5, 10];
-  let betIdx = 2; // 0.5
-  let balance = 999.5;
+  const setLabel = (txt) => ($play.textContent = txt);
 
-  const fmt2 = (n) => (Math.round(n * 100) / 100).toFixed(2);
-
-  const renderMoney = () => {
-    if ($betVal) $betVal.textContent = fmt2(BET_STEPS[betIdx]);
-    if ($balVal) $balVal.textContent = fmt2(balance);
+  const setEnabled = (enabled) => {
+    $play.style.pointerEvents = enabled ? "auto" : "none";
+    $play.style.opacity = enabled ? "1" : "0.7";
   };
 
-  const renderSpeed = () => {
-    if (!$speed) return;
-    $speed.textContent = SPEEDS[speedIdx].key.toUpperCase();
+  const startIdleAnim = () => {
+    if (!window.gsap) return;
+    stopIdleAnim();
+    idleTween = gsap.to($play, {
+      scale: 1.06,
+      duration: 0.9,
+      yoyo: true,
+      repeat: -1,
+      ease: "sine.inOut",
+    });
   };
 
-  // Public UI API used by game.js
+  const stopIdleAnim = () => {
+    if (idleTween) {
+      idleTween.kill();
+      idleTween = null;
+    }
+    if (window.gsap) gsap.set($play, { scale: 1 });
+  };
+
+  const tapAnim = () => {
+    if (!window.gsap) return;
+    gsap.fromTo(
+      $play,
+      { scale: 1 },
+      { scale: 0.92, duration: 0.08, yoyo: true, repeat: 1, ease: "power2.out" }
+    );
+  };
+
+  const lockForRound = () => {
+    state = "RUNNING";
+    stopIdleAnim();
+    setEnabled(false);
+    setLabel("...");
+    if (window.gsap) {
+      gsap.to($play, { boxShadow: "0 0 10px rgba(0,180,255,0.45), inset 0 0 10px rgba(255,255,255,0.25)", duration: 0.2 });
+    }
+  };
+
+  const unlockAfterRound = () => {
+    state = "IDLE";
+    setEnabled(true);
+    setLabel("PLAY");
+    startIdleAnim();
+    if (window.gsap) {
+      // лёгкий “return”
+      gsap.fromTo($play, { scale: 0.98 }, { scale: 1, duration: 0.25, ease: "back.out(2)" });
+    }
+  };
+
+  // публичный UI API
   window.RobinsonUI = {
     onPlayClick(handler) {
-      $play.addEventListener("click", () => handler?.());
-    },
-    onSpeedClick(handler) {
-      if (!$speed) return;
-      $speed.addEventListener("click", () => {
-        speedIdx = (speedIdx + 1) % SPEEDS.length;
-        renderSpeed();
-        handler?.(SPEEDS[speedIdx]);
+      $play.addEventListener("click", () => {
+        if (state !== "IDLE") return;
+        tapAnim();
+        handler?.();
       });
     },
-    onBetChange(handler) {
-      $betUp?.addEventListener("click", () => {
-        betIdx = Math.min(BET_STEPS.length - 1, betIdx + 1);
-        renderMoney();
-        handler?.(BET_STEPS[betIdx]);
-      });
-      $betDown?.addEventListener("click", () => {
-        betIdx = Math.max(0, betIdx - 1);
-        renderMoney();
-        handler?.(BET_STEPS[betIdx]);
-      });
+    lockForRound,
+    unlockAfterRound,
+    startIdleAnim,
+    stopIdleAnim,
+    flashResult(isWin) {
+      if (!window.gsap) return;
+      gsap.fromTo(
+        $play,
+        { filter: "brightness(1)" },
+        { filter: `brightness(${isWin ? 1.35 : 1.1})`, duration: 0.18, yoyo: true, repeat: 3, ease: "sine.inOut" }
+      );
     },
-    lock(isLocked) {
-      // lock bet/speed while running
-      const pe = isLocked ? "none" : "auto";
-      $betUp && ($betUp.style.pointerEvents = pe);
-      $betDown && ($betDown.style.pointerEvents = pe);
-      $speed && ($speed.style.pointerEvents = pe);
-      $play.style.pointerEvents = isLocked ? "none" : "auto";
-      $play.style.opacity = isLocked ? "0.75" : "1";
-    },
-    setStats({ altitudeM, distanceM, multiplier, timeLeftS }) {
-      if ($alt) $alt.textContent = `${altitudeM.toFixed(1)}m`;
-      if ($dist) $dist.textContent = `${distanceM.toFixed(1)}m`;
-      if ($mult) $mult.textContent = `x${multiplier.toFixed(1)}`;
-      if ($timer) {
-        const s = Math.max(0, Math.floor(timeLeftS));
-        const mm = String(Math.floor(s / 60)).padStart(2, "0");
-        const ss = String(s % 60).padStart(2, "0");
-        $timer.textContent = `${mm}:${ss}`;
-      }
-    },
-    setBalance(v) {
-      balance = v;
-      renderMoney();
-    },
-    getContext() {
-      return {
-        bet: BET_STEPS[betIdx],
-        balance,
-        speed: SPEEDS[speedIdx],
-      };
-    },
+    showResultText(text, isWin) {
+  // меняем текст на кнопке на короткое время — как “казино”
+  const prev = $play.textContent;
+  $play.textContent = text;
+
+  if (window.gsap) {
+    gsap.fromTo(
+      $play,
+      { scale: 1 },
+      { scale: 1.08, duration: 0.22, ease: "back.out(2)" }
+    );
+  }
+
+  setTimeout(() => {
+    $play.textContent = prev;
+  }, 650);
+},
+
   };
 
-  // Init from bridge if available
-  try {
-    const ctx = window.RobinsonBridge?.getContext?.();
-    if (ctx) {
-      if (typeof ctx.balance === "number") balance = ctx.balance;
-      if (typeof ctx.bet === "number") {
-        const i = BET_STEPS.findIndex((x) => Math.abs(x - ctx.bet) < 1e-9);
-        if (i >= 0) betIdx = i;
-      }
-    }
-  } catch {}
-
-  renderMoney();
-  renderSpeed();
+  // стартовое состояние
+  startIdleAnim();
 })();

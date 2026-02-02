@@ -1,869 +1,1035 @@
-/*
-  Pulz Robinson (Aviamasters-style prototype)
-  Variant 2: hero moves to the right; camera follows; background parallax.
-  Single-file game.js by design (fast iteration).
-
-  Notes:
-  - Assets are optional. If not found, we render stylish vector placeholders.
-  - To add parallax images later, drop files into ./assets/:
-      bg_far.png, bg_mid.png, bg_near.png
-    They will auto-load and tile.
-*/
-
 (() => {
   const canvas = document.getElementById("game-canvas");
-  if (!canvas) {
-    console.error("[robinson] #game-canvas not found");
-    return;
-  }
-  const ctx = canvas.getContext("2d", { alpha: false });
+  if (!canvas) return console.error("[game] Canvas not found");
+  const ctx = canvas.getContext("2d");
 
-  // ---------------------------
-  // Config
-  // ---------------------------
-  const CFG = {
-    // Simulation
-    fixedDt: 1 / 60,
-    maxFrameDt: 0.05,
-    gravity: 980,
-    // Flight feel (Variant 2)
-    // We DON'T want pure gravity drop. We want: takeoff up to mid-screen, then gentle glide down.
-    // Make start feel like Aviamasters: noticeable lift to ~middle, then smooth glide.
-    takeoffDuration: 0.95, // seconds to reach peak
-    takeoffPeakFracY: 0.36, // peak altitude as fraction of screen height (0 top .. 1 bottom)
-    glideSinkPxPerSec: 58, // after peak, target Y slowly moves down
-    vertKp: 16.0, // vertical controller proportional gain
-    vertKd: 7.0, // vertical controller damping
-    vertGravityBias: 60, // small downward bias so glide happens even at steady target
-    // Hero
-    heroW: 90,
-    heroH: 60,
-    heroStartX: 160,
-    heroStartY: 380,
-    heroVx: 520, // px/s base forward speed (was too slow)
-    heroLiftImpulse: 240, // upward impulse when hitting +N bonus
-    heroHitDownImpulse: 110, // downward impulse when hit by rocket
-    heroMaxVy: 680,
-    // Camera
-    camLead: 0.34, // hero position on screen (0..1)
-    // World bounds
-    ceilingPad: 70,
-    seaLevelPad: 170,
-    // Round
-    roundSeconds: 35,
-    // Pickups
-    // NOTE: Stage 1 ("clean flight"): keep pickups OFF until feel is good.
-    enablePickups: false,
-    pickupSize: 52, // will be treated as diameter-ish
-    pickupScale: 2.0, // visual scaling if you later use sprites
-    pickupDensity: 1.2, // base frequency; we'll tune after flight feel is right
-    pickupMinDx: 160,
-    rocketChance: 0.42, // % of spawns that are rockets
-    // Lanes (relative to screen height)
-    laneYs: [0.22, 0.36, 0.50, 0.64],
-    laneJitter: 34,
-    // UI units
-    pxPerMeter: 8.0,
-  };
-
-  const SPEED_PRESETS = {
-    x1: 1,
-    x2: 2,
-    x3: 3,
-  };
-
-  // ---------------------------
-  // Helpers
-  // ---------------------------
-  const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
-  const rand = (a, b) => a + Math.random() * (b - a);
-  const randi = (a, b) => Math.floor(rand(a, b + 1));
-
-  function fmtMoney(n) {
-    const v = Math.round(n * 100) / 100;
-    return v.toFixed(2);
-  }
-
-  function rectsOverlap(ax, ay, aw, ah, bx, by, bw, bh) {
-    return ax < bx + bw && ax + aw > bx && ay < by + bh && ay + ah > by;
-  }
-
-  // ---------------------------
-  // Assets (optional)
-  // ---------------------------
-  function loadImage(url) {
+  // ===== Assets =====
+  function loadImage(src) {
     return new Promise((resolve) => {
       const img = new Image();
-      img.crossOrigin = "anonymous";
-      img.onload = () => resolve({ ok: true, img });
-      img.onerror = () => resolve({ ok: false, img: null });
-      img.src = url;
+      img.onload = () => resolve(img);
+      img.onerror = () => resolve(null);
+      img.src = src;
     });
   }
 
-  const Assets = {
-    bg_far: null,
-    bg_mid: null,
-    bg_near: null,
-    hero: null,
-    platform: null,
-    bonusBase: null,
+  const GFX = {
+    bg: null,
+    robinson: null,
+    island: null,
+    bonus: null,
     rocket: null,
+    ready: false,
   };
 
-  async function loadAssets() {
-    const tries = await Promise.all([
-      loadImage("./assets/bg_far.png"),
-      loadImage("./assets/bg_mid.png"),
-      loadImage("./assets/bg_near.png"),
-      // game sprites (you added these):
-      loadImage("./assets/robinson.png"),
-      loadImage("./assets/platform.png"),
-      loadImage("./assets/bonus_base.png"),
-      loadImage("./assets/rocket.png"),
-    ]);
+  Promise.all([
+    loadImage("./assets/splash_bg.png"),
+    loadImage("./assets/robinson.png"),
+    loadImage("./assets/island_long.png"),
+    loadImage("./assets/bonus.png"),
+    loadImage("./assets/rocket.png"),
+  ]).then(([bg, robinson, island, bonus, rocket]) => {
+    GFX.bg = bg;
+    GFX.robinson = robinson;
+    GFX.island = island;
+    GFX.bonus = bonus;
+    GFX.rocket = rocket;
+    GFX.ready = true;
+  });
 
-    if (tries[0].ok) Assets.bg_far = tries[0].img;
-    if (tries[1].ok) Assets.bg_mid = tries[1].img;
-    if (tries[2].ok) Assets.bg_near = tries[2].img;
-    if (tries[3].ok) Assets.hero = tries[3].img;
-    if (tries[4].ok) Assets.platform = tries[4].img;
-    if (tries[5].ok) Assets.bonusBase = tries[5].img;
-    if (tries[6].ok) Assets.rocket = tries[6].img;
-  }
-
-  // ---------------------------
-  // State
-  // ---------------------------
-  const State = {
-    IDLE: "IDLE",
-    RUN: "RUN",
-    END: "END",
-  };
-
-  const world = {
-    state: State.IDLE,
-    speedKey: "x1",
-    speedFactor: 1,
-
-    time: 0,
-    timeLeft: CFG.roundSeconds,
-
-    camX: 0,
-    distancePx: 0,
-
-    hero: {
-      x: CFG.heroStartX,
-      y: CFG.heroStartY,
-      vx: CFG.heroVx,
-      vy: 0,
-      w: CFG.heroW,
-      h: CFG.heroH,
-      tilt: 0,
-      smokeT: 0, // for rocket hit
-    },
-
-    // vertical flight controller (to match Aviamasters feel)
-    flight: {
-      startY: 0,
-      targetY: 0,
-      peakY: 0,
-      phase: "IDLE", // IDLE | TAKEOFF | GLIDE
-    },
-
-    // money model
-    bet: 0.5,
-    balance: 999.5,
-    win: 0.5, // potential win
-
-    // pickups
-    nextSpawnX: 0,
-    pickups: [],
-    floatTexts: [],
-  };
-
-  // ---------------------------
-  // Canvas sizing
-  // ---------------------------
+  // ===== Resize / DPR =====
   let W = 0,
     H = 0,
-    DPR = 1;
+    dpr = 1;
 
   function resize() {
-    DPR = Math.min(2, window.devicePixelRatio || 1);
-    W = Math.floor(window.innerWidth);
-    H = Math.floor(window.innerHeight);
-    canvas.width = Math.floor(W * DPR);
-    canvas.height = Math.floor(H * DPR);
-    canvas.style.width = `${W}px`;
-    canvas.style.height = `${H}px`;
-    ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+    dpr = Math.min(window.devicePixelRatio || 1, 2);
+    W = window.innerWidth;
+    H = window.innerHeight;
+    canvas.width = Math.floor(W * dpr);
+    canvas.height = Math.floor(H * dpr);
+    canvas.style.width = W + "px";
+    canvas.style.height = H + "px";
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   }
-
   window.addEventListener("resize", resize);
   resize();
 
-  // ---------------------------
-  // Parallax background
-  // ---------------------------
-  function drawTiled(img, par, y, h, alpha = 1) {
-    if (!img) return;
-    ctx.save();
-    ctx.globalAlpha = alpha;
-    const scale = h / img.height;
-    const tileW = img.width * scale;
-    const x0 = -((world.camX * par) % tileW);
-    for (let x = x0 - tileW; x < W + tileW; x += tileW) {
-      ctx.drawImage(img, x, y, tileW, h);
-    }
-    ctx.restore();
+  // ===== Utils =====
+  const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+  const easeInOut = (t) => 0.5 - 0.5 * Math.cos(Math.PI * clamp(t, 0, 1));
+  const rnd = (a, b) => a + Math.random() * (b - a);
+
+  function aabb(ax, ay, aw, ah, bx, by, bw, bh) {
+    return ax < bx + bw && ax + aw > bx && ay < by + bh && ay + ah > by;
   }
 
-  function drawStars(par, count, alpha) {
-    // deterministic-ish stars based on camera, cheap fake parallax
-    ctx.save();
-    ctx.globalAlpha = alpha;
-    ctx.fillStyle = "#fff";
-    const seed = Math.floor(world.camX * par * 0.05);
-    for (let i = 0; i < count; i++) {
-      const x = ((i * 997 + seed * 37) % (W + 300)) - 150;
-      const y = ((i * 463 + seed * 17) % (H - 180)) + 40;
-      const r = (i % 7 === 0 ? 1.6 : 1.0) * (0.8 + (i % 5) * 0.06);
-      ctx.globalAlpha = alpha * (0.25 + (i % 9) * 0.06);
-      ctx.beginPath();
-      ctx.arc(x, y, r, 0, Math.PI * 2);
-      ctx.fill();
-    }
-    ctx.restore();
-  }
-
-  function renderBackground() {
-    // base gradient
-    const g = ctx.createLinearGradient(0, 0, 0, H);
-    g.addColorStop(0, "#03040b");
-    g.addColorStop(0.55, "#03040b");
-    g.addColorStop(1, "#02030a");
-    ctx.fillStyle = g;
-    ctx.fillRect(0, 0, W, H);
-
-    if (Assets.bg_far || Assets.bg_mid || Assets.bg_near) {
-      drawTiled(Assets.bg_far, 0.18, 0, H, 0.65);
-      drawTiled(Assets.bg_mid, 0.35, 0, H, 0.75);
-      drawTiled(Assets.bg_near, 0.55, 0, H, 0.9);
-    } else {
-      // fallback stars
-      drawStars(0.12, 55, 0.55);
-      drawStars(0.28, 45, 0.45);
-    }
-  }
-
-  // ---------------------------
-  // Carrier / sea
-  // ---------------------------
-  function renderCarrier() {
-    // Carrier is a NEAR background element.
-    // Important: it must NOT be glued to the hero/camera.
-    // It drifts left (parallax) while the hero flies right.
-    const seaY = H - 300;
-    const par = 0.22; // <1 so it moves slower than the world
-    // ocean haze
-    const haze = ctx.createLinearGradient(0, seaY - 90, 0, seaY + 140);
-    haze.addColorStop(0, "rgba(0,140,255,0.0)");
-    haze.addColorStop(1, "rgba(0,140,255,0.18)");
-    ctx.fillStyle = haze;
-    ctx.fillRect(0, seaY - 90, W, 240);
-
-    const deckY = seaY - 20;
-
-    // If you provided a platform sprite, render it here as the carrier/палуба.
-    if (Assets.platform) {
-      const maxW = W * 0.92;
-      const maxH = 130;
-      const aspect = Assets.platform.width / Assets.platform.height;
-      let w = maxW;
-      let h = w / aspect;
-      if (h > maxH) {
-        h = maxH;
-        w = h * aspect;
-      }
-      const x = (W - w) / 2 - world.camX * par;
-      const y = deckY + 40 - h; // sit above haze a bit
-      ctx.save();
-      ctx.shadowColor = "rgba(0,170,255,0.55)";
-      ctx.shadowBlur = 22;
-      ctx.globalAlpha = 0.95;
-      ctx.drawImage(Assets.platform, x, y, w, h);
-      ctx.restore();
-      return;
-    }
-
-    // fallback carrier deck (vector neon)
-    const deckH = 58;
-    const deckW = W * 0.85;
-    const deckX = (W - deckW) / 2 - world.camX * par;
-    ctx.save();
-    ctx.shadowColor = "rgba(0,170,255,0.45)";
-    ctx.shadowBlur = 18;
-    ctx.fillStyle = "rgba(5,10,26,0.9)";
-    roundRect(deckX, deckY, deckW, deckH, 16);
-    ctx.fill();
-    ctx.shadowBlur = 0;
-
-    // neon edge
-    ctx.strokeStyle = "rgba(0,200,255,0.55)";
-    ctx.lineWidth = 2;
-    roundRect(deckX + 2, deckY + 2, deckW - 4, deckH - 4, 14);
-    ctx.stroke();
-
-    // little lights
-    for (let i = 0; i < 18; i++) {
-      const x = deckX + 24 + i * ((deckW - 48) / 17);
-      const y = deckY + deckH - 12;
-      ctx.fillStyle = i % 3 === 0 ? "rgba(255,64,180,0.8)" : "rgba(0,200,255,0.85)";
-      ctx.beginPath();
-      ctx.arc(x, y, 2.1, 0, Math.PI * 2);
-      ctx.fill();
-    }
-    ctx.restore();
-  }
-
-  function roundRect(x, y, w, h, r) {
-    const rr = Math.min(r, w / 2, h / 2);
-    ctx.beginPath();
-    ctx.moveTo(x + rr, y);
-    ctx.arcTo(x + w, y, x + w, y + h, rr);
-    ctx.arcTo(x + w, y + h, x, y + h, rr);
-    ctx.arcTo(x, y + h, x, y, rr);
-    ctx.arcTo(x, y, x + w, y, rr);
-    ctx.closePath();
-  }
-
-  // ---------------------------
-  // Pickups
-  // ---------------------------
-  const PickupType = {
-    ADD: "ADD", // +1 +2 +3
-    MUL: "MUL", // x2 x3
-    ROCKET: "ROCKET",
+  // ===== State =====
+  const State = {
+    IDLE: "IDLE",
+    RUNNING: "RUNNING",
+    LANDING_ROLL: "LANDING_ROLL",
+    FINISH_WIN: "FINISH_WIN",
+    FINISH_LOSE: "FINISH_LOSE",
   };
 
-  function makePickup(x, y) {
-    // We spawn: +1/+2/+3, x2/x3, and rockets.
-    const isRocket = Math.random() < CFG.rocketChance;
-    if (isRocket) {
-      return {
-        type: PickupType.ROCKET,
-        x,
-        y,
-        r: CFG.pickupSize * 0.42 * CFG.pickupScale,
-        ttl: 20,
-      };
-    }
+  let state = State.IDLE;
+  let lastTime = performance.now();
 
-    const isMul = Math.random() < 0.35;
-    if (isMul) {
-      return {
-        type: PickupType.MUL,
-        val: Math.random() < 0.55 ? 2 : 3,
-        x,
-        y,
-        r: CFG.pickupSize * 0.44 * CFG.pickupScale,
-        ttl: 20,
-      };
-    }
+  // ===== Params =====
+  const HERO_X_REL = 0.25;
+  const WATER_LINE_REL = 0.80;
+  const PLAYFIELD_TOP_REL = 0.18;
 
+  const GRAVITY = 750;
+  const START_VY = -420;
+  const OBJECT_SPEED_BASE = 520;
+
+  // roll
+  const ROLL_FRICTION = 1700;
+  const ROLL_STOP_VX = 35;
+
+  // ribbon
+  const RIBBON_LIFE = 0.45;
+  const RIBBON_MAX = 36;
+  const RIBBON_MIN_DIST = 6;
+  const RIBBON_SHIFT_K = 0.70;
+
+  // platforms
+  const PLATFORM_POOL = 9;
+  // Платформы (палубы) должны идти ровной цепочкой: фиксированная высота и шаг.
+  // Шаг = длина 3 платформ (по ТЗ).
+  // Возвращаем “нормальный” размер палубы (как было до экспериментов).
+  const PLATFORM_WIDTH_MUL = 1.0;
+  const PLATFORM_SPACING_MULT = 3.0; // расстояние между платформами = 3 длины платформы
+
+  // landing zones (0..1 along deck)
+  // Посадочные зоны под “нормальную” палубу.
+  // (Нормализованные координаты вдоль палубы 0..1)
+  const WIN_ZONE_L = 0.18;
+  const WIN_ZONE_R = 0.62;
+  const LOSE_ZONE_L = 0.78;
+  const LOSE_ZONE_R = 0.96;
+
+  // pickups (air)
+  const PICKUP_POOL = 30;
+  const BONUS_CHANCE = 0.62;
+  // Ты имел в виду НЕ размер, а количество.
+  // Размер оставляем базовым, а плотность увеличиваем.
+  const PICKUP_SIZE = 26;
+  const PICKUP_DENSITY = 1.8; // >1.5, потому что у тебя стало слишком редко
+  const PICKUP_SPACING_MIN_PX = Math.round(220 / PICKUP_DENSITY);
+  const PICKUP_SPACING_MAX_PX = Math.round(420 / PICKUP_DENSITY);
+  const PICKUP_MIN_SEP_PX = 150; // защита от “вплотную” даже при высокой плотности
+  const BONUS_IMPULSE = 260; // up
+  const HIT_IMPULSE = 220; // down
+
+  // ===== World =====
+  const world = {
+    t: 0,
+    roundT: 0,
+    roundDur: 3.6,
+
+    cam: { x: 0, y: 0, shake: 0 },
+
+    hero: { x: 0, y: 0, vy: 0, w: 0, h: 0, rot: 0, prevBottom: 0 },
+
+    platforms: [], // {id,x,y,w,h}
+    nextPlatformId: 1,
+    platformY: 0,
+    platformSpacingPx: 0,
+
+    pickups: [], // {id,x,y,w,h,type,age}
+    nextPickupId: 1,
+    nextPickupX: 0,
+
+    bonusCount: 0,
+
+    stars: [],
+    result: null,
+    finishT: 0,
+
+    plan: null,
+    decided: false,
+
+    roll: { vx: 0, platformId: null },
+
+    fx: {
+      mode: "BLUE",
+      fireUntil: 0,
+
+      worldSpeed: OBJECT_SPEED_BASE,
+
+      ribbon: [],
+      ribbonMax: RIBBON_MAX,
+      lastRibbonX: 0,
+      lastRibbonY: 0,
+
+      particles: [],
+    },
+  };
+
+  // ===== Hit pause / time scale =====
+  const TIME = {
+    scale: 1,
+    freeze: 0,
+  };
+
+  function hitPause(freezeSec = 0.06, slowScale = 0.25, slowRecover = 0.12) {
+    TIME.freeze = Math.max(TIME.freeze, freezeSec);
+    TIME.scale = Math.min(TIME.scale, slowScale);
+
+    const startT = world.t;
+    const startScale = TIME.scale;
+    const target = 1;
+
+    function step() {
+      const t = clamp((world.t - startT) / slowRecover, 0, 1);
+      TIME.scale = startScale + (target - startScale) * t;
+      if (t < 1) requestAnimationFrame(step);
+      else TIME.scale = 1;
+    }
+    requestAnimationFrame(step);
+  }
+
+  function initStars() {
+    world.stars = [];
+    const n = Math.floor((W * H) / 16000);
+    for (let i = 0; i < n; i++) {
+      world.stars.push({
+        x: Math.random() * W,
+        y: Math.random() * H,
+        s: 0.6 + Math.random() * 1.8,
+        a: 0.15 + Math.random() * 0.6,
+      });
+    }
+  }
+  initStars();
+
+  function cameraKick(amount = 1) {
+    world.cam.shake = Math.max(world.cam.shake, amount);
+  }
+  function cameraPunch(dx = 0, dy = 0) {
+    world.cam.x += dx;
+    world.cam.y += dy;
+  }
+
+  function kickStartFeel() {
+    if (!window.gsap) return;
+    gsap.fromTo(
+      canvas,
+      { filter: "brightness(1)" },
+      { filter: "brightness(1.18)", duration: 0.12, yoyo: true, repeat: 1, ease: "sine.inOut" }
+    );
+  }
+
+  function emitStart() {
+    window.RobinsonBridge?.emitRoundStart?.({ ts: Date.now() });
+  }
+  function emitEnd(result) {
+    window.RobinsonBridge?.emitRoundEnd?.({ result, ts: Date.now(), bonuses: world.bonusCount });
+  }
+  function emitBonus(type) {
+    window.RobinsonBridge?.emitBonusCollect?.({ type, ts: Date.now(), total: world.bonusCount });
+  }
+  function emitHit(type) {
+    window.RobinsonBridge?.emitHit?.({ type, ts: Date.now() });
+  }
+
+  function setDamagedTrail(seconds = 1.2) {
+    world.fx.mode = "FIRE";
+    world.fx.fireUntil = world.t + seconds;
+  }
+
+  // ===== Planning =====
+  function planRound() {
+    // позже вернём вашу математику/детерминизм как было
+    const isWin = Math.random() < 0.5;
+    world.plan = { result: isWin ? "WIN" : "LOSE" };
+  }
+
+  function platformBaseSize() {
+    const scale = Math.min(W / 1200, H / 800, 1);
     return {
-      type: PickupType.ADD,
-      val: randi(1, 3),
-      x,
-      y,
-      r: CFG.pickupSize * 0.44 * CFG.pickupScale,
-      ttl: 20,
+      w: Math.round(520 * scale * PLATFORM_WIDTH_MUL),
+      h: Math.round(170 * scale),
     };
   }
 
-  function spawnPickupsIfNeeded() {
-    const hero = world.hero;
-    // spawn based on distance, like reference feel
-    const viewAhead = W * 1.4;
-    const spawnX = hero.x + viewAhead;
-
-    if (world.nextSpawnX === 0) {
-      world.nextSpawnX = hero.x + W * 0.8;
-    }
-
-    // distance between spawns (smaller = more)
-    const baseDx = 420;
-    const dx = clamp(baseDx / CFG.pickupDensity, 70, 260);
-
-    while (world.nextSpawnX < spawnX) {
-      const lane = CFG.laneYs[randi(0, CFG.laneYs.length - 1)];
-      let y = lane * H + rand(-CFG.laneJitter, CFG.laneJitter);
-      y = clamp(y, 80, H - CFG.seaLevelPad - 120);
-
-      const p = makePickup(world.nextSpawnX, y);
-      // keep some spacing between items
-      const ok = world.pickups.every((q) => Math.abs(q.x - p.x) >= CFG.pickupMinDx || Math.abs(q.y - p.y) >= 70);
-      if (ok) world.pickups.push(p);
-
-      world.nextSpawnX += dx + rand(-35, 60);
-    }
-
-    // cleanup behind camera
-    const killX = world.camX - 200;
-    world.pickups = world.pickups.filter((p) => p.x > killX);
+  function spawnPlatform(x, y) {
+    const { w, h } = platformBaseSize();
+    const p = {
+      id: world.nextPlatformId++,
+      x,
+      y,
+      w,
+      h,
+    };
+    world.platforms.push(p);
+    if (world.platforms.length > PLATFORM_POOL) world.platforms.shift();
+    return p;
   }
 
-  function addFloatText(text, x, y, color) {
-    world.floatTexts.push({ text, x, y, vy: -40, t: 0, life: 0.9, color });
-  }
-
-  // ---------------------------
-  // Gameplay
-  // ---------------------------
   function resetRound() {
-    const uiCtx = window.RobinsonUI?.getContext?.();
-    if (uiCtx) {
-      world.bet = uiCtx.bet;
-      world.balance = uiCtx.balance;
-      world.speedKey = uiCtx.speed.key;
-      world.speedFactor = SPEED_PRESETS[world.speedKey] || 1;
-    }
+    world.roundT = 0;
+    world.finishT = 0;
+    world.result = null;
+    world.decided = false;
 
-    world.state = State.RUN;
-    world.time = 0;
-    world.timeLeft = CFG.roundSeconds;
-    world.distancePx = 0;
-
-    world.win = world.bet;
-
-    world.hero.x = CFG.heroStartX;
-    world.hero.y = clamp(H * 0.62, 160, H - CFG.seaLevelPad - 220);
-    world.hero.vx = CFG.heroVx;
-    world.hero.vy = 0;
-    world.hero.tilt = 0;
-    world.hero.smokeT = 0;
-
+    world.platforms = [];
     world.pickups = [];
-    world.floatTexts = [];
-    world.nextSpawnX = 0;
+    world.nextPlatformId = 1;
+    world.nextPickupId = 1;
+    world.bonusCount = 0;
 
-    // flight curve: takeoff up to mid, then gentle glide down
-    world.flight.startY = world.hero.y;
-    world.flight.peakY = clamp(H * CFG.takeoffPeakFracY, 130, H - CFG.seaLevelPad - 260);
-    world.flight.targetY = world.flight.startY;
-    world.flight.phase = "TAKEOFF";
+    const heroX = W * HERO_X_REL;
+    world.hero.x = heroX;
+    world.hero.y = H * 0.45;
+    world.hero.vy = START_VY;
+    world.hero.rot = 0;
 
-    window.RobinsonUI?.lock?.(true);
-    window.RobinsonBridge?.emitRoundStart?.({ bet: world.bet, speed: world.speedKey });
-  }
+    const scale = Math.min(W / 1200, H / 800, 1);
+    const heroScale = 1.9; // +90%
+    world.hero.w = Math.round(110 * scale * heroScale);
+    world.hero.h = Math.round(110 * scale * heroScale);
+    world.hero.prevBottom = world.hero.y + world.hero.h / 2;
 
-  function endRound(reason) {
-    world.state = State.END;
-    window.RobinsonUI?.lock?.(false);
-    window.RobinsonBridge?.emitRoundEnd?.({
-      reason,
-      bet: world.bet,
-      win: world.win,
-      distanceM: world.distancePx / CFG.pxPerMeter,
-    });
-  }
+    world.roll.vx = 0;
+    world.roll.platformId = null;
 
-  function applyBonus(p) {
-    const before = world.win;
-    if (p.type === PickupType.ADD) {
-      world.win += world.bet * p.val;
-      world.hero.vy -= CFG.heroLiftImpulse * 0.55;
-      addFloatText(`+${p.val}`.toUpperCase(), p.x, p.y, "#33ff66");
-    } else if (p.type === PickupType.MUL) {
-      world.win *= p.val;
-      addFloatText(`x${p.val}`.toUpperCase(), p.x, p.y, "#66ccff");
+    world.cam.x = 0;
+    world.cam.y = 0;
+    world.cam.shake = 0;
+
+    world.fx.mode = "BLUE";
+    world.fx.fireUntil = 0;
+    world.fx.particles = [];
+    world.fx.ribbon = [];
+    world.fx.worldSpeed = OBJECT_SPEED_BASE;
+    world.fx.lastRibbonX = world.hero.x;
+    world.fx.lastRibbonY = world.hero.y;
+
+    planRound();
+
+    // ===== Platforms: ровная цепочка (фиксированная высота + фиксированный шаг) =====
+    const { w: pw, h: ph } = platformBaseSize();
+    world.platformY = Math.round(H * WATER_LINE_REL);
+    world.platformSpacingPx = Math.max(240, Math.round(pw * PLATFORM_SPACING_MULT));
+
+    // стартовая платформа прямо под героем
+    const startPlatform = spawnPlatform(heroX, world.platformY);
+    // гарантируем размеры (spawnPlatform берёт свежие размеры, но для ясности)
+    startPlatform.w = pw;
+    startPlatform.h = ph;
+
+    // герой стартует С платформы и сразу улетает
+    world.hero.y = deckTopY(startPlatform) - world.hero.h * 0.45;
+    world.hero.vy = START_VY;
+    world.hero.prevBottom = world.hero.y + world.hero.h / 2;
+
+    // наполняем цепочку платформ впереди (чтобы всегда было куда лететь)
+    let x = heroX;
+    const neededRight = W * 2.2;
+    while (x < neededRight) {
+      x += world.platformSpacingPx;
+      const p = spawnPlatform(x, world.platformY);
+      p.w = pw;
+      p.h = ph;
     }
-    // clamp for sanity
-    world.win = clamp(world.win, 0, 999999);
-    // little sparkle
-    if (window.gsap) {
-      gsap.fromTo(canvas, { filter: "brightness(1)" }, { filter: "brightness(1.06)", duration: 0.12, yoyo: true, repeat: 1 });
-    }
-    return before !== world.win;
+
+    // ===== Pickups =====
+    // Будем спавнить по "пройденному расстоянию" (в пикселях), чтобы на любой скорости
+    // объекты не появлялись вплотную.
+    world.nextPickupX = rnd(PICKUP_SPACING_MIN_PX, PICKUP_SPACING_MAX_PX);
   }
 
-  function applyRocket(p) {
-    world.win *= 0.5;
-    world.hero.vy += CFG.heroHitDownImpulse;
-    world.hero.smokeT = 1.2;
-    addFloatText("/2", p.x, p.y, "#ff3b3b");
-    if (window.gsap) {
-      gsap.fromTo(canvas, { x: 0 }, { x: 0, duration: 0.18 });
+  function endRound(result) {
+    if (state !== State.RUNNING && state !== State.LANDING_ROLL) return;
+
+    world.result = result;
+    emitEnd(result);
+
+    window.RobinsonUI?.flashResult?.(result === "WIN");
+    window.RobinsonUI?.showResultText?.(result, result === "WIN");
+
+    state = result === "WIN" ? State.FINISH_WIN : State.FINISH_LOSE;
+    world.finishT = 0;
+
+    cameraKick(result === "WIN" ? 1.2 : 1.6);
+
+    setTimeout(() => {
+      state = State.IDLE;
+      window.RobinsonUI?.unlockAfterRound?.();
+    }, 1050);
+  }
+
+  function startRound() {
+    if (state !== State.IDLE) return;
+    state = State.RUNNING;
+
+    window.RobinsonUI?.lockForRound?.();
+    resetRound();
+    kickStartFeel();
+    emitStart();
+  }
+
+  window.RobinsonUI?.onPlayClick?.(startRound);
+
+  // ===== Platform geometry =====
+  function deckTopY(p) {
+    return p.y - p.h / 2 + 6;
+  }
+  function deckLeftX(p) {
+    return p.x - p.w / 2;
+  }
+  function deckRightX(p) {
+    return p.x + p.w / 2;
+  }
+
+  // ===== Ribbon =====
+  function pushRibbonPoint(x, y) {
+    const dx = x - world.fx.lastRibbonX;
+    const dy = y - world.fx.lastRibbonY;
+    if (dx * dx + dy * dy < RIBBON_MIN_DIST * RIBBON_MIN_DIST) return;
+
+    world.fx.ribbon.push({ x, y, t: 0, life: RIBBON_LIFE });
+    world.fx.lastRibbonX = x;
+    world.fx.lastRibbonY = y;
+
+    if (world.fx.ribbon.length > world.fx.ribbonMax) world.fx.ribbon.shift();
+  }
+
+  function spawnRibbonPoint() {
+    if (world.fx.mode !== "BLUE") return;
+    const back = 0.55 * Math.max(world.hero.w, world.hero.h);
+    const x = world.hero.x - back * 0.10;
+    const y = world.hero.y + back * 0.15;
+    pushRibbonPoint(x, y);
+  }
+
+  // ===== Fire / Smoke =====
+  function spawnFireParticles(dt) {
+    if (world.fx.mode === "FIRE" && world.t >= world.fx.fireUntil) {
+      world.fx.mode = "BLUE";
+    }
+    if (world.fx.mode !== "FIRE") return;
+
+    const speed = Math.max(300, world.fx.worldSpeed || OBJECT_SPEED_BASE);
+    const back = 0.55 * Math.max(world.hero.w, world.hero.h);
+    const sx = world.hero.x - back * 0.10;
+    const sy = world.hero.y + back * 0.15;
+
+    const rate = 90;
+    const count = Math.max(1, Math.floor(rate * dt));
+
+    for (let i = 0; i < count; i++) {
+      const jitter = (Math.random() - 0.5) * 10;
+      const px = sx + jitter;
+      const py = sy + jitter;
+
+      const isSmoke = Math.random() < 0.55;
+      world.fx.particles.push({
+        kind: isSmoke ? "SMOKE" : "FIRE",
+        x: px,
+        y: py,
+        vx: -(speed * 0.35 + Math.random() * speed * 0.25) + (Math.random() - 0.5) * 60,
+        vy: (Math.random() - 0.5) * 80 - (isSmoke ? 30 : 0),
+        life: isSmoke ? 0.9 + Math.random() * 0.55 : 0.35 + Math.random() * 0.25,
+        t: 0,
+        size: isSmoke ? 10 + Math.random() * 18 : 8 + Math.random() * 12,
+        a: isSmoke ? 0.18 + Math.random() * 0.10 : 0.28 + Math.random() * 0.18,
+      });
+    }
+
+    if (world.fx.particles.length > 750) {
+      world.fx.particles.splice(0, world.fx.particles.length - 750);
     }
   }
 
-  function updateHero(dt) {
-    const hero = world.hero;
-    const spd = world.speedFactor;
-    hero.x += hero.vx * spd * dt;
+  // ===== Spawners =====
+  function maybeSpawnNextPlatform(dt) {
+    // Ровная цепочка: всегда держим справа запас платформ.
+    // Спавним новую, когда правый край цепочки приблизился.
+    if (world.platforms.length === 0) return;
 
-    // --- Vertical feel (Aviamasters-like): takeoff -> glide
-    const f = world.flight;
-    if (f.phase === "TAKEOFF") {
-      const t = clamp(world.time / CFG.takeoffDuration, 0, 1);
-      // easeOutCubic
-      const e = 1 - Math.pow(1 - t, 3);
-      f.targetY = f.startY + (f.peakY - f.startY) * e;
-      if (t >= 1) {
-        f.phase = "GLIDE";
-        f.targetY = f.peakY;
+    let rightmost = world.platforms[0];
+    for (let i = 1; i < world.platforms.length; i++) {
+      if (world.platforms[i].x > rightmost.x) rightmost = world.platforms[i];
+    }
+
+    const margin = W * 1.2;
+    if (rightmost.x < W + margin) {
+      const { w: pw, h: ph } = platformBaseSize();
+      const p = spawnPlatform(rightmost.x + world.platformSpacingPx, world.platformY);
+      p.w = pw;
+      p.h = ph;
+    }
+  }
+
+  function spawnPickup() {
+    const x = W + rnd(180, 520);
+
+    // Два "коридора" по Y: верхний и нижний, но без прилипания к палубе.
+    const topMin = H * PLAYFIELD_TOP_REL + 40;
+    const topMax = H * 0.42;
+
+    // низ — выше палубы, чтобы бонусы/ракеты не оказывались "на платформе"
+    const { h: ph } = platformBaseSize();
+    const deckTop = world.platformY - ph / 2;
+    const lowMin = H * 0.54;
+    const lowMax = Math.min(deckTop - 70, H * (WATER_LINE_REL - 0.10));
+
+    const useTop = Math.random() < 0.5;
+    const y = useTop ? rnd(topMin, topMax) : rnd(lowMin, lowMax);
+
+    const type = Math.random() < BONUS_CHANCE ? "BONUS" : "ROCKET";
+
+    // Не даём объектам появляться вплотную друг к другу.
+    for (const p of world.pickups) {
+      const dx = p.x - x;
+      const dy = p.y - y;
+      if (dx * dx + dy * dy < PICKUP_MIN_SEP_PX * PICKUP_MIN_SEP_PX) {
+        return; // пропускаем спавн, следующий будет скоро из-за плотности
       }
-    } else if (f.phase === "GLIDE") {
-      // slowly drift down over time (planing)
-      f.targetY += CFG.glideSinkPxPerSec * dt;
     }
 
-    // PD controller to follow targetY (prevents the "just падает вниз" feeling)
-    const err = f.targetY - hero.y;
-    const accel = err * CFG.vertKp - hero.vy * CFG.vertKd + CFG.vertGravityBias;
-    hero.vy += accel * dt;
-    hero.vy = clamp(hero.vy, -CFG.heroMaxVy, CFG.heroMaxVy);
-    hero.y += hero.vy * dt;
+    world.pickups.push({
+      id: world.nextPickupId++,
+      x,
+      y,
+      w: PICKUP_SIZE,
+      h: PICKUP_SIZE,
+      type,
+      age: 0,
+    });
 
-    // tilt feel
-    hero.tilt = clamp(hero.vy / 420, -0.5, 0.65);
-
-    // bounds
-    const topY = CFG.ceilingPad;
-    const botY = H - CFG.seaLevelPad - 120;
-    if (hero.y < topY) {
-      hero.y = topY;
-      hero.vy = Math.max(hero.vy, 0);
-    }
-    if (hero.y > botY) {
-      // fell into sea => lose
-      endRound("crash");
-      hero.y = botY;
-      hero.vy = 0;
-    }
-
-    // smoke timer
-    hero.smokeT = Math.max(0, hero.smokeT - dt);
-
-    // distance
-    world.distancePx = hero.x - CFG.heroStartX;
+    if (world.pickups.length > PICKUP_POOL) world.pickups.shift();
   }
 
-  function updateCamera() {
-    // Follow hero so he sits at camLead of screen width
-    const hero = world.hero;
-    const target = hero.x - W * CFG.camLead;
-    world.camX += (target - world.camX) * 0.12;
-    world.camX = Math.max(0, world.camX);
+  function maybeSpawnPickup(dt, worldSpeed) {
+    // nextPickupX используем как "следующая дистанция до спавна" в пикселях
+    world.nextPickupX -= worldSpeed * dt;
+    if (world.nextPickupX > 0) return;
+    spawnPickup();
+    world.nextPickupX = rnd(PICKUP_SPACING_MIN_PX, PICKUP_SPACING_MAX_PX);
   }
 
-  function updatePickups(dt) {
-    const hero = world.hero;
-    const hw = hero.w;
-    const hh = hero.h;
+  function updatePickups(dt, worldSpeed) {
+    const hx = world.hero.x - world.hero.w / 2;
+    const hy = world.hero.y - world.hero.h / 2;
+    const hw = world.hero.w;
+    const hh = world.hero.h;
 
     for (let i = world.pickups.length - 1; i >= 0; i--) {
       const p = world.pickups[i];
-      p.ttl -= dt;
-      if (p.ttl <= 0) {
+      p.age += dt;
+      p.x -= worldSpeed * dt;
+
+      if (p.x < -220 || p.age > 6.0) {
         world.pickups.splice(i, 1);
         continue;
       }
 
-      // Collision AABB vs circle
-      const heroRect = { x: hero.x, y: hero.y, w: hw, h: hh };
-      const px = p.x;
-      const py = p.y;
-      const pr = p.r;
+      const px = p.x - p.w / 2;
+      const py = p.y - p.h / 2;
 
-      // quick overlap check using expanded rect
-      if (!rectsOverlap(heroRect.x, heroRect.y, heroRect.w, heroRect.h, px - pr, py - pr, pr * 2, pr * 2)) continue;
+      if (aabb(hx, hy, hw, hh, px, py, p.w, p.h)) {
+        world.pickups.splice(i, 1);
 
-      // treat as hit
-      if (p.type === PickupType.ROCKET) {
-        applyRocket(p);
-      } else {
-        applyBonus(p);
+        if (p.type === "BONUS") {
+          world.bonusCount += 1;
+          emitBonus("BONUS");
+          window.RobinsonUI?.onBonusCollect?.("BONUS", world.bonusCount);
+
+          // impulse UP, continue flight
+          world.hero.vy = Math.min(world.hero.vy, 0) - BONUS_IMPULSE;
+          cameraKick(0.45);
+        } else {
+          // ROCKET: impulse DOWN, fire trail, continue
+          emitHit("ROCKET");
+          setDamagedTrail(1.2);
+          world.hero.vy = Math.max(world.hero.vy, 0) + HIT_IMPULSE;
+          cameraKick(0.85);
+          cameraPunch(-6, 4);
+        }
       }
-      world.pickups.splice(i, 1);
     }
   }
 
-  function updateFloatTexts(dt) {
-    for (let i = world.floatTexts.length - 1; i >= 0; i--) {
-      const t = world.floatTexts[i];
-      t.t += dt;
-      t.y += t.vy * dt;
-      if (t.t > t.life) world.floatTexts.splice(i, 1);
-    }
-  }
+  // ===== Landing (FIXED): landing strip collider, no nearest, no teleport =====
+  function tryTouchdown(speed) {
+    if (world.decided) return;
 
-  function updateStats() {
     const hero = world.hero;
-    const altitudeM = (H - CFG.seaLevelPad - hero.y) / CFG.pxPerMeter;
-    const distanceM = Math.max(0, world.distancePx / CFG.pxPerMeter);
-    const multiplier = world.bet > 0 ? world.win / world.bet : 1;
-    window.RobinsonUI?.setStats?.({
-      altitudeM,
-      distanceM,
-      multiplier,
-      timeLeftS: world.timeLeft,
-    });
+    const bottomNow = hero.y + hero.h / 2;
+    const bottomPrev = hero.prevBottom;
+
+    // садимся только когда падаем вниз
+    if (hero.vy < 0) return;
+
+    const PAD_X = hero.w * 0.18;
+
+    // перебираем все платформы и ищем реальный контакт
+    for (let i = 0; i < world.platforms.length; i++) {
+      const p = world.platforms[i];
+
+      const top = deckTopY(p);
+
+      // Платформа двигается по X во время кадра, поэтому используем swept-проверку по X.
+      const leftNow = deckLeftX(p);
+      const rightNow = deckRightX(p);
+      const prevX = typeof p.prevX === "number" ? p.prevX : p.x;
+      const leftPrev = prevX - p.w / 2;
+      const rightPrev = prevX + p.w / 2;
+      const leftSweep = Math.min(leftPrev, leftNow);
+      const rightSweep = Math.max(rightPrev, rightNow);
+
+      // по X должен быть над палубой (учитывая sweep)
+      if (hero.x < leftSweep - PAD_X || hero.x > rightSweep + PAD_X) continue;
+
+      // пересёк линию верхушки палубы между кадрами
+      const crossed = bottomPrev < top && bottomNow >= top;
+      if (!crossed) continue;
+
+      // реальный X внутри swept-объёма палубы
+      if (hero.x < leftSweep || hero.x > rightSweep) continue;
+
+      // зона по текущей палубе (0..1). Берём текущие границы, чтобы зоны были стабильные.
+      const denom = Math.max(1, rightNow - leftNow);
+      const norm = clamp((hero.x - leftNow) / denom, 0, 1);
+
+      const inWinZone = norm >= WIN_ZONE_L && norm <= WIN_ZONE_R;
+      const inLoseZone = norm >= LOSE_ZONE_L && norm <= LOSE_ZONE_R;
+
+      const wantWin = world.plan.result === "WIN";
+      const okZone = wantWin ? inWinZone : inLoseZone;
+
+      // если не в нужной зоне — это промах, НЕ садимся на ЭТУ платформу
+      if (!okZone) continue;
+
+      // САДИМСЯ: фиксируем только Y, X не трогаем
+      world.decided = true;
+
+      hero.y = top - hero.h * 0.45;
+      hero.vy = 0;
+      hero.rot = 0.08;
+
+      state = State.LANDING_ROLL;
+      world.roll.vx = Math.max(320, speed * 0.85);
+      world.roll.platformId = p.id;
+
+      // FEEL
+      hitPause(0.055, 0.22, 0.14);
+      cameraPunch(-8, 6);
+      cameraKick(1.25);
+      return;
+    }
   }
 
-  // ---------------------------
-  // Rendering
-  // ---------------------------
-  function toScreenX(wx) {
-    return wx - world.camX;
+  // ===== Update =====
+  function update(dt) {
+    world.t += dt;
+
+    // camera shake
+    world.cam.shake = Math.max(0, world.cam.shake - dt * 3.6);
+    const s = world.cam.shake;
+    if (s > 0) {
+      world.cam.x = Math.sin(world.t * 41.3) * 6 * s;
+      world.cam.y = Math.cos(world.t * 37.7) * 5 * s;
+    } else {
+      world.cam.x = 0;
+      world.cam.y = 0;
+    }
+
+    // stars
+    const starSpeed = state === State.RUNNING ? 260 : 90;
+    for (const st of world.stars) {
+      st.x -= (starSpeed * 0.14) * st.s * dt;
+      if (st.x < -20) {
+        st.x = W + 20;
+        st.y = Math.random() * H;
+      }
+    }
+
+    if (state === State.RUNNING) {
+      world.roundT += dt;
+      const p = clamp(world.roundT / world.roundDur, 0, 1);
+      const speed = OBJECT_SPEED_BASE * (0.9 + 0.55 * easeInOut(p));
+      world.fx.worldSpeed = speed;
+
+      // spawn platforms
+      maybeSpawnNextPlatform(dt);
+
+      // move platforms (store prevX to fix "tunneling" in landing)
+      for (let i = world.platforms.length - 1; i >= 0; i--) {
+        const plat = world.platforms[i];
+        plat.prevX = plat.x;
+        plat.x -= speed * dt;
+        if (plat.x < -900) world.platforms.splice(i, 1);
+      }
+
+      // spawn pickups
+      maybeSpawnPickup(dt, speed);
+
+      // hero physics
+      world.hero.prevBottom = world.hero.y + world.hero.h / 2;
+      world.hero.vy += GRAVITY * dt;
+      world.hero.y += world.hero.vy * dt;
+
+      // top limit
+      const topLimit = H * PLAYFIELD_TOP_REL;
+      if (world.hero.y < topLimit) {
+        world.hero.y = topLimit;
+        if (world.hero.vy < 0) world.hero.vy = 0;
+      }
+
+      // tilt
+      world.hero.rot = clamp(world.hero.vy / 1200, -0.35, 0.55);
+
+      // touchdown (fixed)
+      tryTouchdown(speed);
+
+      // pickups collision
+      updatePickups(dt, speed);
+
+      // LOSE only if реально ушёл вниз
+      if (world.hero.y - world.hero.h / 2 > H + 110 && !world.result) {
+        endRound("LOSE");
+      }
+
+      // fx
+      spawnRibbonPoint();
+      spawnFireParticles(dt);
+    }
+
+    if (state === State.LANDING_ROLL) {
+      const hero = world.hero;
+
+      const pRoll = world.platforms.find((pp) => pp.id === world.roll.platformId);
+      if (!pRoll) {
+        setDamagedTrail(1.1);
+        hero.vy = 420;
+        endRound("LOSE");
+        return;
+      }
+
+      world.fx.worldSpeed = Math.max(world.fx.worldSpeed, OBJECT_SPEED_BASE * 0.9);
+
+      // roll right
+      world.roll.vx = Math.max(0, world.roll.vx - ROLL_FRICTION * dt);
+      hero.x += world.roll.vx * dt;
+
+      hero.y = deckTopY(pRoll) - hero.h * 0.45;
+      hero.rot = 0.10 + (world.roll.vx / 900) * 0.10;
+
+      const rightEdge = deckRightX(pRoll);
+
+      if (hero.x + hero.w * 0.35 >= rightEdge) {
+        setDamagedTrail(1.4);
+        hero.vy = 420;
+
+        hitPause(0.08, 0.18, 0.18);
+        cameraPunch(-14, 10);
+        cameraKick(1.8);
+
+        endRound("LOSE");
+        return;
+      }
+
+      if (world.roll.vx <= ROLL_STOP_VX) {
+        endRound("WIN");
+        return;
+      }
+    }
+
+    if (state === State.FINISH_LOSE) {
+      world.fx.worldSpeed = Math.max(world.fx.worldSpeed, OBJECT_SPEED_BASE);
+      spawnFireParticles(dt);
+
+      world.finishT += dt;
+      world.hero.vy += GRAVITY * 0.70 * dt;
+      world.hero.y += world.hero.vy * dt;
+      world.hero.rot += 1.6 * dt;
+      if (world.finishT < 0.6) cameraKick(0.12);
+    }
+
+    if (state === State.FINISH_WIN) {
+      world.finishT += dt;
+      if (world.finishT < 0.35) cameraKick(0.07);
+    }
+
+    // ribbon life
+    for (let i = world.fx.ribbon.length - 1; i >= 0; i--) {
+      const rp = world.fx.ribbon[i];
+      rp.t += dt;
+      if (rp.t >= rp.life) world.fx.ribbon.splice(i, 1);
+    }
+
+    // particles
+    for (let i = world.fx.particles.length - 1; i >= 0; i--) {
+      const pp = world.fx.particles[i];
+      pp.t += dt;
+      pp.x += pp.vx * dt;
+      pp.y += pp.vy * dt;
+
+      const k = pp.t / pp.life;
+      if (pp.kind === "SMOKE") {
+        pp.size *= 1 + 0.35 * dt;
+        pp.vx *= 1 - 0.65 * dt;
+        pp.vy *= 1 - 0.65 * dt;
+      } else {
+        pp.size *= 1 + 0.22 * dt;
+        pp.vx *= 1 - 0.45 * dt;
+        pp.vy *= 1 - 0.45 * dt;
+      }
+
+      if (k >= 1) world.fx.particles.splice(i, 1);
+    }
+  }
+
+  // ===== Render helpers =====
+  function drawCentered(img, x, y, w, h, rot = 0) {
+    if (!img) return false;
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.rotate(rot);
+    ctx.drawImage(img, -w / 2, -h / 2, w, h);
+    ctx.restore();
+    return true;
+  }
+
+  // ===== Render FX =====
+  function renderRibbonTwoLayer() {
+    const pts = world.fx.ribbon;
+    if (pts.length < 2) return;
+
+    const ws = Math.max(250, world.fx.worldSpeed || OBJECT_SPEED_BASE);
+
+    ctx.save();
+    ctx.lineCap = "round";
+    ctx.lineJoin = "round";
+
+    for (let i = 1; i < pts.length; i++) {
+      const a = i / pts.length;
+
+      const p0 = pts[i - 1];
+      const p1 = pts[i];
+
+      const k0 = clamp(p0.t / p0.life, 0, 1);
+      const k1 = clamp(p1.t / p1.life, 0, 1);
+
+      const x0 = p0.x - ws * (RIBBON_SHIFT_K * k0);
+      const y0 = p0.y;
+
+      const x1 = p1.x - ws * (RIBBON_SHIFT_K * k1);
+      const y1 = p1.y;
+
+      const t = clamp(a * (1 - k1), 0, 1);
+
+      ctx.globalAlpha = 0.16 * t;
+      ctx.strokeStyle = "#2cf2ff";
+      ctx.lineWidth = 30 * t;
+      ctx.beginPath();
+      ctx.moveTo(x0, y0);
+      ctx.lineTo(x1, y1);
+      ctx.stroke();
+
+      ctx.globalAlpha = 0.44 * t;
+      ctx.strokeStyle = "#8ff3ff";
+      ctx.lineWidth = 11 * t;
+      ctx.beginPath();
+      ctx.moveTo(x0, y0);
+      ctx.lineTo(x1, y1);
+      ctx.stroke();
+    }
+
+    ctx.globalAlpha = 1;
+    ctx.restore();
+  }
+
+  function renderFireParticles() {
+    if (world.fx.particles.length === 0) return;
+
+    for (let i = 0; i < world.fx.particles.length; i++) {
+      const p = world.fx.particles[i];
+      const k = p.t / p.life;
+      const alpha = p.a * (1 - k);
+
+      if (p.kind === "FIRE") {
+        ctx.globalAlpha = alpha;
+        ctx.fillStyle = "#ff7a00";
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.size * (0.5 + 0.7 * (1 - k)), 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.globalAlpha = alpha * 0.7;
+        ctx.fillStyle = "#ffd000";
+        ctx.beginPath();
+        ctx.arc(p.x - 2, p.y - 2, p.size * 0.35, 0, Math.PI * 2);
+        ctx.fill();
+      } else {
+        ctx.globalAlpha = alpha;
+        ctx.fillStyle = "rgba(80,85,95,1)";
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.size * (0.65 + 0.75 * k), 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+    ctx.globalAlpha = 1;
   }
 
   function renderPickups() {
     for (const p of world.pickups) {
-      const x = toScreenX(p.x);
-      if (x < -140 || x > W + 140) continue;
-      renderPickup(p, x, p.y);
-    }
-  }
+      const pulse = 0.86 + 0.14 * Math.sin(world.t * 10 + p.id);
 
-  function renderPickup(p, sx, sy) {
-    ctx.save();
-    // glow
-    if (p.type === PickupType.ROCKET) {
-      ctx.shadowColor = "rgba(255,64,64,0.6)";
-      ctx.shadowBlur = 26;
-      ctx.fillStyle = "rgba(255,70,70,0.35)";
-      ctx.beginPath();
-      ctx.arc(sx, sy, p.r * 1.05, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.shadowBlur = 0;
-
-      // core
-      ctx.fillStyle = "rgba(255,70,70,0.95)";
-      ctx.beginPath();
-      ctx.arc(sx, sy, p.r * 0.38, 0, Math.PI * 2);
-      ctx.fill();
-    } else {
-      const isMul = p.type === PickupType.MUL;
-      ctx.shadowColor = isMul ? "rgba(0,180,255,0.55)" : "rgba(255,220,80,0.55)";
-      ctx.shadowBlur = 28;
-      ctx.fillStyle = isMul ? "rgba(0,170,255,0.22)" : "rgba(255,220,80,0.24)";
-      ctx.beginPath();
-      ctx.arc(sx, sy, p.r * 1.07, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.shadowBlur = 0;
-
-      ctx.fillStyle = isMul ? "rgba(0,170,255,0.92)" : "rgba(255,220,80,0.92)";
-      ctx.beginPath();
-      ctx.arc(sx, sy, p.r * 0.44, 0, Math.PI * 2);
-      ctx.fill();
-
-      // label
-      ctx.font = "800 28px -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Arial";
-      ctx.textAlign = "center";
-      ctx.textBaseline = "middle";
-      ctx.fillStyle = "rgba(0,0,0,0.75)";
-      const label = isMul ? `x${p.val}` : `${p.val}`;
-      ctx.fillText(label, sx + 1, sy + 2);
-      ctx.fillStyle = "#fff";
-      ctx.fillText(label, sx, sy);
-    }
-    ctx.restore();
-  }
-
-  function renderHero() {
-    const hero = world.hero;
-    const x = toScreenX(hero.x);
-    const y = hero.y;
-
-    // trail
-    renderTrail(x, y, hero);
-
-    ctx.save();
-    ctx.translate(x + hero.w / 2, y + hero.h / 2);
-    ctx.rotate(hero.tilt);
-    ctx.translate(-hero.w / 2, -hero.h / 2);
-
-    if (Assets.hero) {
-      // draw sprite fitted
-      ctx.drawImage(Assets.hero, 0, 0, hero.w, hero.h);
-    } else {
-      // fallback: glider silhouette
-      ctx.fillStyle = "rgba(0,180,255,0.85)";
-      ctx.shadowColor = "rgba(0,180,255,0.55)";
-      ctx.shadowBlur = 12;
-      roundRect(6, 18, hero.w - 12, hero.h - 26, 12);
-      ctx.fill();
-      ctx.shadowBlur = 0;
-      ctx.fillStyle = "rgba(0,0,0,0.35)";
-      roundRect(12, 24, hero.w - 24, hero.h - 38, 10);
-      ctx.fill();
-    }
-
-    ctx.restore();
-
-    // potential win text above hero
-    ctx.save();
-    ctx.font = "900 18px -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Arial";
-    ctx.textAlign = "center";
-    ctx.textBaseline = "bottom";
-    ctx.fillStyle = "rgba(255,210,90,0.95)";
-    ctx.strokeStyle = "rgba(0,0,0,0.45)";
-    ctx.lineWidth = 4;
-    const txt = `${fmtMoney(world.win)} FUN`;
-    ctx.strokeText(txt, x + hero.w / 2, y - 8);
-    ctx.fillText(txt, x + hero.w / 2, y - 8);
-    ctx.restore();
-  }
-
-  function renderTrail(x, y, hero) {
-    const isHit = hero.smokeT > 0;
-    const tailLen = isHit ? 120 : 90;
-    const dx = -tailLen;
-    const dy = isHit ? 12 : 0;
-    ctx.save();
-    ctx.translate(x + 10, y + hero.h * 0.55);
-
-    if (isHit) {
-      // fire + smoke
-      const g1 = ctx.createLinearGradient(0, 0, dx, dy);
-      g1.addColorStop(0, "rgba(255,180,60,0.9)");
-      g1.addColorStop(0.4, "rgba(255,70,40,0.55)");
-      g1.addColorStop(1, "rgba(0,0,0,0)");
-      ctx.strokeStyle = g1;
-      ctx.lineWidth = 10;
-      ctx.lineCap = "round";
-      ctx.beginPath();
-      ctx.moveTo(0, 0);
-      ctx.quadraticCurveTo(dx * 0.5, dy * 0.4, dx, dy);
-      ctx.stroke();
-
-      const g2 = ctx.createLinearGradient(0, 0, dx * 0.9, dy);
-      g2.addColorStop(0, "rgba(25,25,25,0.65)");
-      g2.addColorStop(1, "rgba(25,25,25,0)");
-      ctx.strokeStyle = g2;
-      ctx.lineWidth = 16;
-      ctx.beginPath();
-      ctx.moveTo(0, 0);
-      ctx.quadraticCurveTo(dx * 0.45, dy * 0.2, dx * 0.9, dy);
-      ctx.stroke();
-    } else {
-      // clean blue trail
-      const g = ctx.createLinearGradient(0, 0, dx, dy);
-      g.addColorStop(0, "rgba(0,210,255,0.85)");
-      g.addColorStop(0.55, "rgba(0,140,255,0.35)");
-      g.addColorStop(1, "rgba(0,140,255,0)");
-      ctx.strokeStyle = g;
-      ctx.lineWidth = 10;
-      ctx.lineCap = "round";
-      ctx.beginPath();
-      ctx.moveTo(0, 0);
-      ctx.quadraticCurveTo(dx * 0.5, 0, dx, 0);
-      ctx.stroke();
-    }
-    ctx.restore();
-  }
-
-  function renderFloatTexts() {
-    for (const t of world.floatTexts) {
-      const x = toScreenX(t.x);
-      if (x < -120 || x > W + 120) continue;
-      const a = 1 - t.t / t.life;
       ctx.save();
-      ctx.globalAlpha = a;
-      ctx.font = "900 30px -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Arial";
-      ctx.textAlign = "center";
-      ctx.textBaseline = "middle";
-      ctx.fillStyle = t.color;
-      ctx.strokeStyle = "rgba(0,0,0,0.5)";
-      ctx.lineWidth = 6;
-      ctx.strokeText(t.text, x, t.y);
-      ctx.fillText(t.text, x, t.y);
+      ctx.translate(p.x, p.y);
+      ctx.scale(pulse, pulse);
+
+      // Если есть спрайты — рисуем их (это приоритет).
+      if (p.type === "BONUS" && GFX.bonus) {
+        ctx.globalAlpha = 1;
+        ctx.drawImage(GFX.bonus, -p.w / 2, -p.h / 2, p.w, p.h);
+        ctx.restore();
+        continue;
+      }
+      if (p.type === "ROCKET" && GFX.rocket) {
+        ctx.globalAlpha = 1;
+        ctx.drawImage(GFX.rocket, -p.w / 2, -p.h / 2, p.w, p.h);
+        ctx.restore();
+        continue;
+      }
+
+      if (p.type === "BONUS") {
+        ctx.globalAlpha = 0.22;
+        ctx.fillStyle = "#ffd54a";
+        ctx.beginPath();
+        ctx.arc(0, 0, p.w * 0.75, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.globalAlpha = 0.95;
+        ctx.fillStyle = "#ffd54a";
+        ctx.beginPath();
+        ctx.arc(0, 0, p.w * 0.38, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.globalAlpha = 0.55;
+        ctx.fillStyle = "#fff3c1";
+        ctx.beginPath();
+        ctx.arc(-3, -3, p.w * 0.18, 0, Math.PI * 2);
+        ctx.fill();
+      } else {
+        ctx.globalAlpha = 0.20;
+        ctx.fillStyle = "#ff3b3b";
+        ctx.beginPath();
+        ctx.arc(0, 0, p.w * 0.80, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.globalAlpha = 0.95;
+        ctx.fillStyle = "#ff3b3b";
+        ctx.beginPath();
+        ctx.arc(0, 0, p.w * 0.32, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.globalAlpha = 0.75;
+        ctx.fillStyle = "#ffd0d0";
+        ctx.beginPath();
+        ctx.arc(2, -2, p.w * 0.14, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      ctx.restore();
+      ctx.globalAlpha = 1;
+    }
+  }
+
+  // ===== Render =====
+  function render() {
+    ctx.clearRect(0, 0, W, H);
+
+    ctx.save();
+    ctx.translate(world.cam.x, world.cam.y);
+
+    // BG
+    if (GFX.ready && GFX.bg) {
+      const img = GFX.bg;
+      const s = Math.max(W / img.width, H / img.height);
+      const dw = img.width * s;
+      const dh = img.height * s;
+      ctx.globalAlpha = 1;
+      ctx.drawImage(img, (W - dw) / 2, (H - dh) / 2, dw, dh);
+
+      ctx.globalAlpha = 0.18;
+      ctx.fillStyle = "#05070d";
+      ctx.fillRect(0, 0, W, H);
+      ctx.globalAlpha = 1;
+    } else {
+      ctx.fillStyle = "#05070d";
+      ctx.fillRect(-60, -60, W + 120, H + 120);
+      for (const st of world.stars) {
+        ctx.globalAlpha = st.a;
+        ctx.fillStyle = "#9be7ff";
+        ctx.fillRect(st.x, st.y, st.s, st.s);
+      }
+      ctx.globalAlpha = 1;
+    }
+
+    // platforms
+    for (const p of world.platforms) {
+      const ok = drawCentered(GFX.island, p.x, p.y, p.w, p.h, 0);
+      if (!ok) {
+        ctx.fillStyle = "rgba(0,180,255,0.70)";
+        ctx.fillRect(p.x - p.w / 2, p.y - p.h / 2, p.w, p.h);
+      }
+    }
+
+    // pickups
+    renderPickups();
+
+    // fx
+    if (world.fx.mode === "BLUE") renderRibbonTwoLayer();
+    else renderFireParticles();
+
+    // hero
+    const h = world.hero;
+    const heroDrawn = drawCentered(GFX.robinson, h.x, h.y, h.w, h.h, h.rot);
+    if (!heroDrawn) {
+      ctx.save();
+      ctx.translate(h.x, h.y);
+      ctx.rotate(h.rot);
+      ctx.fillStyle = "#00c8ff";
+      ctx.beginPath();
+      ctx.arc(0, 0, 18, 0, Math.PI * 2);
+      ctx.fill();
       ctx.restore();
     }
-  }
 
-  function render() {
-    renderBackground();
-    renderCarrier();
-    if (CFG.enablePickups) renderPickups();
-    renderHero();
-    renderFloatTexts();
-  }
+    ctx.restore();
 
-  // ---------------------------
-  // Loop
-  // ---------------------------
-  let acc = 0;
-  let last = performance.now();
-
-  function step(now) {
-    const rawDt = clamp((now - last) / 1000, 0, CFG.maxFrameDt);
-    last = now;
-    acc += rawDt;
-
-    while (acc >= CFG.fixedDt) {
-      tick(CFG.fixedDt);
-      acc -= CFG.fixedDt;
+    if (!GFX.ready) {
+      ctx.fillStyle = "rgba(255,255,255,0.75)";
+      ctx.font = "600 14px Arial";
+      ctx.fillText("Loading assets...", 24, H - 24);
     }
+  }
+
+  // ===== Loop =====
+  function loop(time) {
+    let dt = (time - lastTime) / 1000;
+    lastTime = time;
+    dt = Math.min(dt, 0.033);
+
+    if (TIME.freeze > 0) {
+      TIME.freeze = Math.max(0, TIME.freeze - dt);
+      dt = 0;
+    } else {
+      dt = dt * TIME.scale;
+    }
+
+    update(dt);
     render();
-    requestAnimationFrame(step);
+    requestAnimationFrame(loop);
   }
 
-  function tick(dt) {
-    if (world.state !== State.RUN) {
-      updateCamera();
-      updateStats();
-      return;
-    }
-
-    world.time += dt;
-    world.timeLeft = CFG.roundSeconds - world.time;
-    if (world.timeLeft <= 0) {
-      endRound("time");
-    }
-
-    updateHero(dt);
-    updateCamera();
-    if (CFG.enablePickups) {
-      spawnPickupsIfNeeded();
-      updatePickups(dt);
-    }
-    updateFloatTexts(dt);
-    updateStats();
-  }
-
-  // ---------------------------
-  // UI bindings
-  // ---------------------------
-  function bindUI() {
-    window.RobinsonUI?.onPlayClick?.(() => {
-      if (world.state === State.RUN) return;
-      resetRound();
-    });
-
-    window.RobinsonUI?.onSpeedClick?.((s) => {
-      // only when idle
-      if (world.state === State.RUN) return;
-      world.speedKey = s.key;
-      world.speedFactor = SPEED_PRESETS[s.key] || 1;
-    });
-
-    window.RobinsonUI?.onBetChange?.((bet) => {
-      if (world.state === State.RUN) return;
-      world.bet = bet;
-      world.win = bet;
-    });
-  }
-
-  // Start
-  (async () => {
-    await loadAssets();
-    bindUI();
-
-    // seed UI stats
-    updateStats();
-    requestAnimationFrame(step);
-  })();
+  requestAnimationFrame(loop);
 })();
