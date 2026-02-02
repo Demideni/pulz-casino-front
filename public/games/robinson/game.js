@@ -20,7 +20,11 @@
     mars: null,
     robinson: null,
     island: null,
-    bonus: null,
+    bonusX2: null,
+    bonusX3: null,
+    bonusAdd1: null,
+    bonusAdd2: null,
+    bonusAdd3: null,
     rocket: null,
     ready: false,
   };
@@ -33,9 +37,13 @@
 
     loadImage("./assets/robinson.png"),
     loadImage("./assets/island_long.png"),
-    loadImage("./assets/bonus.png"),
+    loadImage("./assets/bonus_x2.png"),
+    loadImage("./assets/bonus_x3.png"),
+    loadImage("./assets/bonus_add1.png"),
+    loadImage("./assets/bonus_add2.png"),
+    loadImage("./assets/bonus_add3.png"),
     loadImage("./assets/rocket.png"),
-  ]).then(([bg, bgSpace, moon, mars, robinson, island, bonus, rocket]) => {
+  ]).then(([bg, bgSpace, moon, mars, robinson, island, bonusX2, bonusX3, bonusAdd1, bonusAdd2, bonusAdd3, rocket]) => {
     GFX.bg = bg;
     GFX.bgSpace = bgSpace;
     GFX.moon = moon;
@@ -43,7 +51,11 @@
 
     GFX.robinson = robinson;
     GFX.island = island;
-    GFX.bonus = bonus;
+    GFX.bonusX2 = bonusX2;
+    GFX.bonusX3 = bonusX3;
+    GFX.bonusAdd1 = bonusAdd1;
+    GFX.bonusAdd2 = bonusAdd2;
+    GFX.bonusAdd3 = bonusAdd3;
     GFX.rocket = rocket;
     GFX.ready = true;
   });
@@ -164,6 +176,7 @@
 
     bet: 1,
     mult: 1,
+    add: 0,
     roundId: null,
     floaters: [], // {x,y,text,color,age}
 
@@ -299,7 +312,8 @@
     world.nextPlatformId = 1;
     world.nextPickupId = 1;
     world.bonusCount = 0;
-    world.mult = world.mult || 1;
+    world.mult = 1;
+    world.add = 0;
     world.floaters = [];
 
     const heroX = W * HERO_X_REL;
@@ -433,6 +447,7 @@ window.RobinsonGame = {
     if (Number.isFinite(nBet) && nBet > 0) world.bet = nBet;
     world.roundId = opts.roundId || null;
     world.mult = 1;
+    world.add = 0;
     world.floaters = [];
     state = State.RUNNING;
 
@@ -552,9 +567,18 @@ window.RobinsonGame = {
     const target = clamp(world.hero.y - 120 + rnd(-210, 210), topMin, lowMax);
     const y = clamp(target + rnd(-45, 45), topMin, lowMax);
 
-    const type = Math.random() < BONUS_CHANCE ? "BONUS" : "ROCKET";
+    let type = "ROCKET";
+if (Math.random() < BONUS_CHANCE) {
+  const r = Math.random();
+  // balance buckets (tweak anytime)
+  if (r < 0.30) type = "BONUS_X2";
+  else if (r < 0.42) type = "BONUS_X3";
+  else if (r < 0.72) type = "BONUS_ADD1";
+  else if (r < 0.92) type = "BONUS_ADD2";
+  else type = "BONUS_ADD3";
+}
 
-    const size = type === "BONUS" ? BONUS_SIZE : ROCKET_SIZE;
+    const size = type === "ROCKET" ? ROCKET_SIZE : BONUS_SIZE;
 
     // Не даём объектам появляться вплотную друг к другу.
     for (const p of world.pickups) {
@@ -616,22 +640,29 @@ window.RobinsonGame = {
       if (aabb(hx, hy, hw, hh, px, py, p.w, p.h)) {
         world.pickups.splice(i, 1);
 
-        if (p.type === "BONUS") {
-          // multiplier: x2 or x3
-          const inc = Math.random() < 0.66 ? 2 : 3;
-          world.mult = clamp(world.mult * inc, 0.1, 999);
-
+        if (p.type === "BONUS_X2") {
+          world.mult = clamp(world.mult * 2, 0.1, 999);
           world.bonusCount += 1;
-          emitBonus("BONUS");
-
-          // floating text
-          world.floaters.push({ x: p.x, y: p.y - 30, text: "x" + inc, color: "rgba(70,255,160,1)", age: 0 });
-
-          // impulse UP, continue flight
+          emitBonus("BONUS_X2");
+          world.floaters.push({ x: p.x, y: p.y - 30, text: "x2", color: "rgba(70,255,160,1)", age: 0 });
+          world.hero.vy = Math.min(world.hero.vy, 0) - BONUS_IMPULSE;
+        } else if (p.type === "BONUS_X3") {
+          world.mult = clamp(world.mult * 3, 0.1, 999);
+          world.bonusCount += 1;
+          emitBonus("BONUS_X3");
+          world.floaters.push({ x: p.x, y: p.y - 30, text: "x3", color: "rgba(70,255,160,1)", age: 0 });
+          world.hero.vy = Math.min(world.hero.vy, 0) - BONUS_IMPULSE;
+        } else if (p.type === "BONUS_ADD1" || p.type === "BONUS_ADD2" || p.type === "BONUS_ADD3") {
+          const n = p.type === "BONUS_ADD1" ? 1 : p.type === "BONUS_ADD2" ? 2 : 3;
+          world.add = (Number(world.add) || 0) + (Number(world.bet) || 0) * n;
+          world.bonusCount += 1;
+          emitBonus(p.type);
+          world.floaters.push({ x: p.x, y: p.y - 30, text: "+" + n, color: "rgba(70,255,160,1)", age: 0 });
           world.hero.vy = Math.min(world.hero.vy, 0) - BONUS_IMPULSE;
         } else {
-          // ROCKET: /2
+          // ROCKET: /2 affects both multiplier and additive part
           world.mult = clamp(world.mult * 0.5, 0.1, 999);
+          world.add = (Number(world.add) || 0) * 0.5;
 
           emitHit("ROCKET");
           world.floaters.push({ x: p.x, y: p.y - 30, text: "/2", color: "rgba(255,90,90,1)", age: 0 });
@@ -990,7 +1021,7 @@ function tryTouchdown(speed) {
   function renderPickups() {
     for (const p of world.pickups) {
       const pulse =
-        p.type === "BONUS"
+        p.type !== "ROCKET"
           ? 0.92 + 0.08 * Math.sin(world.t * 5 + p.id) // slower pulse
           : 1; // rockets no pulse
 
@@ -999,11 +1030,20 @@ function tryTouchdown(speed) {
       ctx.scale(pulse, pulse);
 
       // Если есть спрайты — рисуем их (это приоритет).
-      if (p.type === "BONUS" && GFX.bonus) {
+      if (p.type !== "ROCKET") {
+        const img =
+          p.type === "BONUS_X2" ? GFX.bonusX2 :
+          p.type === "BONUS_X3" ? GFX.bonusX3 :
+          p.type === "BONUS_ADD1" ? GFX.bonusAdd1 :
+          p.type === "BONUS_ADD2" ? GFX.bonusAdd2 :
+          p.type === "BONUS_ADD3" ? GFX.bonusAdd3 : null;
+        if (img) {
         ctx.globalAlpha = 1;
-        ctx.drawImage(GFX.bonus, -p.w / 2, -p.h / 2, p.w, p.h);
+        ctx.drawImage(img, -p.w / 2, -p.h / 2, p.w, p.h);
         ctx.restore();
         continue;
+      }
+      }
       }
       if (p.type === "ROCKET" && GFX.rocket) {
         ctx.globalAlpha = 1;
@@ -1012,7 +1052,7 @@ function tryTouchdown(speed) {
         continue;
       }
 
-      if (p.type === "BONUS") {
+      if (p.type !== "ROCKET") {
         ctx.globalAlpha = 0.22;
         ctx.fillStyle = "#ffd54a";
         ctx.beginPath();
@@ -1148,7 +1188,7 @@ function tryTouchdown(speed) {
       const sizeMoon = Math.min(W, H) * 0.34;
       const sizeMars = Math.min(W, H) * 0.26;
 
-      const okMoon = drawPlanet(GFX.moon, W * 0.78, H * 0.30, 0.10, sizeMoon, 0.75);
+      const okMoon = drawPlanet(GFX.moon, W * 0.78, H * 0.30, 0.10, sizeMoon, 0.60);
       const okMars = drawPlanet(GFX.mars, W * 0.85, H * 0.20, 0.15, sizeMars, 0.72);
 
       // fallback: simple circles if planets not found
@@ -1219,6 +1259,23 @@ if (world.floaters && world.floaters.length) {
     ctx.restore();
     }
 
+// floating texts (world space)
+if (world.floaters && world.floaters.length) {
+  for (const f of world.floaters) {
+    const a = clamp(1 - f.age / 0.75, 0, 1);
+    ctx.save();
+    ctx.globalAlpha = a;
+    ctx.font = "900 22px Arial";
+    ctx.fillStyle = f.color || "#7CFFB1";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.shadowColor = "rgba(0,0,0,0.45)";
+    ctx.shadowBlur = 10;
+    ctx.fillText(f.text, f.x, f.y);
+    ctx.restore();
+  }
+}
+
     ctx.restore();
 
     // HUD (screen space): potential win above hero
@@ -1228,7 +1285,8 @@ if (world.floaters && world.floaters.length) {
       const sy = h.y + world.cam.y - h.h * 0.75;
       const bet = Number(world.bet) || 0;
       const mult = Number(world.mult) || 1;
-      const pot = bet * mult;
+      const add = Number(world.add) || 0;
+      const pot = bet * mult + add;
 
       ctx.save();
       ctx.globalAlpha = state === State.RUNNING || state === State.LANDING_ROLL ? 1 : 0;
