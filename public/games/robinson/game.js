@@ -1349,7 +1349,7 @@ if (isBonus) {
 
       ctx.save();
       ctx.globalAlpha = state === State.RUNNING || state === State.LANDING_ROLL ? 1 : 0;
-      ctx.font = "900 26px Arial"; // +40% размер
+      ctx.font = "900 22px Arial"; // +40% размер
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
       ctx.fillStyle = "#FFD84D";
