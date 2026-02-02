@@ -1,25 +1,53 @@
 (() => {
   const $play = document.getElementById("play-btn");
-  if (!$play) {
-    console.error("[ui] #play-btn not found");
+  const $betBox = document.getElementById("bet-box");
+  const $betValue = document.getElementById("bet-value");
+  const $balValue = document.getElementById("bal-value");
+
+  const $modal = document.getElementById("bet-modal");
+  const $grid = document.getElementById("bet-grid");
+  const $close = document.getElementById("bet-close");
+
+  if (!$play || !$betBox || !$betValue || !$balValue || !$modal || !$grid || !$close) {
+    console.error("[ui] required elements not found");
     return;
   }
 
+  // ---- State ----
   let state = "IDLE"; // IDLE | RUNNING | LOCKED
   let idleTween = null;
 
-  const setLabel = (txt) => ($play.textContent = txt);
+  // bets in USD
+  const BETS = [0.2, 0.5, 1, 2, 5, 10, 20, 50, 100, 200];
+  let bet = 1;
+
+  let roundId = null;
+
+  const fmt = (n) => {
+    const v = Math.max(0, Number(n) || 0);
+    return "$" + v.toFixed(v >= 100 ? 0 : 2);
+  };
+
+  const setBet = (v) => {
+    bet = v;
+    $betValue.textContent = fmt(bet);
+    window.RobinsonGame?.setBet?.(bet);
+  };
+
+  const setBalance = (v) => ($balValue.textContent = fmt(v));
 
   const setEnabled = (enabled) => {
     $play.style.pointerEvents = enabled ? "auto" : "none";
-    $play.style.opacity = enabled ? "1" : "0.7";
+    $play.style.opacity = enabled ? "1" : "0.75";
+    $betBox.style.pointerEvents = enabled ? "auto" : "none";
+    $betBox.style.opacity = enabled ? "1" : "0.65";
   };
 
   const startIdleAnim = () => {
     if (!window.gsap) return;
     stopIdleAnim();
     idleTween = gsap.to($play, {
-      scale: 1.06,
+      scale: 1.05,
       duration: 0.9,
       yoyo: true,
       repeat: -1,
@@ -40,7 +68,7 @@
     gsap.fromTo(
       $play,
       { scale: 1 },
-      { scale: 0.92, duration: 0.08, yoyo: true, repeat: 1, ease: "power2.out" }
+      { scale: 0.93, duration: 0.08, yoyo: true, repeat: 1, ease: "power2.out" }
     );
   };
 
@@ -48,64 +76,116 @@
     state = "RUNNING";
     stopIdleAnim();
     setEnabled(false);
-    setLabel("...");
-    if (window.gsap) {
-      gsap.to($play, { boxShadow: "0 0 10px rgba(0,180,255,0.45), inset 0 0 10px rgba(255,255,255,0.25)", duration: 0.2 });
-    }
+    $play.textContent = "...";
   };
 
   const unlockAfterRound = () => {
     state = "IDLE";
     setEnabled(true);
-    setLabel("PLAY");
+    $play.textContent = "PLAY";
     startIdleAnim();
-    if (window.gsap) {
-      // лёгкий “return”
-      gsap.fromTo($play, { scale: 0.98 }, { scale: 1, duration: 0.25, ease: "back.out(2)" });
+    roundId = null;
+    if (window.gsap) gsap.fromTo($play, { scale: 0.98 }, { scale: 1, duration: 0.22, ease: "back.out(2)" });
+  };
+
+  // ---- Modal ----
+  const openModal = () => {
+    $modal.classList.remove("hidden");
+  };
+  const closeModal = () => {
+    $modal.classList.add("hidden");
+  };
+
+  const renderBetGrid = () => {
+    $grid.innerHTML = "";
+    for (const v of BETS) {
+      const b = document.createElement("button");
+      b.type = "button";
+      b.className = "bet-opt" + (v === bet ? " active" : "");
+      b.textContent = fmt(v);
+      b.addEventListener("click", () => {
+        setBet(v);
+        renderBetGrid();
+        closeModal();
+      });
+      $grid.appendChild(b);
     }
   };
 
-  // публичный UI API
+  $betBox.addEventListener("click", () => {
+    if (state !== "IDLE") return;
+    renderBetGrid();
+    openModal();
+  });
+  $close.addEventListener("click", closeModal);
+  $modal.addEventListener("click", (e) => {
+    if (e.target === $modal) closeModal();
+  });
+
+  // ---- Casino API wiring ----
+  const getApi = () => (window.PULZ_GAME && typeof window.PULZ_GAME === "object" ? window.PULZ_GAME : null);
+
+  async function refreshBalance() {
+    try {
+      const api = getApi();
+      if (!api?.getBalance) return;
+      const b = await api.getBalance();
+      setBalance(b);
+    } catch (e) {
+      console.warn("[ui] getBalance failed", e);
+    }
+  }
+
+  async function onPlay() {
+    if (state !== "IDLE") return;
+
+    tapAnim();
+
+    const api = getApi();
+    if (!api?.placeBet || !api?.finishRound) {
+      console.warn("[ui] PULZ_GAME api missing; starting locally");
+      lockForRound();
+      window.RobinsonGame?.start?.({ bet, roundId: "local" });
+      return;
+    }
+
+    try {
+      lockForRound();
+      const { balance, roundId: rid } = await api.placeBet(bet);
+      roundId = rid;
+      setBalance(balance);
+      window.RobinsonGame?.start?.({ bet, roundId });
+    } catch (e) {
+      console.warn("[ui] placeBet failed", e);
+      unlockAfterRound();
+    }
+  }
+
+  $play.addEventListener("click", onPlay);
+
+  // Game → UI callbacks
   window.RobinsonUI = {
-    onPlayClick(handler) {
-      $play.addEventListener("click", () => {
-        if (state !== "IDLE") return;
-        tapAnim();
-        handler?.();
-      });
-    },
     lockForRound,
     unlockAfterRound,
-    startIdleAnim,
-    stopIdleAnim,
+    setBalance,
+    refreshBalance,
     flashResult(isWin) {
       if (!window.gsap) return;
       gsap.fromTo(
         $play,
         { filter: "brightness(1)" },
-        { filter: `brightness(${isWin ? 1.35 : 1.1})`, duration: 0.18, yoyo: true, repeat: 3, ease: "sine.inOut" }
+        { filter: `brightness(${isWin ? 1.25 : 1.05})`, duration: 0.18, yoyo: true, repeat: 3, ease: "sine.inOut" }
       );
     },
-    showResultText(text, isWin) {
-  // меняем текст на кнопке на короткое время — как “казино”
-  const prev = $play.textContent;
-  $play.textContent = text;
-
-  if (window.gsap) {
-    gsap.fromTo(
-      $play,
-      { scale: 1 },
-      { scale: 1.08, duration: 0.22, ease: "back.out(2)" }
-    );
-  }
-
-  setTimeout(() => {
-    $play.textContent = prev;
-  }, 650);
-},
-
+    showResultText(text) {
+      const prev = $play.textContent;
+      $play.textContent = text;
+      setTimeout(() => ($play.textContent = prev), 650);
+    },
   };
 
-  // стартовое состояние
+  // init
+  setBet(bet);
+  refreshBalance();
   startIdleAnim();
 })();

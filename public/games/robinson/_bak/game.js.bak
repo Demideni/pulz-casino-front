@@ -130,7 +130,7 @@
     roundT: 0,
     roundDur: 3.6,
 
-    cam: { x: 0, y: 0, shake: 0, zoom: 1, zoomTarget: 1, zoomT: 0 },
+    cam: { x: 0, y: 0, shake: 0 },
 
     hero: { x: 0, y: 0, vy: 0, w: 0, h: 0, rot: 0, prevBottom: 0 },
 
@@ -145,11 +145,6 @@
 
     bonusCount: 0,
 
-    bet: 1,
-    mult: 1,
-    roundId: null,
-    floaters: [], // {x,y,text,color,age}
-
     stars: [],
     result: null,
     finishT: 0,
@@ -157,7 +152,7 @@
     plan: null,
     decided: false,
 
-    roll: { vx: 0, platformId: null, remain: 0, speed: 0 },
+    roll: { vx: 0, platformId: null },
 
     fx: {
       mode: "BLUE",
@@ -286,8 +281,6 @@
     world.nextPlatformId = 1;
     world.nextPickupId = 1;
     world.bonusCount = 0;
-    world.mult = world.mult || 1;
-    world.floaters = [];
 
     const heroX = W * HERO_X_REL;
     world.hero.x = heroX;
@@ -303,15 +296,10 @@
 
     world.roll.vx = 0;
     world.roll.platformId = null;
-    world.roll.remain = 0;
-    world.roll.speed = 0;
 
     world.cam.x = 0;
     world.cam.y = 0;
     world.cam.shake = 0;
-    world.cam.zoom = 1;
-    world.cam.zoomTarget = 1;
-    world.cam.zoomT = 0;
 
     world.fx.mode = "BLUE";
     world.fx.fireUntil = 0;
@@ -361,22 +349,6 @@
     world.result = result;
     emitEnd(result);
 
-    // Casino settlement (if available)
-    try {
-      const api = window.PULZ_GAME && typeof window.PULZ_GAME === "object" ? window.PULZ_GAME : null;
-      const rid = world.roundId;
-      if (api?.finishRound && rid) {
-        const payload = { roundId: rid, multiplier: world.mult || 1, result: result === "WIN" ? "won" : "lost" };
-        Promise.resolve(api.finishRound(payload))
-          .then((r) => {
-            if (r?.balance != null) window.RobinsonUI?.setBalance?.(r.balance);
-          })
-          .catch((e) => console.warn("[game] finishRound failed", e));
-      }
-    } catch (e) {
-      console.warn("[game] finishRound error", e);
-    }
-
     window.RobinsonUI?.flashResult?.(result === "WIN");
     window.RobinsonUI?.showResultText?.(result, result === "WIN");
 
@@ -401,28 +373,7 @@
     emitStart();
   }
 
-// Public API called by /ui.js (iframe)
-window.RobinsonGame = {
-  setBet(v) {
-    const n = Number(v);
-    if (!Number.isFinite(n) || n <= 0) return;
-    world.bet = n;
-  },
-  start(opts = {}) {
-    if (state !== State.IDLE) return;
-    const nBet = Number(opts.bet);
-    if (Number.isFinite(nBet) && nBet > 0) world.bet = nBet;
-    world.roundId = opts.roundId || null;
-    world.mult = 1;
-    world.floaters = [];
-    state = State.RUNNING;
-
-    resetRound();
-    kickStartFeel();
-    emitStart();
-  },
-};
-
+  window.RobinsonUI?.onPlayClick?.(startRound);
 
   // ===== Platform geometry =====
   function deckTopY(p) {
@@ -586,26 +537,16 @@ window.RobinsonGame = {
         world.pickups.splice(i, 1);
 
         if (p.type === "BONUS") {
-          // multiplier: x2 or x3
-          const inc = Math.random() < 0.66 ? 2 : 3;
-          world.mult = clamp(world.mult * inc, 0.1, 999);
-
           world.bonusCount += 1;
           emitBonus("BONUS");
-
-          // floating text
-          world.floaters.push({ x: p.x, y: p.y - 30, text: "x" + inc, color: "rgba(70,255,160,1)", age: 0 });
+          window.RobinsonUI?.onBonusCollect?.("BONUS", world.bonusCount);
 
           // impulse UP, continue flight
           world.hero.vy = Math.min(world.hero.vy, 0) - BONUS_IMPULSE;
           cameraKick(0.45);
         } else {
-          // ROCKET: /2
-          world.mult = clamp(world.mult * 0.5, 0.1, 999);
-
+          // ROCKET: impulse DOWN, fire trail, continue
           emitHit("ROCKET");
-          world.floaters.push({ x: p.x, y: p.y - 30, text: "/2", color: "rgba(255,90,90,1)", age: 0 });
-
           setDamagedTrail(1.2);
           world.hero.vy = Math.max(world.hero.vy, 0) + HIT_IMPULSE;
           cameraKick(0.85);
@@ -623,18 +564,18 @@ window.RobinsonGame = {
     const bottomNow = hero.y + hero.h / 2;
     const bottomPrev = hero.prevBottom;
 
-    // садимся только когда летим вниз
+    // садимся только когда падаем вниз
     if (hero.vy < 0) return;
 
-    // небольшой допуск по X, чтобы не было "почти попал"
-    const PAD_X = hero.w * 0.16;
+    const PAD_X = hero.w * 0.18;
 
+    // перебираем все платформы и ищем реальный контакт
     for (let i = 0; i < world.platforms.length; i++) {
       const p = world.platforms[i];
 
       const top = deckTopY(p);
 
-      // swept по X (платформа сдвигается за кадр)
+      // Платформа двигается по X во время кадра, поэтому используем swept-проверку по X.
       const leftNow = deckLeftX(p);
       const rightNow = deckRightX(p);
       const prevX = typeof p.prevX === "number" ? p.prevX : p.x;
@@ -643,43 +584,47 @@ window.RobinsonGame = {
       const leftSweep = Math.min(leftPrev, leftNow);
       const rightSweep = Math.max(rightPrev, rightNow);
 
-      // должен быть над палубой по X (учитывая sweep и допуск)
+      // по X должен быть над палубой (учитывая sweep)
       if (hero.x < leftSweep - PAD_X || hero.x > rightSweep + PAD_X) continue;
 
-      // пересёк верх палубы между кадрами
+      // пересёк линию верхушки палубы между кадрами
       const crossed = bottomPrev < top && bottomNow >= top;
       if (!crossed) continue;
 
-      // финальная проверка X в swept-границах
+      // реальный X внутри swept-объёма палубы
       if (hero.x < leftSweep || hero.x > rightSweep) continue;
 
-      // === САДИМСЯ В ЛЮБОЙ ТОЧКЕ ВЕРХНЕЙ ПАЛУБЫ ===
+      // зона по текущей палубе (0..1). Берём текущие границы, чтобы зоны были стабильные.
+      const denom = Math.max(1, rightNow - leftNow);
+      const norm = clamp((hero.x - leftNow) / denom, 0, 1);
+
+      const inWinZone = norm >= WIN_ZONE_L && norm <= WIN_ZONE_R;
+      const inLoseZone = norm >= LOSE_ZONE_L && norm <= LOSE_ZONE_R;
+
+      const wantWin = world.plan.result === "WIN";
+      const okZone = wantWin ? inWinZone : inLoseZone;
+
+      // если не в нужной зоне — это промах, НЕ садимся на ЭТУ платформу
+      if (!okZone) continue;
+
+      // САДИМСЯ: фиксируем только Y, X не трогаем
       world.decided = true;
 
       hero.y = top - hero.h * 0.45;
       hero.vy = 0;
-      hero.rot = 0.06;
+      hero.rot = 0.08;
 
       state = State.LANDING_ROLL;
-
-      // катится РОВНО половину длины палубы
+      world.roll.vx = Math.max(320, speed * 0.85);
       world.roll.platformId = p.id;
-      world.roll.remain = Math.max(10, p.w * 0.5);
 
-      // скорость качения зависит от текущей скорости мира (feel)
-      world.roll.speed = clamp(speed * 0.85, 340, 860);
-
-      // camera / feel
-      hitPause(0.05, 0.20, 0.14);
-      cameraPunch(-9, 7);
-      cameraKick(1.35);
-      world.cam.zoomT = 0; // для зума при посадке
-      world.cam.zoomTarget = 1.06;
-
+      // FEEL
+      hitPause(0.055, 0.22, 0.14);
+      cameraPunch(-8, 6);
+      cameraKick(1.25);
       return;
     }
   }
-
 
   // ===== Update =====
   function update(dt) {
@@ -696,11 +641,6 @@ window.RobinsonGame = {
       world.cam.y = 0;
     }
 
-    // camera zoom (smooth)
-    const zTarget = typeof world.cam.zoomTarget === "number" ? world.cam.zoomTarget : 1;
-    world.cam.zoom += (zTarget - world.cam.zoom) * (1 - Math.exp(-dt * 8));
-    world.cam.zoom = clamp(world.cam.zoom, 0.92, 1.10);
-
     // stars
     const starSpeed = state === State.RUNNING ? 260 : 90;
     for (const st of world.stars) {
@@ -712,7 +652,6 @@ window.RobinsonGame = {
     }
 
     if (state === State.RUNNING) {
-      world.cam.zoomTarget = 1.0;
       world.roundT += dt;
       const p = clamp(world.roundT / world.roundDur, 0, 1);
       const speed = OBJECT_SPEED_BASE * (0.9 + 0.55 * easeInOut(p));
@@ -753,14 +692,6 @@ window.RobinsonGame = {
       // pickups collision
       updatePickups(dt, speed);
 
-      // floating texts
-      for (let i = world.floaters.length - 1; i >= 0; i--) {
-        const f = world.floaters[i];
-        f.age += dt;
-        f.y -= 28 * dt;
-        if (f.age > 0.75) world.floaters.splice(i, 1);
-      }
-
       // LOSE only if реально ушёл вниз
       if (world.hero.y - world.hero.h / 2 > H + 110 && !world.result) {
         endRound("LOSE");
@@ -784,18 +715,15 @@ window.RobinsonGame = {
 
       world.fx.worldSpeed = Math.max(world.fx.worldSpeed, OBJECT_SPEED_BASE * 0.9);
 
-      // катимся вправо фиксированное расстояние (половина палубы)
-      const v = Math.max(240, world.roll.speed || 420);
-      hero.x += v * dt;
-      world.roll.remain -= v * dt;
+      // roll right
+      world.roll.vx = Math.max(0, world.roll.vx - ROLL_FRICTION * dt);
+      hero.x += world.roll.vx * dt;
 
-      // приклеиваем к палубе
       hero.y = deckTopY(pRoll) - hero.h * 0.45;
-      hero.rot = 0.10 + (v / 900) * 0.10;
+      hero.rot = 0.10 + (world.roll.vx / 900) * 0.10;
 
       const rightEdge = deckRightX(pRoll);
 
-      // если палуба закончилась раньше — падает и проигрыш
       if (hero.x + hero.w * 0.35 >= rightEdge) {
         setDamagedTrail(1.4);
         hero.vy = 420;
@@ -804,22 +732,15 @@ window.RobinsonGame = {
         cameraPunch(-14, 10);
         cameraKick(1.8);
 
-        // небольшой "провал" зума перед падением
-        world.cam.zoomTarget = 0.98;
-
         endRound("LOSE");
         return;
       }
 
-      // если докатился нужную дистанцию — победа
-      if (world.roll.remain <= 0) {
-        world.cam.zoomTarget = 1.0;
+      if (world.roll.vx <= ROLL_STOP_VX) {
         endRound("WIN");
         return;
       }
     }
-
-
 
     if (state === State.FINISH_LOSE) {
       world.fx.worldSpeed = Math.max(world.fx.worldSpeed, OBJECT_SPEED_BASE);
@@ -1027,9 +948,7 @@ window.RobinsonGame = {
     ctx.clearRect(0, 0, W, H);
 
     ctx.save();
-    ctx.translate(W / 2 + world.cam.x, H / 2 + world.cam.y);
-    ctx.scale(world.cam.zoom || 1, world.cam.zoom || 1);
-    ctx.translate(-W / 2, -H / 2);
+    ctx.translate(world.cam.x, world.cam.y);
 
     // BG
     if (GFX.ready && GFX.bg) {
@@ -1055,29 +974,7 @@ window.RobinsonGame = {
       ctx.globalAlpha = 1;
     }
 
-// parallax planets
-{
-  const t = world.t;
-  const ws = Math.max(240, world.fx.worldSpeed || OBJECT_SPEED_BASE);
-  const p1x = (W * 0.78) - (t * ws * 0.015) % (W + 300) + 150;
-  const p2x = (W * 0.38) - (t * ws * 0.028) % (W + 420) + 210;
-
-  ctx.save();
-  ctx.globalAlpha = 0.22;
-  ctx.fillStyle = "#2cf2ff";
-  ctx.beginPath();
-  ctx.arc(p1x, H * 0.28, 58, 0, Math.PI * 2);
-  ctx.fill();
-
-  ctx.globalAlpha = 0.16;
-  ctx.fillStyle = "#7c5cff";
-  ctx.beginPath();
-  ctx.arc(p2x, H * 0.18, 34, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.restore();
-}
-
-// platforms
+    // platforms
     for (const p of world.platforms) {
       const ok = drawCentered(GFX.island, p.x, p.y, p.w, p.h, 0);
       if (!ok) {
@@ -1104,48 +1001,10 @@ window.RobinsonGame = {
       ctx.beginPath();
       ctx.arc(0, 0, 18, 0, Math.PI * 2);
       ctx.fill();
-  
-// floating texts (world space)
-if (world.floaters && world.floaters.length) {
-  for (const f of world.floaters) {
-    const a = clamp(1 - f.age / 0.75, 0, 1);
-    ctx.save();
-    ctx.globalAlpha = a;
-    ctx.font = "900 22px Arial";
-    ctx.fillStyle = f.color || "#7CFFB1";
-    ctx.textAlign = "center";
-    ctx.textBaseline = "middle";
-    ctx.shadowColor = "rgba(0,0,0,0.45)";
-    ctx.shadowBlur = 10;
-    ctx.fillText(f.text, f.x, f.y);
-    ctx.restore();
-  }
-}
-    ctx.restore();
-    }
-
-    ctx.restore();
-
-    // HUD (screen space): potential win above hero
-    {
-      const h = world.hero;
-      const sx = h.x + world.cam.x;
-      const sy = h.y + world.cam.y - h.h * 0.75;
-      const bet = Number(world.bet) || 0;
-      const mult = Number(world.mult) || 1;
-      const pot = bet * mult;
-
-      ctx.save();
-      ctx.globalAlpha = state === State.RUNNING || state === State.LANDING_ROLL ? 1 : 0;
-      ctx.font = "900 18px Arial";
-      ctx.textAlign = "center";
-      ctx.textBaseline = "middle";
-      ctx.fillStyle = "rgba(255,255,255,0.92)";
-      ctx.shadowColor = "rgba(0,0,0,0.55)";
-      ctx.shadowBlur = 12;
-      ctx.fillText("$" + pot.toFixed(pot >= 100 ? 0 : 2), sx, sy);
       ctx.restore();
     }
+
+    ctx.restore();
 
     if (!GFX.ready) {
       ctx.fillStyle = "rgba(255,255,255,0.75)";
@@ -1158,9 +1017,7 @@ if (world.floaters && world.floaters.length) {
   function loop(time) {
     let dt = (time - lastTime) / 1000;
     lastTime = time;
-
-    // clamp huge frame gaps (tab switch / mobile hiccup)
-    dt = Math.min(dt, 0.12);
+    dt = Math.min(dt, 0.033);
 
     if (TIME.freeze > 0) {
       TIME.freeze = Math.max(0, TIME.freeze - dt);
@@ -1169,18 +1026,7 @@ if (world.floaters && world.floaters.length) {
       dt = dt * TIME.scale;
     }
 
-    // fixed timestep simulation (stable feel like "real game")
-    const FIXED = 1 / 60;
-    loop.acc = (loop.acc || 0) + dt;
-
-    // avoid spiral of death
-    loop.acc = Math.min(loop.acc, FIXED * 6);
-
-    while (loop.acc >= FIXED) {
-      update(FIXED);
-      loop.acc -= FIXED;
-    }
-
+    update(dt);
     render();
     requestAnimationFrame(loop);
   }
