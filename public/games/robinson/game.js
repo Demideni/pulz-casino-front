@@ -683,18 +683,14 @@ window.RobinsonGame = {
 
   // ===== Update =====
   function update(dt) {
+    world.tPrev = world.t;
     world.t += dt;
 
-    // camera shake
+    // camera shake (smooth in render)
+    // NOTE: only decay amplitude here; actual shake offsets are computed in render
     world.cam.shake = Math.max(0, world.cam.shake - dt * 3.6);
-    const s = world.cam.shake;
-    if (s > 0) {
-      world.cam.x = Math.sin(world.t * 41.3) * 6 * s;
-      world.cam.y = Math.cos(world.t * 37.7) * 5 * s;
-    } else {
-      world.cam.x = 0;
-      world.cam.y = 0;
-    }
+    world.cam.x = 0;
+    world.cam.y = 0;
 
     // camera zoom (smooth)
     const zTarget = typeof world.cam.zoomTarget === "number" ? world.cam.zoomTarget : 1;
@@ -1030,9 +1026,24 @@ window.RobinsonGame = {
     const _cp = world.camPrev || world.cam;
     const _cc = world.cam;
     const _a = clamp(alpha, 0, 1);
-    const camX = _cp.x + (_cc.x - _cp.x) * _a;
-    const camY = _cp.y + (_cc.y - _cp.y) * _a;
+    // interpolate base camera and compute smooth shake in render time
+    const baseCamX = _cp.x + (_cc.x - _cp.x) * _a;
+    const baseCamY = _cp.y + (_cc.y - _cp.y) * _a;
     const camZ = (_cp.zoom || 1) + ((_cc.zoom || 1) - (_cp.zoom || 1)) * _a;
+
+    const prevT = typeof _cp.t === "number" ? _cp.t : (world.tPrev ?? world.t);
+    const currT = typeof _cc.t === "number" ? _cc.t : world.t;
+    const tInterp = prevT + (currT - prevT) * _a;
+
+    const prevShake = typeof _cp.shake === "number" ? _cp.shake : (world.camPrev?.shake ?? world.cam.shake ?? 0);
+    const currShake = typeof _cc.shake === "number" ? _cc.shake : (world.cam.shake ?? 0);
+    const s = prevShake + (currShake - prevShake) * _a;
+
+    const shakeX = s > 0 ? Math.sin(tInterp * 41.3) * 6 * s : 0;
+    const shakeY = s > 0 ? Math.cos(tInterp * 37.7) * 5 * s : 0;
+
+    const camX = baseCamX + shakeX;
+    const camY = baseCamY + shakeY;
 
     ctx.translate(W / 2 + camX, H / 2 + camY);
     ctx.scale(camZ, camZ);
@@ -1185,13 +1196,13 @@ if (world.floaters && world.floaters.length) {
 
     while (loop.acc >= FIXED) {
       // keep previous camera state for render interpolation
-      world.camPrev = { x: world.cam.x, y: world.cam.y, zoom: world.cam.zoom };
+      world.camPrev = { x: world.cam.x, y: world.cam.y, zoom: world.cam.zoom, shake: world.cam.shake, t: world.t };
       update(FIXED);
       loop.acc -= FIXED;
     }
 
     // if we didn't step, ensure camPrev exists
-    if (!world.camPrev) world.camPrev = { x: world.cam.x, y: world.cam.y, zoom: world.cam.zoom };
+    if (!world.camPrev) world.camPrev = { x: world.cam.x, y: world.cam.y, zoom: world.cam.zoom, shake: world.cam.shake, t: world.t };
     const alpha = loop.acc / FIXED;
     render(alpha);
     requestAnimationFrame(loop);
