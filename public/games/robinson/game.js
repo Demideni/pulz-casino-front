@@ -133,6 +133,15 @@
     return ax < bx + bw && ax + aw > bx && ay < by + bh && ay + ah > by;
   }
 
+  function pushHeroFloater(text, color) {
+    if (!world.heroFloaters) world.heroFloaters = [];
+    world.heroFloaters.unshift({ text, color, t: 0 });
+    if (world.heroFloaters.length > HERO_FLOATER_MAX) {
+      world.heroFloaters.length = HERO_FLOATER_MAX;
+    }
+  }
+
+
   // ===== State =====
   const State = {
     IDLE: "IDLE",
@@ -198,6 +207,13 @@
   const BONUS_IMPULSE = 260; // up
   const HIT_IMPULSE = 220; // down
 
+  // hero stacked event labels (near hero)
+  const HERO_FLOATER_LIFE = 1.15;     // seconds
+  const HERO_FLOATER_RISE = 22;       // px
+  const HERO_FLOATER_STACK_GAP = 22;  // px between lines
+  const HERO_FLOATER_MAX = 6;         // max lines in stack
+
+
   // ===== World =====
   const world = {
     t: 0,
@@ -226,7 +242,8 @@
     add: 0, // additive winnings in bet currency
 
     roundId: null,
-    floaters: [], // {x,y,text,color,age}
+    floaters: [], // legacy world-space floaters
+    heroFloaters: [], // stacked labels near hero: {text,color,t}
 
     stars: [],
     result: null,
@@ -360,8 +377,10 @@
     world.nextPlatformId = 1;
     world.nextPickupId = 1;
     world.bonusCount = 0;
-    world.mult = world.mult || 1;
+    world.mult = 1;
+    world.add = 0;
     world.floaters = [];
+    world.heroFloaters = [];
 
     const heroX = W * HERO_X_REL;
     world.hero.x = heroX;
@@ -690,20 +709,20 @@ window.RobinsonGame = {
           world.mult = clamp(world.mult * 2, 0.1, 999);
           world.bonusCount += 1;
           emitBonus("BONUS_X2");
-          world.floaters.push({ x: world.hero.x + world.hero.w * 0.62, y: world.hero.y - world.hero.h * 0.72, text: "x2", color: "rgba(70,255,160,1)", age: 0  });
+          pushHeroFloater("x2", "rgba(70,255,160,1)");
           world.hero.vy = Math.min(world.hero.vy, 0) - BONUS_IMPULSE;
         } else if (p.type === "BONUS_X3") {
           world.mult = clamp(world.mult * 3, 0.1, 999);
           world.bonusCount += 1;
           emitBonus("BONUS_X3");
-          world.floaters.push({ x: world.hero.x + world.hero.w * 0.62, y: world.hero.y - world.hero.h * 0.72, text: "x3", color: "rgba(70,255,160,1)", age: 0  });
+          pushHeroFloater("x3", "rgba(70,255,160,1)");
           world.hero.vy = Math.min(world.hero.vy, 0) - BONUS_IMPULSE;
         } else if (p.type === "BONUS_ADD1" || p.type === "BONUS_ADD2" || p.type === "BONUS_ADD3") {
           const n = p.type === "BONUS_ADD1" ? 1 : p.type === "BONUS_ADD2" ? 2 : 3;
           world.add += (Number(world.bet) || 0) * n;
           world.bonusCount += 1;
           emitBonus(p.type);
-          world.floaters.push({ x: world.hero.x + world.hero.w * 0.62, y: world.hero.y - world.hero.h * 0.72, text: "+" + n, color: "rgba(70,255,160,1)", age: 0  });
+          pushHeroFloater("+" + n, "rgba(70,255,160,1)");
           world.hero.vy = Math.min(world.hero.vy, 0) - BONUS_IMPULSE;
         } else {
           // ROCKET: /2 on everything
@@ -711,7 +730,7 @@ window.RobinsonGame = {
           world.add *= 0.5;
 
           emitHit("ROCKET");
-          world.floaters.push({ x: world.hero.x + world.hero.w * 0.62, y: world.hero.y - world.hero.h * 0.72, text: "/2", color: "rgba(255,90,90,1)", age: 0  });
+          pushHeroFloater("/2", "rgba(255,90,90,1)");
 
           setDamagedTrail(1.2);
           world.hero.vy = Math.max(world.hero.vy, 0) + HIT_IMPULSE;
@@ -925,6 +944,16 @@ window.RobinsonGame = {
     if (state === State.FINISH_WIN) {
       world.finishT += dt;
       // camera FX disabled
+    }
+
+
+    // hero stacked floaters: advance & cleanup
+    if (world.heroFloaters && world.heroFloaters.length) {
+      for (let i = world.heroFloaters.length - 1; i >= 0; i--) {
+        const f = world.heroFloaters[i];
+        f.t += dt;
+        if (f.t >= HERO_FLOATER_LIFE) world.heroFloaters.splice(i, 1);
+      }
     }
 
     // ribbon life
@@ -1248,6 +1277,7 @@ if (isBonus) {
     if (world.fx.mode === "BLUE") renderRibbonTwoLayer();
     else renderFireParticles();
 
+
     // hero
     const h = world.hero;
     const heroDrawn = drawCentered(GFX.robinson, h.x, h.y, h.w, h.h, h.rot);
@@ -1259,9 +1289,36 @@ if (isBonus) {
       ctx.beginPath();
       ctx.arc(0, 0, 18, 0, Math.PI * 2);
       ctx.fill();
-  
+      ctx.restore();
+    }
 
-    // floating texts (world space)
+    // stacked labels near hero (top-right)
+    if (world.heroFloaters && world.heroFloaters.length) {
+      const hx = h.x + h.w * 0.65;
+      const hy = h.y - h.h * 0.15;
+
+      ctx.save();
+      ctx.textAlign = "left";
+      ctx.textBaseline = "middle";
+      ctx.font = "900 20px Arial";
+      ctx.shadowColor = "rgba(0,0,0,0.55)";
+      ctx.shadowBlur = 10;
+
+      for (let i = 0; i < world.heroFloaters.length; i++) {
+        const f = world.heroFloaters[i];
+        const k = clamp(f.t / HERO_FLOATER_LIFE, 0, 1);
+        const alpha = 1 - k;
+        const rise = HERO_FLOATER_RISE * k;
+
+        ctx.globalAlpha = alpha;
+        ctx.fillStyle = f.color || "rgba(70,255,160,1)";
+        ctx.fillText(f.text, hx, hy - i * HERO_FLOATER_STACK_GAP - rise);
+      }
+      ctx.restore();
+      ctx.globalAlpha = 1;
+    }
+
+    // legacy floating texts (world space) — keep if something else uses it
     if (world.floaters && world.floaters.length) {
       for (const f of world.floaters) {
         const a = clamp(1 - f.age / 0.75, 0, 1);
@@ -1276,11 +1333,9 @@ if (isBonus) {
         ctx.fillText(f.text, f.x, f.y);
         ctx.restore();
       }
-    }
-    ctx.restore();
+      ctx.globalAlpha = 1;
     }
 
-    ctx.restore();
 
     // HUD (screen space): potential win above hero
     {
