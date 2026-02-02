@@ -43,9 +43,11 @@
     // Round
     roundSeconds: 35,
     // Pickups
+    // NOTE: Stage 1 ("clean flight"): keep pickups OFF until feel is good.
+    enablePickups: false,
     pickupSize: 52, // will be treated as diameter-ish
-    pickupScale: 2.0, // user asked bigger x2 (visual)
-    pickupDensity: 5.0, // user asked x5 frequency
+    pickupScale: 2.0, // visual scaling if you later use sprites
+    pickupDensity: 1.2, // base frequency; we'll tune after flight feel is right
     pickupMinDx: 160,
     rocketChance: 0.42, // % of spawns that are rockets
     // Lanes (relative to screen height)
@@ -234,7 +236,9 @@
   // Carrier / sea
   // ---------------------------
   function renderCarrier() {
-    const seaY = H - CFG.seaLevelPad;
+    // Decorative carrier like the Aviamasters reference (not a landing platform).
+    // We keep it ABOVE the bottom UI bar so it's always visible on mobile.
+    const seaY = H - 300;
     // ocean haze
     const haze = ctx.createLinearGradient(0, seaY - 90, 0, seaY + 140);
     haze.addColorStop(0, "rgba(0,140,255,0.0)");
@@ -243,7 +247,7 @@
     ctx.fillRect(0, seaY - 90, W, 240);
 
     // carrier deck (vector neon)
-    const deckY = seaY + 20;
+    const deckY = seaY - 10;
     const deckH = 58;
     const deckW = W * 0.85;
     const deckX = (W - deckW) / 2;
@@ -707,7 +711,7 @@
   function render() {
     renderBackground();
     renderCarrier();
-    renderPickups();
+    if (CFG.enablePickups) renderPickups();
     renderHero();
     renderFloatTexts();
   }
@@ -746,8 +750,10 @@
 
     updateHero(dt);
     updateCamera();
-    spawnPickupsIfNeeded();
-    updatePickups(dt);
+    if (CFG.enablePickups) {
+      spawnPickupsIfNeeded();
+      updatePickups(dt);
+    }
     updateFloatTexts(dt);
     updateStats();
   }
