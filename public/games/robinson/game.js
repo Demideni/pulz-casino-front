@@ -129,7 +129,7 @@
   // Ты имел в виду НЕ размер, а количество.
   // Размер оставляем базовым, а плотность увеличиваем.
   // По ТЗ: бонусов/ракет больше, заметнее, выше по экрану и уже в самом начале раунда.
-  const PICKUP_SIZE = 39;
+  const PICKUP_SIZE = 78;
   const PICKUP_DENSITY = 3.2; // заметно плотнее
   const PICKUP_SPACING_MIN_PX = Math.round(170 / PICKUP_DENSITY);
   const PICKUP_SPACING_MAX_PX = Math.round(330 / PICKUP_DENSITY);
@@ -640,64 +640,71 @@ window.RobinsonGame = {
   }
 
   // ===== Landing (FIXED): landing strip collider, no nearest, no teleport =====
-  function tryTouchdown(speed) {
-    if (world.decided) return;
+  // ===== Landing (FIXED): robust swept landing using hero bbox (prevents "through deck" near edges) =====
+function tryTouchdown(speed) {
+  if (world.decided) return;
 
-    const hero = world.hero;
-    const bottomNow = hero.y + hero.h / 2;
-    const bottomPrev = hero.prevBottom;
+  const hero = world.hero;
 
-    // садимся только когда летим вниз
-    if (hero.vy < 0) return;
+  // bottom edges (for swept Y crossing)
+  const bottomNow = hero.y + hero.h / 2;
+  const bottomPrev = hero.prevBottom;
 
-    // небольшой допуск по X, чтобы не было "почти попал"
-    const PAD_X = hero.w * 0.16;
+  // land only while moving down
+  if (hero.vy < 0) return;
 
-    for (let i = 0; i < world.platforms.length; i++) {
-      const p = world.platforms[i];
+  // Use hero bbox in X (not just hero.x point) so edge contacts count
+  const heroLeft = hero.x - hero.w / 2;
+  const heroRight = hero.x + hero.w / 2;
 
-      const top = deckTopY(p);
+  // small tolerances to avoid missing by 1-2px due to dt/rounding
+  const EPS_Y = 14;
+  const EPS_X = 10;
 
-      // swept по X (платформа сдвигается за кадр)
-      const leftNow = deckLeftX(p);
-      const rightNow = deckRightX(p);
-      const prevX = typeof p.prevX === "number" ? p.prevX : p.x;
-      const leftPrev = prevX - p.w / 2;
-      const rightPrev = prevX + p.w / 2;
-      const leftSweep = Math.min(leftPrev, leftNow);
-      const rightSweep = Math.max(rightPrev, rightNow);
+  for (let i = 0; i < world.platforms.length; i++) {
+    const p = world.platforms[i];
 
-      // должен быть над палубой по X (учитывая sweep и допуск)
-      if (hero.x < leftSweep - PAD_X || hero.x > rightSweep + PAD_X) continue;
+    const top = deckTopY(p);
 
-      // пересёк верх палубы между кадрами
-      const crossed = bottomPrev < top && bottomNow >= top;
-      if (!crossed) continue;
+    // platform swept X between prevX and current X (platform moves left each frame)
+    const leftNow = deckLeftX(p);
+    const rightNow = deckRightX(p);
 
-      // финальная проверка X в swept-границах
-      if (hero.x < leftSweep || hero.x > rightSweep) continue;
+    const prevX = typeof p.prevX === "number" ? p.prevX : p.x;
+    const leftPrev = prevX - p.w / 2;
+    const rightPrev = prevX + p.w / 2;
 
-      // === САДИМСЯ В ЛЮБОЙ ТОЧКЕ ВЕРХНЕЙ ПАЛУБЫ ===
-      world.decided = true;
+    const leftSweep = Math.min(leftPrev, leftNow) - EPS_X;
+    const rightSweep = Math.max(rightPrev, rightNow) + EPS_X;
 
-      hero.y = top - hero.h * 0.45;
-      hero.vy = 0;
-      hero.rot = 0.06;
+    // hero bbox overlaps swept deck interval?
+    const overlapX = heroRight > leftSweep && heroLeft < rightSweep;
+    if (!overlapX) continue;
 
-      state = State.LANDING_ROLL;
+    // swept Y: did hero cross the deck top between frames?
+    const crossedY = bottomPrev <= top + EPS_Y && bottomNow >= top - EPS_Y;
+    if (!crossedY) continue;
 
-      // катится РОВНО половину длины палубы
-      world.roll.platformId = p.id;
-      world.roll.remain = Math.max(10, p.w * 0.5);
+    // === LAND: any point on the top deck ===
+    world.decided = true;
 
-      // скорость качения зависит от текущей скорости мира (feel)
-      world.roll.speed = clamp(speed * 0.85, 340, 860);
+    // snap hero onto deck
+    hero.y = top - hero.h * 0.45;
+    hero.vy = 0;
+    hero.rot = 0.06;
 
-      // no camera FX on landing (requested)
+    state = State.LANDING_ROLL;
 
-      return;
-    }
+    // roll exactly half the deck length
+    world.roll.platformId = p.id;
+    world.roll.remain = Math.max(10, p.w * 0.5);
+
+    // rolling speed depends on current world speed for feel
+    world.roll.speed = clamp(speed * 0.85, 340, 860);
+
+    return;
   }
+}
 
 
   // ===== Update =====
