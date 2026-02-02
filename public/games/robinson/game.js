@@ -17,8 +17,6 @@
     bg: null,
     robinson: null,
     island: null,
-    bonus: null,
-    rocket: null,
     ready: false,
   };
 
@@ -26,14 +24,10 @@
     loadImage("./assets/splash_bg.png"),
     loadImage("./assets/robinson.png"),
     loadImage("./assets/island_long.png"),
-    loadImage("./assets/bonus.png"),
-    loadImage("./assets/rocket.png"),
-  ]).then(([bg, robinson, island, bonus, rocket]) => {
+  ]).then(([bg, robinson, island]) => {
     GFX.bg = bg;
     GFX.robinson = robinson;
     GFX.island = island;
-    GFX.bonus = bonus;
-    GFX.rocket = rocket;
     GFX.ready = true;
   });
 
@@ -97,30 +91,27 @@
 
   // platforms
   const PLATFORM_POOL = 9;
-  // Платформы (палубы) должны идти ровной цепочкой: фиксированная высота и шаг.
-  // Шаг = длина 3 платформ (по ТЗ).
-  // Возвращаем “нормальный” размер палубы (как было до экспериментов).
-  const PLATFORM_WIDTH_MUL = 1.0;
-  const PLATFORM_SPACING_MULT = 3.0; // расстояние между платформами = 3 длины платформы
+  const PLATFORM_GAP_MIN = 0.55;
+  const PLATFORM_GAP_MAX = 0.95;
+  const PLATFORM_Y_JITTER = 0.02;
 
   // landing zones (0..1 along deck)
-  // Посадочные зоны под “нормальную” палубу.
-  // (Нормализованные координаты вдоль палубы 0..1)
   const WIN_ZONE_L = 0.18;
   const WIN_ZONE_R = 0.62;
   const LOSE_ZONE_L = 0.78;
   const LOSE_ZONE_R = 0.96;
 
+  // Volumetric landing band (px). Prevents "tunneling" through platforms on mobile/FPS drops.
+  const LANDING_BAND_PX = 64;
+
   // pickups (air)
-  const PICKUP_POOL = 30;
+  // user wants more pickups (count) and bigger sprites
+  const PICKUP_DENSITY = 5; // ~5x more
+  const PICKUP_POOL = 140;
+  const PICKUP_GAP_MIN = 0.28 / PICKUP_DENSITY;
+  const PICKUP_GAP_MAX = 0.55 / PICKUP_DENSITY;
   const BONUS_CHANCE = 0.62;
-  // Ты имел в виду НЕ размер, а количество.
-  // Размер оставляем базовым, а плотность увеличиваем.
-  const PICKUP_SIZE = 26;
-  const PICKUP_DENSITY = 1.8; // >1.5, потому что у тебя стало слишком редко
-  const PICKUP_SPACING_MIN_PX = Math.round(220 / PICKUP_DENSITY);
-  const PICKUP_SPACING_MAX_PX = Math.round(420 / PICKUP_DENSITY);
-  const PICKUP_MIN_SEP_PX = 150; // защита от “вплотную” даже при высокой плотности
+  const PICKUP_SIZE = 26 * 2; // x2 size
   const BONUS_IMPULSE = 260; // up
   const HIT_IMPULSE = 220; // down
 
@@ -136,12 +127,11 @@
 
     platforms: [], // {id,x,y,w,h}
     nextPlatformId: 1,
-    platformY: 0,
-    platformSpacingPx: 0,
+    nextSpawnIn: 0,
 
     pickups: [], // {id,x,y,w,h,type,age}
     nextPickupId: 1,
-    nextPickupX: 0,
+    nextPickupIn: 0,
 
     bonusCount: 0,
 
@@ -251,7 +241,8 @@
   function platformBaseSize() {
     const scale = Math.min(W / 1200, H / 800, 1);
     return {
-      w: Math.round(520 * scale * PLATFORM_WIDTH_MUL),
+      // user: platform length x1.5
+      w: Math.round(520 * scale * 1.5),
       h: Math.round(170 * scale),
     };
   }
@@ -311,36 +302,20 @@
 
     planRound();
 
-    // ===== Platforms: ровная цепочка (фиксированная высота + фиксированный шаг) =====
-    const { w: pw, h: ph } = platformBaseSize();
-    world.platformY = Math.round(H * WATER_LINE_REL);
-    world.platformSpacingPx = Math.max(240, Math.round(pw * PLATFORM_SPACING_MULT));
+    // первая "сценарная" платформа
+    const targetT = world.roundDur * 0.78;
+    const approxSpeed = OBJECT_SPEED_BASE * 1.15;
 
-    // стартовая платформа прямо под героем
-    const startPlatform = spawnPlatform(heroX, world.platformY);
-    // гарантируем размеры (spawnPlatform берёт свежие размеры, но для ясности)
-    startPlatform.w = pw;
-    startPlatform.h = ph;
+    const startX = W * 1.20;
+    const travel = startX - heroX;
+    const timeToHero = travel / approxSpeed;
 
-    // герой стартует С платформы и сразу улетает
-    world.hero.y = deckTopY(startPlatform) - world.hero.h * 0.45;
-    world.hero.vy = START_VY;
-    world.hero.prevBottom = world.hero.y + world.hero.h / 2;
+    const x0 = startX + (targetT - timeToHero) * approxSpeed;
+    const y0 = H * (WATER_LINE_REL + rnd(-PLATFORM_Y_JITTER, PLATFORM_Y_JITTER));
+    spawnPlatform(x0, y0);
 
-    // наполняем цепочку платформ впереди (чтобы всегда было куда лететь)
-    let x = heroX;
-    const neededRight = W * 2.2;
-    while (x < neededRight) {
-      x += world.platformSpacingPx;
-      const p = spawnPlatform(x, world.platformY);
-      p.w = pw;
-      p.h = ph;
-    }
-
-    // ===== Pickups =====
-    // Будем спавнить по "пройденному расстоянию" (в пикселях), чтобы на любой скорости
-    // объекты не появлялись вплотную.
-    world.nextPickupX = rnd(PICKUP_SPACING_MIN_PX, PICKUP_SPACING_MAX_PX);
+    world.nextSpawnIn = rnd(PLATFORM_GAP_MIN, PLATFORM_GAP_MAX);
+    world.nextPickupIn = rnd(PICKUP_GAP_MIN, PICKUP_GAP_MAX);
   }
 
   function endRound(result) {
@@ -448,70 +423,66 @@
 
   // ===== Spawners =====
   function maybeSpawnNextPlatform(dt) {
-    // Ровная цепочка: всегда держим справа запас платформ.
-    // Спавним новую, когда правый край цепочки приблизился.
-    if (world.platforms.length === 0) return;
+    world.nextSpawnIn -= dt;
+    if (world.nextSpawnIn > 0) return;
 
-    let rightmost = world.platforms[0];
-    for (let i = 1; i < world.platforms.length; i++) {
-      if (world.platforms[i].x > rightmost.x) rightmost = world.platforms[i];
-    }
+    const x = W + rnd(W * 0.30, W * 0.55);
+    const y = H * (WATER_LINE_REL + rnd(-PLATFORM_Y_JITTER, PLATFORM_Y_JITTER));
+    spawnPlatform(x, y);
 
-    const margin = W * 1.2;
-    if (rightmost.x < W + margin) {
-      const { w: pw, h: ph } = platformBaseSize();
-      const p = spawnPlatform(rightmost.x + world.platformSpacingPx, world.platformY);
-      p.w = pw;
-      p.h = ph;
-    }
+    world.nextSpawnIn = rnd(PLATFORM_GAP_MIN, PLATFORM_GAP_MAX);
   }
 
-  function spawnPickup() {
-    const x = W + rnd(180, 520);
-
-    // Два "коридора" по Y: верхний и нижний, но без прилипания к палубе.
-    const topMin = H * PLAYFIELD_TOP_REL + 40;
-    const topMax = H * 0.42;
-
-    // низ — выше палубы, чтобы бонусы/ракеты не оказывались "на платформе"
-    const { h: ph } = platformBaseSize();
-    const deckTop = world.platformY - ph / 2;
-    const lowMin = H * 0.54;
-    const lowMax = Math.min(deckTop - 70, H * (WATER_LINE_REL - 0.10));
-
-    const useTop = Math.random() < 0.5;
-    const y = useTop ? rnd(topMin, topMax) : rnd(lowMin, lowMax);
+  function spawnPickup(worldSpeed) {
+    const x = W + rnd(W * 0.20, W * 0.55);
+    // Spread pickups on multiple vertical lanes and a bit higher (not one line)
+    const yMin = H * PLAYFIELD_TOP_REL + 30;
+    const yMax = H * (WATER_LINE_REL - 0.18);
+    const lanes = [
+      H * 0.22,
+      H * 0.35,
+      H * 0.50,
+      H * 0.62,
+    ];
+    const baseY = lanes[(Math.random() * lanes.length) | 0];
+    const y = clamp(baseY + rnd(-55, 55), yMin, yMax);
 
     const type = Math.random() < BONUS_CHANCE ? "BONUS" : "ROCKET";
 
-    // Не даём объектам появляться вплотную друг к другу.
-    for (const p of world.pickups) {
-      const dx = p.x - x;
-      const dy = p.y - y;
-      if (dx * dx + dy * dy < PICKUP_MIN_SEP_PX * PICKUP_MIN_SEP_PX) {
-        return; // пропускаем спавн, следующий будет скоро из-за плотности
+    // Avoid spawning too close to existing pickups
+    const MIN_D2 = 160 * 160;
+    for (let attempt = 0; attempt < 6; attempt++) {
+      const yy = clamp((attempt === 0 ? y : (lanes[(Math.random() * lanes.length) | 0] + rnd(-55, 55))), yMin, yMax);
+      let ok = true;
+      for (const p of world.pickups) {
+        const dx = p.x - x;
+        const dy = p.y - yy;
+        if (dx * dx + dy * dy < MIN_D2) {
+          ok = false;
+          break;
+        }
       }
+      if (!ok) continue;
+      world.pickups.push({
+        id: world.nextPickupId++,
+        x,
+        y: yy,
+        w: PICKUP_SIZE,
+        h: PICKUP_SIZE,
+        type,
+        age: 0,
+      });
+      break;
     }
-
-    world.pickups.push({
-      id: world.nextPickupId++,
-      x,
-      y,
-      w: PICKUP_SIZE,
-      h: PICKUP_SIZE,
-      type,
-      age: 0,
-    });
 
     if (world.pickups.length > PICKUP_POOL) world.pickups.shift();
   }
 
   function maybeSpawnPickup(dt, worldSpeed) {
-    // nextPickupX используем как "следующая дистанция до спавна" в пикселях
-    world.nextPickupX -= worldSpeed * dt;
-    if (world.nextPickupX > 0) return;
-    spawnPickup();
-    world.nextPickupX = rnd(PICKUP_SPACING_MIN_PX, PICKUP_SPACING_MAX_PX);
+    world.nextPickupIn -= dt;
+    if (world.nextPickupIn > 0) return;
+    spawnPickup(worldSpeed);
+    world.nextPickupIn = rnd(PICKUP_GAP_MIN, PICKUP_GAP_MAX);
   }
 
   function updatePickups(dt, worldSpeed) {
@@ -559,57 +530,51 @@
   // ===== Landing (FIXED): landing strip collider, no nearest, no teleport =====
   function tryTouchdown(speed) {
     if (world.decided) return;
-
     const hero = world.hero;
-    const bottomNow = hero.y + hero.h / 2;
-    const bottomPrev = hero.prevBottom;
 
-    // садимся только когда падаем вниз
+    // Land only when moving downward
     if (hero.vy < 0) return;
 
-    const PAD_X = hero.w * 0.18;
+    // Hero AABB
+    const hLeft = hero.x - hero.w / 2;
+    const hRight = hero.x + hero.w / 2;
+    const hTop = hero.y - hero.h / 2;
+    const hBottom = hero.y + hero.h / 2;
 
-    // перебираем все платформы и ищем реальный контакт
+    // Previous (approx) top/bottom from prevBottom
+    const prevBottom = hero.prevBottom;
+    const prevTop = prevBottom - hero.h;
+
+    // Volumetric landing: platform top is a band (not a line)
     for (let i = 0; i < world.platforms.length; i++) {
       const p = world.platforms[i];
-
       const top = deckTopY(p);
+      const bandBottom = top + LANDING_BAND_PX;
+      const left = deckLeftX(p);
+      const right = deckRightX(p);
 
-      // Платформа двигается по X во время кадра, поэтому используем swept-проверку по X.
-      const leftNow = deckLeftX(p);
-      const rightNow = deckRightX(p);
-      const prevX = typeof p.prevX === "number" ? p.prevX : p.x;
-      const leftPrev = prevX - p.w / 2;
-      const rightPrev = prevX + p.w / 2;
-      const leftSweep = Math.min(leftPrev, leftNow);
-      const rightSweep = Math.max(rightPrev, rightNow);
+      // Horizontal overlap (AABB)
+      if (hRight <= left || hLeft >= right) continue;
 
-      // по X должен быть над палубой (учитывая sweep)
-      if (hero.x < leftSweep - PAD_X || hero.x > rightSweep + PAD_X) continue;
+      // Vertical overlap with landing band
+      const inBand = hBottom >= top && hTop <= bandBottom;
+      if (!inBand) continue;
 
-      // пересёк линию верхушки палубы между кадрами
-      const crossed = bottomPrev < top && bottomNow >= top;
-      if (!crossed) continue;
+      // Must be approaching from above (prevents landing when already under the deck)
+      if (prevTop > bandBottom) continue;
 
-      // реальный X внутри swept-объёма палубы
-      if (hero.x < leftSweep || hero.x > rightSweep) continue;
-
-      // зона по текущей палубе (0..1). Берём текущие границы, чтобы зоны были стабильные.
-      const denom = Math.max(1, rightNow - leftNow);
-      const norm = clamp((hero.x - leftNow) / denom, 0, 1);
-
+      // Landing zone gating (based on hero center X along deck)
+      const norm = clamp((hero.x - left) / (right - left), 0, 1);
       const inWinZone = norm >= WIN_ZONE_L && norm <= WIN_ZONE_R;
       const inLoseZone = norm >= LOSE_ZONE_L && norm <= LOSE_ZONE_R;
-
-      const wantWin = world.plan.result === "WIN";
+      const wantWin = world.plan?.result === "WIN";
       const okZone = wantWin ? inWinZone : inLoseZone;
 
-      // если не в нужной зоне — это промах, НЕ садимся на ЭТУ платформу
+      // If not in the planned zone — treat as miss (do not resolve penetration)
       if (!okZone) continue;
 
-      // САДИМСЯ: фиксируем только Y, X не трогаем
+      // LAND (penetration resolution): snap Y to deck top (no X teleport)
       world.decided = true;
-
       hero.y = top - hero.h * 0.45;
       hero.vy = 0;
       hero.rot = 0.08;
@@ -618,7 +583,6 @@
       world.roll.vx = Math.max(320, speed * 0.85);
       world.roll.platformId = p.id;
 
-      // FEEL
       hitPause(0.055, 0.22, 0.14);
       cameraPunch(-8, 6);
       cameraKick(1.25);
@@ -660,12 +624,10 @@
       // spawn platforms
       maybeSpawnNextPlatform(dt);
 
-      // move platforms (store prevX to fix "tunneling" in landing)
+      // move platforms
       for (let i = world.platforms.length - 1; i >= 0; i--) {
-        const plat = world.platforms[i];
-        plat.prevX = plat.x;
-        plat.x -= speed * dt;
-        if (plat.x < -900) world.platforms.splice(i, 1);
+        world.platforms[i].x -= speed * dt;
+        if (world.platforms[i].x < -900) world.platforms.splice(i, 1);
       }
 
       // spawn pickups
@@ -886,20 +848,6 @@
       ctx.translate(p.x, p.y);
       ctx.scale(pulse, pulse);
 
-      // Если есть спрайты — рисуем их (это приоритет).
-      if (p.type === "BONUS" && GFX.bonus) {
-        ctx.globalAlpha = 1;
-        ctx.drawImage(GFX.bonus, -p.w / 2, -p.h / 2, p.w, p.h);
-        ctx.restore();
-        continue;
-      }
-      if (p.type === "ROCKET" && GFX.rocket) {
-        ctx.globalAlpha = 1;
-        ctx.drawImage(GFX.rocket, -p.w / 2, -p.h / 2, p.w, p.h);
-        ctx.restore();
-        continue;
-      }
-
       if (p.type === "BONUS") {
         ctx.globalAlpha = 0.22;
         ctx.fillStyle = "#ffd54a";
@@ -928,7 +876,7 @@
         ctx.globalAlpha = 0.95;
         ctx.fillStyle = "#ff3b3b";
         ctx.beginPath();
-        ctx.arc(0, 0, p.w * 0.32, 0, Math.PI * 2);
+        ctx.arc(0, 0, p.w * 0.32, 0, Math.PI * Math.PI);
         ctx.fill();
 
         ctx.globalAlpha = 0.75;
@@ -1032,4 +980,5 @@
   }
 
   requestAnimationFrame(loop);
+
 })();
