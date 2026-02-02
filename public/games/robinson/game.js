@@ -123,15 +123,15 @@
   const LOSE_ZONE_R = 0.96;
 
   // pickups (air)
-  const PICKUP_POOL = 30;
-  const BONUS_CHANCE = 0.62;
+  const PICKUP_POOL = 70;
+  const BONUS_CHANCE = 0.66;
   // Ты имел в виду НЕ размер, а количество.
   // Размер оставляем базовым, а плотность увеличиваем.
-  const PICKUP_SIZE = 26;
+  const PICKUP_SIZE = 56;
   const PICKUP_DENSITY = 1.8; // >1.5, потому что у тебя стало слишком редко
   const PICKUP_SPACING_MIN_PX = Math.round(220 / PICKUP_DENSITY);
   const PICKUP_SPACING_MAX_PX = Math.round(420 / PICKUP_DENSITY);
-  const PICKUP_MIN_SEP_PX = 150; // защита от “вплотную” даже при высокой плотности
+  const PICKUP_MIN_SEP_PX = 120; // защита от “вплотную” даже при высокой плотности
   const BONUS_IMPULSE = 260; // up
   const HIT_IMPULSE = 220; // down
 
@@ -359,7 +359,7 @@
     // ===== Pickups =====
     // Будем спавнить по "пройденному расстоянию" (в пикселях), чтобы на любой скорости
     // объекты не появлялись вплотную.
-    world.nextPickupX = rnd(PICKUP_SPACING_MIN_PX, PICKUP_SPACING_MAX_PX);
+    world.nextPickupX = 40; // первые бонусы почти сразу
   }
 
   function endRound(result) {
@@ -523,7 +523,7 @@ window.RobinsonGame = {
   }
 
   function spawnPickup() {
-    const x = W + rnd(180, 520);
+    const x = W + rnd(110, 260);
 
     // Два "коридора" по Y: верхний и нижний, но без прилипания к палубе.
     const topMin = H * PLAYFIELD_TOP_REL + 40;
@@ -535,8 +535,9 @@ window.RobinsonGame = {
     const lowMin = H * 0.54;
     const lowMax = Math.min(deckTop - 70, H * (WATER_LINE_REL - 0.10));
 
-    const useTop = Math.random() < 0.5;
-    const y = useTop ? rnd(topMin, topMax) : rnd(lowMin, lowMax);
+    const target = clamp(world.hero.y + rnd(-170, 170), topMin, lowMax);
+    // держим рядом с траекторией героя, но с живым разбросом
+    const y = clamp(target + rnd(-35, 35), topMin, lowMax);
 
     const type = Math.random() < BONUS_CHANCE ? "BONUS" : "ROCKET";
 
@@ -563,11 +564,14 @@ window.RobinsonGame = {
   }
 
   function maybeSpawnPickup(dt, worldSpeed) {
-    // nextPickupX используем как "следующая дистанция до спавна" в пикселях
+    // nextPickupX = дистанция до следующего спавна (px). При дропах FPS можем перепрыгнуть,
+    // поэтому спавним catch-up через while.
     world.nextPickupX -= worldSpeed * dt;
-    if (world.nextPickupX > 0) return;
-    spawnPickup();
-    world.nextPickupX = rnd(PICKUP_SPACING_MIN_PX, PICKUP_SPACING_MAX_PX);
+    let safety = 0;
+    while (world.nextPickupX <= 0 && safety++ < 3) {
+      spawnPickup();
+      world.nextPickupX += rnd(PICKUP_SPACING_MIN_PX, PICKUP_SPACING_MAX_PX);
+    }
   }
 
   function updatePickups(dt, worldSpeed) {
@@ -605,7 +609,6 @@ window.RobinsonGame = {
 
           // impulse UP, continue flight
           world.hero.vy = Math.min(world.hero.vy, 0) - BONUS_IMPULSE;
-          cameraKick(0.45);
         } else {
           // ROCKET: /2
           world.mult = clamp(world.mult * 0.5, 0.1, 999);
@@ -615,8 +618,6 @@ window.RobinsonGame = {
 
           setDamagedTrail(1.2);
           world.hero.vy = Math.max(world.hero.vy, 0) + HIT_IMPULSE;
-          cameraKick(0.85);
-          cameraPunch(-6, 4);
         }
       }
     }
@@ -1102,8 +1103,8 @@ window.RobinsonGame = {
       const sizeMoon = Math.min(W, H) * 0.34;
       const sizeMars = Math.min(W, H) * 0.26;
 
-      const okMoon = drawPlanet(GFX.moon, W * 0.78, H * 0.15, 0.20, sizeMoon, 0.75);
-      const okMars = drawPlanet(GFX.mars, W * 0.85, H * 0.10, 0.10, sizeMars, 0.72);
+      const okMoon = drawPlanet(GFX.moon, W * 0.78, H * 0.30, 0.28, sizeMoon, 0.75);
+      const okMars = drawPlanet(GFX.mars, W * 0.38, H * 0.20, 0.42, sizeMars, 0.72);
 
       // fallback: simple circles if planets not found
       if (!okMoon || !okMars) {
