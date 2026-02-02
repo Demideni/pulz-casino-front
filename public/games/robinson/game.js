@@ -129,7 +129,7 @@
   // Ты имел в виду НЕ размер, а количество.
   // Размер оставляем базовым, а плотность увеличиваем.
   // По ТЗ: бонусов/ракет больше, заметнее, выше по экрану и уже в самом начале раунда.
-  const PICKUP_SIZE = 78;
+  const PICKUP_SIZE = 39;
   const PICKUP_DENSITY = 3.2; // заметно плотнее
   const PICKUP_SPACING_MIN_PX = Math.round(170 / PICKUP_DENSITY);
   const PICKUP_SPACING_MAX_PX = Math.round(330 / PICKUP_DENSITY);
