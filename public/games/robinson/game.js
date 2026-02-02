@@ -211,13 +211,9 @@
   }
   initStars();
 
-  function cameraKick(amount = 1) {
-    world.cam.shake = Math.max(world.cam.shake, amount);
-  }
-  function cameraPunch(dx = 0, dy = 0) {
-    world.cam.x += dx;
-    world.cam.y += dy;
-  }
+  // Camera FX removed: no shake/zoom to avoid visual jitter on landing/rolling.
+  function cameraKick() {}
+  function cameraPunch() {}
 
   function kickStartFeel() {
     if (!window.gsap) return;
@@ -669,12 +665,7 @@ window.RobinsonGame = {
       // скорость качения зависит от текущей скорости мира (feel)
       world.roll.speed = clamp(speed * 0.85, 340, 860);
 
-      // camera / feel
-      hitPause(0.05, 0.20, 0.14);
-      cameraPunch(-9, 7);
-      cameraKick(1.35);
-      world.cam.zoomT = 0; // для зума при посадке
-      world.cam.zoomTarget = 1.06;
+      // no camera FX on landing (requested)
 
       return;
     }
@@ -686,16 +677,12 @@ window.RobinsonGame = {
     world.tPrev = world.t;
     world.t += dt;
 
-    // camera shake (smooth in render)
-    // NOTE: only decay amplitude here; actual shake offsets are computed in render
-    world.cam.shake = Math.max(0, world.cam.shake - dt * 3.6);
+    // camera FX disabled (keep stable)
+    world.cam.shake = 0;
     world.cam.x = 0;
     world.cam.y = 0;
-
-    // camera zoom (smooth)
-    const zTarget = typeof world.cam.zoomTarget === "number" ? world.cam.zoomTarget : 1;
-    world.cam.zoom += (zTarget - world.cam.zoom) * (1 - Math.exp(-dt * 8));
-    world.cam.zoom = clamp(world.cam.zoom, 0.92, 1.10);
+    world.cam.zoom = 1;
+    world.cam.zoomTarget = 1;
 
     // stars
     const starSpeed = state === State.RUNNING ? 260 : 90;
@@ -708,7 +695,7 @@ window.RobinsonGame = {
     }
 
     if (state === State.RUNNING) {
-      world.cam.zoomTarget = 1.0;
+      // camera FX disabled
       world.roundT += dt;
       const p = clamp(world.roundT / world.roundDur, 0, 1);
       const speed = OBJECT_SPEED_BASE * (0.9 + 0.55 * easeInOut(p));
@@ -796,12 +783,7 @@ window.RobinsonGame = {
         setDamagedTrail(1.4);
         hero.vy = 420;
 
-        hitPause(0.08, 0.18, 0.18);
-        cameraPunch(-14, 10);
-        cameraKick(1.8);
-
-        // небольшой "провал" зума перед падением
-        world.cam.zoomTarget = 0.98;
+        // no camera FX on fall
 
         endRound("LOSE");
         return;
@@ -809,7 +791,7 @@ window.RobinsonGame = {
 
       // если докатился нужную дистанцию — победа
       if (world.roll.remain <= 0) {
-        world.cam.zoomTarget = 1.0;
+        // camera FX disabled
         endRound("WIN");
         return;
       }
@@ -825,12 +807,12 @@ window.RobinsonGame = {
       world.hero.vy += GRAVITY * 0.70 * dt;
       world.hero.y += world.hero.vy * dt;
       world.hero.rot += 1.6 * dt;
-      if (world.finishT < 0.6) cameraKick(0.12);
+      // camera FX disabled
     }
 
     if (state === State.FINISH_WIN) {
       world.finishT += dt;
-      if (world.finishT < 0.35) cameraKick(0.07);
+      // camera FX disabled
     }
 
     // ribbon life
@@ -1023,31 +1005,7 @@ window.RobinsonGame = {
     ctx.clearRect(0, 0, W, H);
 
     ctx.save();
-    const _cp = world.camPrev || world.cam;
-    const _cc = world.cam;
-    const _a = clamp(alpha, 0, 1);
-    // interpolate base camera and compute smooth shake in render time
-    const baseCamX = _cp.x + (_cc.x - _cp.x) * _a;
-    const baseCamY = _cp.y + (_cc.y - _cp.y) * _a;
-    const camZ = (_cp.zoom || 1) + ((_cc.zoom || 1) - (_cp.zoom || 1)) * _a;
-
-    const prevT = typeof _cp.t === "number" ? _cp.t : (world.tPrev ?? world.t);
-    const currT = typeof _cc.t === "number" ? _cc.t : world.t;
-    const tInterp = prevT + (currT - prevT) * _a;
-
-    const prevShake = typeof _cp.shake === "number" ? _cp.shake : (world.camPrev?.shake ?? world.cam.shake ?? 0);
-    const currShake = typeof _cc.shake === "number" ? _cc.shake : (world.cam.shake ?? 0);
-    const s = prevShake + (currShake - prevShake) * _a;
-
-    const shakeX = s > 0 ? Math.sin(tInterp * 41.3) * 6 * s : 0;
-    const shakeY = s > 0 ? Math.cos(tInterp * 37.7) * 5 * s : 0;
-
-    const camX = baseCamX + shakeX;
-    const camY = baseCamY + shakeY;
-
-    ctx.translate(W / 2 + camX, H / 2 + camY);
-    ctx.scale(camZ, camZ);
-    ctx.translate(-W / 2, -H / 2);
+    // Camera FX removed: render in screen-space (no shake/zoom/translate)
 
     // BG
     if (GFX.ready && GFX.bg) {
@@ -1170,6 +1128,9 @@ if (world.floaters && world.floaters.length) {
       ctx.font = "600 14px Arial";
       ctx.fillText("Loading assets...", 24, H - 24);
     }
+
+    // restore render-level save()
+    ctx.restore();
   }
 
   // ===== Loop =====
