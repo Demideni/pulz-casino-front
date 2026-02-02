@@ -28,9 +28,10 @@
     gravity: 980,
     // Flight feel (Variant 2)
     // We DON'T want pure gravity drop. We want: takeoff up to mid-screen, then gentle glide down.
-    takeoffDuration: 1.15, // seconds to reach peak
-    takeoffPeakFracY: 0.46, // peak altitude as fraction of screen height (0 top .. 1 bottom)
-    glideSinkPxPerSec: 42, // after peak, target Y slowly moves down
+    // Make start feel like Aviamasters: noticeable lift to ~middle, then smooth glide.
+    takeoffDuration: 0.95, // seconds to reach peak
+    takeoffPeakFracY: 0.36, // peak altitude as fraction of screen height (0 top .. 1 bottom)
+    glideSinkPxPerSec: 58, // after peak, target Y slowly moves down
     vertKp: 16.0, // vertical controller proportional gain
     vertKd: 7.0, // vertical controller damping
     vertGravityBias: 60, // small downward bias so glide happens even at steady target
@@ -39,7 +40,7 @@
     heroH: 60,
     heroStartX: 160,
     heroStartY: 380,
-    heroVx: 330, // px/s base forward speed
+    heroVx: 520, // px/s base forward speed (was too slow)
     heroLiftImpulse: 240, // upward impulse when hitting +N bonus
     heroHitDownImpulse: 110, // downward impulse when hit by rocket
     heroMaxVy: 680,
@@ -260,9 +261,11 @@
   // Carrier / sea
   // ---------------------------
   function renderCarrier() {
-    // Decorative carrier like the Aviamasters reference (not a landing platform).
-    // We keep it ABOVE the bottom UI bar so it's always visible on mobile.
+    // Carrier is a NEAR background element.
+    // Important: it must NOT be glued to the hero/camera.
+    // It drifts left (parallax) while the hero flies right.
     const seaY = H - 300;
+    const par = 0.22; // <1 so it moves slower than the world
     // ocean haze
     const haze = ctx.createLinearGradient(0, seaY - 90, 0, seaY + 140);
     haze.addColorStop(0, "rgba(0,140,255,0.0)");
@@ -283,7 +286,7 @@
         h = maxH;
         w = h * aspect;
       }
-      const x = (W - w) / 2;
+      const x = (W - w) / 2 - world.camX * par;
       const y = deckY + 40 - h; // sit above haze a bit
       ctx.save();
       ctx.shadowColor = "rgba(0,170,255,0.55)";
@@ -297,7 +300,7 @@
     // fallback carrier deck (vector neon)
     const deckH = 58;
     const deckW = W * 0.85;
-    const deckX = (W - deckW) / 2;
+    const deckX = (W - deckW) / 2 - world.camX * par;
     ctx.save();
     ctx.shadowColor = "rgba(0,170,255,0.45)";
     ctx.shadowBlur = 18;
