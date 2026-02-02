@@ -690,20 +690,20 @@ window.RobinsonGame = {
           world.mult = clamp(world.mult * 2, 0.1, 999);
           world.bonusCount += 1;
           emitBonus("BONUS_X2");
-          world.floaters.push({ x: p.x, y: p.y - 30, text: "x2", color: "rgba(70,255,160,1)", age: 0 });
+          world.floaters.push({ x: world.hero.x + world.hero.w * 0.62, y: world.hero.y - world.hero.h * 0.72, text: "x2", color: "rgba(70,255,160,1)", age: 0  });
           world.hero.vy = Math.min(world.hero.vy, 0) - BONUS_IMPULSE;
         } else if (p.type === "BONUS_X3") {
           world.mult = clamp(world.mult * 3, 0.1, 999);
           world.bonusCount += 1;
           emitBonus("BONUS_X3");
-          world.floaters.push({ x: p.x, y: p.y - 30, text: "x3", color: "rgba(70,255,160,1)", age: 0 });
+          world.floaters.push({ x: world.hero.x + world.hero.w * 0.62, y: world.hero.y - world.hero.h * 0.72, text: "x3", color: "rgba(70,255,160,1)", age: 0  });
           world.hero.vy = Math.min(world.hero.vy, 0) - BONUS_IMPULSE;
         } else if (p.type === "BONUS_ADD1" || p.type === "BONUS_ADD2" || p.type === "BONUS_ADD3") {
           const n = p.type === "BONUS_ADD1" ? 1 : p.type === "BONUS_ADD2" ? 2 : 3;
           world.add += (Number(world.bet) || 0) * n;
           world.bonusCount += 1;
           emitBonus(p.type);
-          world.floaters.push({ x: p.x, y: p.y - 30, text: "+" + n, color: "rgba(70,255,160,1)", age: 0 });
+          world.floaters.push({ x: world.hero.x + world.hero.w * 0.62, y: world.hero.y - world.hero.h * 0.72, text: "+" + n, color: "rgba(70,255,160,1)", age: 0  });
           world.hero.vy = Math.min(world.hero.vy, 0) - BONUS_IMPULSE;
         } else {
           // ROCKET: /2 on everything
@@ -711,7 +711,7 @@ window.RobinsonGame = {
           world.add *= 0.5;
 
           emitHit("ROCKET");
-          world.floaters.push({ x: p.x, y: p.y - 30, text: "/2", color: "rgba(255,90,90,1)", age: 0 });
+          world.floaters.push({ x: world.hero.x + world.hero.w * 0.62, y: world.hero.y - world.hero.h * 0.72, text: "/2", color: "rgba(255,90,90,1)", age: 0  });
 
           setDamagedTrail(1.2);
           world.hero.vy = Math.max(world.hero.vy, 0) + HIT_IMPULSE;
@@ -1260,22 +1260,23 @@ if (isBonus) {
       ctx.arc(0, 0, 18, 0, Math.PI * 2);
       ctx.fill();
   
-// floating texts (world space)
-if (world.floaters && world.floaters.length) {
-  for (const f of world.floaters) {
-    const a = clamp(1 - f.age / 0.75, 0, 1);
-    ctx.save();
-    ctx.globalAlpha = a;
-    ctx.font = "900 22px Arial";
-    ctx.fillStyle = f.color || "#7CFFB1";
-    ctx.textAlign = "center";
-    ctx.textBaseline = "middle";
-    ctx.shadowColor = "rgba(0,0,0,0.45)";
-    ctx.shadowBlur = 10;
-    ctx.fillText(f.text, f.x, f.y);
-    ctx.restore();
-  }
-}
+
+    // floating texts (world space)
+    if (world.floaters && world.floaters.length) {
+      for (const f of world.floaters) {
+        const a = clamp(1 - f.age / 0.75, 0, 1);
+        ctx.save();
+        ctx.globalAlpha = a;
+        ctx.font = "900 22px Arial";
+        ctx.fillStyle = f.color || "#7CFFB1";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.shadowColor = "rgba(0,0,0,0.45)";
+        ctx.shadowBlur = 10;
+        ctx.fillText(f.text, f.x, f.y);
+        ctx.restore();
+      }
+    }
     ctx.restore();
     }
 
