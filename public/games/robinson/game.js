@@ -21,11 +21,6 @@
     robinson: null,
     island: null,
     bonus: null,
-    bonusX2: null,
-    bonusX3: null,
-    bonusAdd1: null,
-    bonusAdd2: null,
-    bonusAdd3: null,
     rocket: null,
     ready: false,
   };
@@ -39,13 +34,8 @@
     loadImage("./assets/robinson.png"),
     loadImage("./assets/island_long.png"),
     loadImage("./assets/bonus.png"),
-    loadImage("./assets/bonus_x2.png"),
-    loadImage("./assets/bonus_x3.png"),
-    loadImage("./assets/bonus_add1.png"),
-    loadImage("./assets/bonus_add2.png"),
-    loadImage("./assets/bonus_add3.png"),
     loadImage("./assets/rocket.png"),
-  ]).then(([bg, bgSpace, moon, mars, robinson, island, bonus, bonusX2, bonusX3, bonusAdd1, bonusAdd2, bonusAdd3, rocket]) => {
+  ]).then(([bg, bgSpace, moon, mars, robinson, island, bonus, rocket]) => {
     GFX.bg = bg;
     GFX.bgSpace = bgSpace;
     GFX.moon = moon;
@@ -54,11 +44,6 @@
     GFX.robinson = robinson;
     GFX.island = island;
     GFX.bonus = bonus;
-    GFX.bonusX2 = bonusX2;
-    GFX.bonusX3 = bonusX3;
-    GFX.bonusAdd1 = bonusAdd1;
-    GFX.bonusAdd2 = bonusAdd2;
-    GFX.bonusAdd3 = bonusAdd3;
     GFX.rocket = rocket;
     GFX.ready = true;
   });
@@ -139,27 +124,14 @@
   const LOSE_ZONE_R = 0.96;
 
   // pickups (air)
-const PICKUP_POOL = 70;
-
-// Chance to spawn a rocket vs any bonus
-const ROCKET_CHANCE = 0.28;
-
-// Bonus distribution (must sum to 1.0)
-const BONUS_WEIGHT_X2 = 0.22;     // x2
-const BONUS_WEIGHT_X3 = 0.12;     // x3
-const BONUS_WEIGHT_ADD1 = 0.26;   // +1 stake
-const BONUS_WEIGHT_ADD2 = 0.26;   // +2 stakes
-const BONUS_WEIGHT_ADD3 = 0.14;   // +3 stakes
-
-// Base pickup sprite size; we'll scale bonuses separately from rockets
-// (You asked: bonuses ~30% smaller, rockets keep size)
-const PICKUP_SIZE = 78;
-const BONUS_SIZE = Math.round(PICKUP_SIZE * 1.2);
-const ROCKET_SIZE = PICKUP_SIZE;
+  const PICKUP_POOL = 70;
+  const BONUS_CHANCE = 0.66;
   // Ты имел в виду НЕ размер, а количество.
   // Размер оставляем базовым, а плотность увеличиваем.
   // По ТЗ: бонусов/ракет больше, заметнее, выше по экрану и уже в самом начале раунда.
-  const PICKUP_SIZE = 78;
+  const BONUS_SIZE = Math.round(78 * 1.2); // ≈55 (30% smaller)
+
+  const ROCKET_SIZE = 65; // unchanged
   const PICKUP_DENSITY = 3.2; // заметно плотнее
   const PICKUP_SPACING_MIN_PX = Math.round(170 / PICKUP_DENSITY);
   const PICKUP_SPACING_MAX_PX = Math.round(330 / PICKUP_DENSITY);
@@ -192,8 +164,6 @@ const ROCKET_SIZE = PICKUP_SIZE;
 
     bet: 1,
     mult: 1,
-    add: 0, // additive winnings in bet currency
-
     roundId: null,
     floaters: [], // {x,y,text,color,age}
 
@@ -330,7 +300,6 @@ const ROCKET_SIZE = PICKUP_SIZE;
     world.nextPickupId = 1;
     world.bonusCount = 0;
     world.mult = world.mult || 1;
-    world.add = 0;
     world.floaters = [];
 
     const heroX = W * HERO_X_REL;
@@ -340,7 +309,7 @@ const ROCKET_SIZE = PICKUP_SIZE;
     world.hero.rot = 0;
 
     const scale = Math.min(W / 1200, H / 800, 1);
-    const heroScale = 1.9; // +90%
+    const heroScale = 2.47; // +30% bigger
     world.hero.w = Math.round(110 * scale * heroScale);
     world.hero.h = Math.round(110 * scale * heroScale);
     world.hero.prevBottom = world.hero.y + world.hero.h / 2;
@@ -464,7 +433,6 @@ window.RobinsonGame = {
     if (Number.isFinite(nBet) && nBet > 0) world.bet = nBet;
     world.roundId = opts.roundId || null;
     world.mult = 1;
-    world.add = 0;
     world.floaters = [];
     state = State.RUNNING;
 
@@ -584,20 +552,9 @@ window.RobinsonGame = {
     const target = clamp(world.hero.y - 120 + rnd(-210, 210), topMin, lowMax);
     const y = clamp(target + rnd(-45, 45), topMin, lowMax);
 
-// Decide pickup type
-let type = "ROCKET";
-if (Math.random() >= ROCKET_CHANCE) {
-  const r = Math.random();
-  const w1 = BONUS_WEIGHT_X2;
-  const w2 = w1 + BONUS_WEIGHT_X3;
-  const w3 = w2 + BONUS_WEIGHT_ADD1;
-  const w4 = w3 + BONUS_WEIGHT_ADD2;
-  if (r < w1) type = "BONUS_X2";
-  else if (r < w2) type = "BONUS_X3";
-  else if (r < w3) type = "BONUS_ADD1";
-  else if (r < w4) type = "BONUS_ADD2";
-  else type = "BONUS_ADD3";
-}
+    const type = Math.random() < BONUS_CHANCE ? "BONUS" : "ROCKET";
+
+    const size = type === "BONUS" ? BONUS_SIZE : ROCKET_SIZE;
 
     // Не даём объектам появляться вплотную друг к другу.
     for (const p of world.pickups) {
@@ -608,17 +565,15 @@ if (Math.random() >= ROCKET_CHANCE) {
       }
     }
 
-    const size = type === "ROCKET" ? ROCKET_SIZE : BONUS_SIZE;
-
-world.pickups.push({
-  id: world.nextPickupId++,
-  x,
-  y,
-  w: size,
-  h: size,
-  type,
-  age: 0,
-});
+    world.pickups.push({
+      id: world.nextPickupId++,
+      x,
+      y,
+      w: size,
+      h: size,
+      type,
+      age: 0,
+    });
 
     if (world.pickups.length > PICKUP_POOL) world.pickups.shift();
   }
@@ -661,45 +616,29 @@ world.pickups.push({
       if (aabb(hx, hy, hw, hh, px, py, p.w, p.h)) {
         world.pickups.splice(i, 1);
 
-        if (p.type === "ROCKET") {
-  // ROCKET: /2 (halve the whole potential win)
-  world.mult = clamp(world.mult * 0.5, 0.1, 999);
-  world.add = Math.max(0, world.add * 0.5);
+        if (p.type === "BONUS") {
+          // multiplier: x2 or x3
+          const inc = Math.random() < 0.66 ? 2 : 3;
+          world.mult = clamp(world.mult * inc, 0.1, 999);
 
-  emitHit("ROCKET");
-  world.floaters.push({ x: p.x, y: p.y - 30, text: "/2", color: "rgba(255,90,90,1)", age: 0 });
+          world.bonusCount += 1;
+          emitBonus("BONUS");
 
-  setDamagedTrail(1.2);
-  world.hero.vy = Math.max(world.hero.vy, 0) + HIT_IMPULSE;
-} else {
-  // BONUS variants
-  world.bonusCount += 1;
+          // floating text
+          world.floaters.push({ x: p.x, y: p.y - 30, text: "x" + inc, color: "rgba(70,255,160,1)", age: 0 });
 
-  if (p.type === "BONUS_X2") {
-    world.mult = clamp(world.mult * 2, 0.1, 999);
-    emitBonus("BONUS_X2");
-    world.floaters.push({ x: p.x, y: p.y - 30, text: "x2", color: "rgba(70,255,160,1)", age: 0 });
-  } else if (p.type === "BONUS_X3") {
-    world.mult = clamp(world.mult * 3, 0.1, 999);
-    emitBonus("BONUS_X3");
-    world.floaters.push({ x: p.x, y: p.y - 30, text: "x3", color: "rgba(70,255,160,1)", age: 0 });
-  } else if (p.type === "BONUS_ADD1") {
-    world.add += (Number(world.bet) || 0) * 1;
-    emitBonus("BONUS_ADD1");
-    world.floaters.push({ x: p.x, y: p.y - 30, text: "+1", color: "rgba(255,215,90,1)", age: 0 });
-  } else if (p.type === "BONUS_ADD2") {
-    world.add += (Number(world.bet) || 0) * 2;
-    emitBonus("BONUS_ADD2");
-    world.floaters.push({ x: p.x, y: p.y - 30, text: "+2", color: "rgba(255,215,90,1)", age: 0 });
-  } else {
-    world.add += (Number(world.bet) || 0) * 3;
-    emitBonus("BONUS_ADD3");
-    world.floaters.push({ x: p.x, y: p.y - 30, text: "+3", color: "rgba(255,215,90,1)", age: 0 });
-  }
+          // impulse UP, continue flight
+          world.hero.vy = Math.min(world.hero.vy, 0) - BONUS_IMPULSE;
+        } else {
+          // ROCKET: /2
+          world.mult = clamp(world.mult * 0.5, 0.1, 999);
 
-  // impulse UP, continue flight
-  world.hero.vy = Math.min(world.hero.vy, 0) - BONUS_IMPULSE;
-}
+          emitHit("ROCKET");
+          world.floaters.push({ x: p.x, y: p.y - 30, text: "/2", color: "rgba(255,90,90,1)", age: 0 });
+
+          setDamagedTrail(1.2);
+          world.hero.vy = Math.max(world.hero.vy, 0) + HIT_IMPULSE;
+        }
       }
     }
   }
@@ -847,6 +786,16 @@ function tryTouchdown(speed) {
         if (f.age > 0.75) world.floaters.splice(i, 1);
       }
 
+
+      // HUD stats (for info panel)
+      try {
+        window.RobinsonUI?.setStats?.({
+          time: world.roundT,
+          altitude: Math.max(0, (H * WATER_LINE_REL - world.hero.y) / 10),
+          distance: Math.max(0, (world.hero.x - W * HERO_X_REL) / 10),
+          multiplier: world.mult,
+        });
+      } catch (e) {}
       // LOSE only if реально ушёл вниз
       if (world.hero.y - world.hero.h / 2 > H + 110 && !world.result) {
         endRound("LOSE");
@@ -855,27 +804,9 @@ function tryTouchdown(speed) {
       // fx
       spawnRibbonPoint();
       spawnFireParticles(dt);
-  // UI stats (DOM overlay)
-  try {
-    const bet = Number(world.bet) || 0;
-    const mult = Number(world.mult) || 1;
-    const add = Number(world.add) || 0;
-    const effMult = bet > 0 ? (bet * mult + add) / bet : 0;
+    }
 
-    const altitude = Math.max(0, (H * WATER_LINE_REL - world.hero.y) / 10);
-    const distance = Math.max(0, (world.hero.x - W * HERO_X_REL) / 10);
-
-    window.RobinsonUI?.setStats?.({
-      time: world.roundT,
-      altitude,
-      distance,
-      multiplier: effMult,
-    });
-  } catch (_) {}
-
-}
-
-if (state === State.LANDING_ROLL) {
+    if (state === State.LANDING_ROLL) {
       const hero = world.hero;
 
       const pRoll = world.platforms.find((pp) => pp.id === world.roll.platformId);
@@ -1058,36 +989,28 @@ if (state === State.LANDING_ROLL) {
 
   function renderPickups() {
     for (const p of world.pickups) {
-      const pulse = p.type === "ROCKET" ? 1 : (0.92 + 0.08 * Math.sin(world.t * 5 + p.id));
+      const pulse =
+        p.type === "BONUS"
+          ? 0.92 + 0.08 * Math.sin(world.t * 5 + p.id) // slower pulse
+          : 1; // rockets no pulse
 
       ctx.save();
       ctx.translate(p.x, p.y);
       ctx.scale(pulse, pulse);
 
-// If sprites exist — draw them (priority)
-if (p.type !== "ROCKET") {
-  let img = null;
-  if (p.type === "BONUS_X2") img = GFX.bonusX2 || GFX.bonus;
-  else if (p.type === "BONUS_X3") img = GFX.bonusX3 || GFX.bonus;
-  else if (p.type === "BONUS_ADD1") img = GFX.bonusAdd1 || GFX.bonus;
-  else if (p.type === "BONUS_ADD2") img = GFX.bonusAdd2 || GFX.bonus;
-  else if (p.type === "BONUS_ADD3") img = GFX.bonusAdd3 || GFX.bonus;
-  else img = GFX.bonus;
-
-  if (img) {
-    ctx.globalAlpha = 1;
-    ctx.drawImage(img, -p.w / 2, -p.h / 2, p.w, p.h);
-    ctx.restore();
-    continue;
-  }
-}
-
-if (p.type === "ROCKET" && GFX.rocket) {
-  ctx.globalAlpha = 1;
-  ctx.drawImage(GFX.rocket, -p.w / 2, -p.h / 2, p.w, p.h);
-  ctx.restore();
-  continue;
-}
+      // Если есть спрайты — рисуем их (это приоритет).
+      if (p.type === "BONUS" && GFX.bonus) {
+        ctx.globalAlpha = 1;
+        ctx.drawImage(GFX.bonus, -p.w / 2, -p.h / 2, p.w, p.h);
+        ctx.restore();
+        continue;
+      }
+      if (p.type === "ROCKET" && GFX.rocket) {
+        ctx.globalAlpha = 1;
+        ctx.drawImage(GFX.rocket, -p.w / 2, -p.h / 2, p.w, p.h);
+        ctx.restore();
+        continue;
+      }
 
       if (p.type === "BONUS") {
         ctx.globalAlpha = 0.22;
@@ -1305,15 +1228,14 @@ if (world.floaters && world.floaters.length) {
       const sy = h.y + world.cam.y - h.h * 0.75;
       const bet = Number(world.bet) || 0;
       const mult = Number(world.mult) || 1;
-      const add = Number(world.add) || 0;
-      const pot = bet * mult + add;
+      const pot = bet * mult;
 
       ctx.save();
       ctx.globalAlpha = state === State.RUNNING || state === State.LANDING_ROLL ? 1 : 0;
       ctx.font = "900 18px Arial";
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
-      ctx.fillStyle = "#FFD84D";
+      ctx.fillStyle = "#FFD84D"; // yellow potential win
       ctx.shadowColor = "rgba(0,0,0,0.55)";
       ctx.shadowBlur = 12;
       ctx.fillText("$" + pot.toFixed(pot >= 100 ? 0 : 2), sx, sy);
