@@ -56,13 +56,13 @@
 
     loadImage("./assets/robinson.png"),
     loadImage("./assets/island_long.png"),
-    loadImage("./assets/bonus.PNG"),
-    loadImage("./assets/bonus_x2.PNG"),
-    loadImage("./assets/bonus_x3.PNG"),
-    loadImage("./assets/bonus_add1.PNG"),
-    loadImage("./assets/bonus_add2.PNG"),
-    loadImage("./assets/bonus_add3.PNG"),
-    loadImage("./assets/rocket.PNG"),
+    loadImage("./assets/bonus.png"),
+    loadImage("./assets/bonus_x2.png"),
+    loadImage("./assets/bonus_x3.png"),
+    loadImage("./assets/bonus_add1.png"),
+    loadImage("./assets/bonus_add2.png"),
+    loadImage("./assets/bonus_add3.png"),
+    loadImage("./assets/rocket.png"),
   ]).then(([bg, bgSpace, moon, mars, robinson, island, bonus, bonusX2, bonusX3, bonusAdd1, bonusAdd2, bonusAdd3, rocket]) => {
     GFX.bg = bg;
     GFX.bgSpace = bgSpace;
