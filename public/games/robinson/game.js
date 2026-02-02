@@ -15,6 +15,9 @@
 
   const GFX = {
     bg: null,
+    bgSpace: null,
+    moon: null,
+    mars: null,
     robinson: null,
     island: null,
     bonus: null,
@@ -24,12 +27,20 @@
 
   Promise.all([
     loadImage("./assets/splash_bg.png"),
+    loadImage("./assets/background/bg_space.png"),
+    loadImage("./assets/background/planet_moon.png"),
+    loadImage("./assets/background/planet_mars.png"),
+
     loadImage("./assets/robinson.png"),
     loadImage("./assets/island_long.png"),
     loadImage("./assets/bonus.png"),
     loadImage("./assets/rocket.png"),
-  ]).then(([bg, robinson, island, bonus, rocket]) => {
+  ]).then(([bg, bgSpace, moon, mars, robinson, island, bonus, rocket]) => {
     GFX.bg = bg;
+    GFX.bgSpace = bgSpace;
+    GFX.moon = moon;
+    GFX.mars = mars;
+
     GFX.robinson = robinson;
     GFX.island = island;
     GFX.bonus = bonus;
@@ -1007,8 +1018,44 @@ window.RobinsonGame = {
     ctx.save();
     // Camera FX removed: render in screen-space (no shake/zoom/translate)
 
-    // BG
-    if (GFX.ready && GFX.bg) {
+    // BG + Parallax (space)
+    const ws = Math.max(240, world.fx.worldSpeed || OBJECT_SPEED_BASE);
+
+    function drawTiledX(img, speedFactor, alpha = 1) {
+      if (!img) return;
+      // scale background to cover screen
+      const scale = Math.max(W / img.width, H / img.height);
+      const dw = img.width * scale;
+      const dh = img.height * scale;
+
+      // horizontal parallax scroll
+      const period = Math.max(1, dw);
+      let ox = -((world.t * ws * speedFactor) % period);
+
+      ctx.save();
+      ctx.globalAlpha = alpha;
+      // tile enough times to cover screen
+      for (let x = ox; x < W + period; x += period) {
+        ctx.drawImage(img, x, (H - dh) / 2, dw, dh);
+      }
+      // draw one extra to the left if needed
+      if (ox > 0) {
+        ctx.drawImage(img, ox - period, (H - dh) / 2, dw, dh);
+      }
+      ctx.restore();
+    }
+
+    // 1) deep space background (preferred)
+    if (GFX.ready && GFX.bgSpace) {
+      drawTiledX(GFX.bgSpace, 0.15, 1);
+      // subtle overlay for readability
+      ctx.save();
+      ctx.globalAlpha = 0.20;
+      ctx.fillStyle = "#05070d";
+      ctx.fillRect(0, 0, W, H);
+      ctx.restore();
+    } else if (GFX.ready && GFX.bg) {
+      // fallback splash background (old)
       const img = GFX.bg;
       const s = Math.max(W / img.width, H / img.height);
       const dw = img.width * s;
@@ -1021,6 +1068,7 @@ window.RobinsonGame = {
       ctx.fillRect(0, 0, W, H);
       ctx.globalAlpha = 1;
     } else {
+      // no images yet: procedural stars
       ctx.fillStyle = "#05070d";
       ctx.fillRect(-60, -60, W + 120, H + 120);
       for (const st of world.stars) {
@@ -1031,29 +1079,54 @@ window.RobinsonGame = {
       ctx.globalAlpha = 1;
     }
 
-// parallax planets
-{
-  const t = world.t;
-  const ws = Math.max(240, world.fx.worldSpeed || OBJECT_SPEED_BASE);
-  const p1x = (W * 0.78) - (t * ws * 0.015) % (W + 300) + 150;
-  const p2x = (W * 0.38) - (t * ws * 0.028) % (W + 420) + 210;
+    // 2) parallax planets (moon/mars)
+    {
+      const t = world.t;
 
-  ctx.save();
-  ctx.globalAlpha = 0.22;
-  ctx.fillStyle = "#2cf2ff";
-  ctx.beginPath();
-  ctx.arc(p1x, H * 0.28, 58, 0, Math.PI * 2);
-  ctx.fill();
+      function drawPlanet(img, baseX, baseY, speedFactor, targetSize, alpha) {
+        if (!img) return false;
+        const s = targetSize / Math.max(1, Math.max(img.width, img.height));
+        const w = img.width * s;
+        const h = img.height * s;
 
-  ctx.globalAlpha = 0.16;
-  ctx.fillStyle = "#7c5cff";
-  ctx.beginPath();
-  ctx.arc(p2x, H * 0.18, 34, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.restore();
-}
+        const span = W + w * 2;
+        const x = baseX - ((t * ws * speedFactor) % span) + w;
 
-// platforms
+        ctx.save();
+        ctx.globalAlpha = alpha;
+        ctx.drawImage(img, x - w / 2, baseY - h / 2, w, h);
+        ctx.restore();
+        return true;
+      }
+
+      const sizeMoon = Math.min(W, H) * 0.34;
+      const sizeMars = Math.min(W, H) * 0.26;
+
+      const okMoon = drawPlanet(GFX.moon, W * 0.78, H * 0.30, 0.28, sizeMoon, 0.75);
+      const okMars = drawPlanet(GFX.mars, W * 0.38, H * 0.20, 0.42, sizeMars, 0.72);
+
+      // fallback: simple circles if planets not found
+      if (!okMoon || !okMars) {
+        const p1x = (W * 0.78) - ((t * ws * 0.015) % (W + 300)) + 150;
+        const p2x = (W * 0.38) - ((t * ws * 0.028) % (W + 420)) + 210;
+
+        ctx.save();
+        ctx.globalAlpha = 0.22;
+        ctx.fillStyle = "#2cf2ff";
+        ctx.beginPath();
+        ctx.arc(p1x, H * 0.28, 58, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.globalAlpha = 0.16;
+        ctx.fillStyle = "#7c5cff";
+        ctx.beginPath();
+        ctx.arc(p2x, H * 0.18, 34, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+      }
+    }
+
+    // platforms
     for (const p of world.platforms) {
       const ok = drawCentered(GFX.island, p.x, p.y, p.w, p.h, 0);
       if (!ok) {
