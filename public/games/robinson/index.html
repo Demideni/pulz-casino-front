@@ -142,6 +142,52 @@
 }
 .play-btn:active{ transform: scale(0.94); }
 
+
+/* ===== STATS BAR (BGaming-like) ===== */
+.stats-bar{
+  position: fixed;
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: calc(110px + env(safe-area-inset-bottom)); /* sits above bottom bar */
+  width: min(92vw, 720px);
+  height: 68px;
+  padding: 10px 14px;
+  border-radius: 18px;
+  background: rgba(8, 12, 24, 0.52);
+  border: 1px solid rgba(255,255,255,0.10);
+  box-shadow: 0 10px 40px rgba(0,0,0,0.35);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+  z-index: 25; /* below bottom-ui (30), above canvas */
+  pointer-events: none;
+}
+.stats-item{ display:flex; flex-direction:column; justify-content:center; }
+.stats-label{
+  font-size: 11px;
+  letter-spacing: .10em;
+  color: rgba(255,255,255,0.62);
+}
+.stats-value{
+  margin-top: 2px;
+  font-size: 20px;
+  font-weight: 900;
+  letter-spacing: .02em;
+  color: rgba(255,255,255,0.95);
+}
+@media (min-width: 768px){
+  .stats-bar{
+    bottom: 132px;
+    height: 72px;
+    padding: 12px 16px;
+    border-radius: 20px;
+  }
+  .stats-value{ font-size: 22px; }
+}
+
+
 /* ===== MODAL ===== */
 .modal{
   position: fixed;
@@ -232,6 +278,28 @@
 
   <!-- HUD -->
   <div id="hud"></div>
+
+
+  <!-- STATS BAR -->
+  <div id="statsBar" class="stats-bar" aria-label="Stats">
+    <div class="stats-item">
+      <div class="stats-label">TIME</div>
+      <div class="stats-value" id="statTime">00:00</div>
+    </div>
+    <div class="stats-item">
+      <div class="stats-label">ALTITUDE</div>
+      <div class="stats-value" id="statAlt">0.0m</div>
+    </div>
+    <div class="stats-item">
+      <div class="stats-label">DISTANCE</div>
+      <div class="stats-value" id="statDist">0.0m</div>
+    </div>
+    <div class="stats-item">
+      <div class="stats-label">MULTIPLIER</div>
+      <div class="stats-value" id="statMult">x1.0</div>
+    </div>
+  </div>
+
 
     <!-- BOTTOM BAR -->
   <div id="bottom-ui">
