@@ -26,6 +26,14 @@
     fixedDt: 1 / 60,
     maxFrameDt: 0.05,
     gravity: 980,
+    // Flight feel (Variant 2)
+    // We DON'T want pure gravity drop. We want: takeoff up to mid-screen, then gentle glide down.
+    takeoffDuration: 1.15, // seconds to reach peak
+    takeoffPeakFracY: 0.46, // peak altitude as fraction of screen height (0 top .. 1 bottom)
+    glideSinkPxPerSec: 42, // after peak, target Y slowly moves down
+    vertKp: 16.0, // vertical controller proportional gain
+    vertKd: 7.0, // vertical controller damping
+    vertGravityBias: 60, // small downward bias so glide happens even at steady target
     // Hero
     heroW: 90,
     heroH: 60,
@@ -96,8 +104,10 @@
     bg_far: null,
     bg_mid: null,
     bg_near: null,
-    // hero sprite (optional)
     hero: null,
+    platform: null,
+    bonusBase: null,
+    rocket: null,
   };
 
   async function loadAssets() {
@@ -105,14 +115,20 @@
       loadImage("./assets/bg_far.png"),
       loadImage("./assets/bg_mid.png"),
       loadImage("./assets/bg_near.png"),
-      // common location in your repo:
-      loadImage("../robinzon.png"),
+      // game sprites (you added these):
+      loadImage("./assets/robinson.png"),
+      loadImage("./assets/platform.png"),
+      loadImage("./assets/bonus_base.png"),
+      loadImage("./assets/rocket.png"),
     ]);
 
     if (tries[0].ok) Assets.bg_far = tries[0].img;
     if (tries[1].ok) Assets.bg_mid = tries[1].img;
     if (tries[2].ok) Assets.bg_near = tries[2].img;
     if (tries[3].ok) Assets.hero = tries[3].img;
+    if (tries[4].ok) Assets.platform = tries[4].img;
+    if (tries[5].ok) Assets.bonusBase = tries[5].img;
+    if (tries[6].ok) Assets.rocket = tries[6].img;
   }
 
   // ---------------------------
@@ -144,6 +160,14 @@
       h: CFG.heroH,
       tilt: 0,
       smokeT: 0, // for rocket hit
+    },
+
+    // vertical flight controller (to match Aviamasters feel)
+    flight: {
+      startY: 0,
+      targetY: 0,
+      peakY: 0,
+      phase: "IDLE", // IDLE | TAKEOFF | GLIDE
     },
 
     // money model
@@ -246,8 +270,31 @@
     ctx.fillStyle = haze;
     ctx.fillRect(0, seaY - 90, W, 240);
 
-    // carrier deck (vector neon)
-    const deckY = seaY - 10;
+    const deckY = seaY - 20;
+
+    // If you provided a platform sprite, render it here as the carrier/палуба.
+    if (Assets.platform) {
+      const maxW = W * 0.92;
+      const maxH = 130;
+      const aspect = Assets.platform.width / Assets.platform.height;
+      let w = maxW;
+      let h = w / aspect;
+      if (h > maxH) {
+        h = maxH;
+        w = h * aspect;
+      }
+      const x = (W - w) / 2;
+      const y = deckY + 40 - h; // sit above haze a bit
+      ctx.save();
+      ctx.shadowColor = "rgba(0,170,255,0.55)";
+      ctx.shadowBlur = 22;
+      ctx.globalAlpha = 0.95;
+      ctx.drawImage(Assets.platform, x, y, w, h);
+      ctx.restore();
+      return;
+    }
+
+    // fallback carrier deck (vector neon)
     const deckH = 58;
     const deckW = W * 0.85;
     const deckX = (W - deckW) / 2;
@@ -388,7 +435,7 @@
     world.win = world.bet;
 
     world.hero.x = CFG.heroStartX;
-    world.hero.y = clamp(H * 0.48, 160, H - CFG.seaLevelPad - 220);
+    world.hero.y = clamp(H * 0.62, 160, H - CFG.seaLevelPad - 220);
     world.hero.vx = CFG.heroVx;
     world.hero.vy = 0;
     world.hero.tilt = 0;
@@ -397,6 +444,12 @@
     world.pickups = [];
     world.floatTexts = [];
     world.nextSpawnX = 0;
+
+    // flight curve: takeoff up to mid, then gentle glide down
+    world.flight.startY = world.hero.y;
+    world.flight.peakY = clamp(H * CFG.takeoffPeakFracY, 130, H - CFG.seaLevelPad - 260);
+    world.flight.targetY = world.flight.startY;
+    world.flight.phase = "TAKEOFF";
 
     window.RobinsonUI?.lock?.(true);
     window.RobinsonBridge?.emitRoundStart?.({ bet: world.bet, speed: world.speedKey });
@@ -446,7 +499,27 @@
     const hero = world.hero;
     const spd = world.speedFactor;
     hero.x += hero.vx * spd * dt;
-    hero.vy += CFG.gravity * dt;
+
+    // --- Vertical feel (Aviamasters-like): takeoff -> glide
+    const f = world.flight;
+    if (f.phase === "TAKEOFF") {
+      const t = clamp(world.time / CFG.takeoffDuration, 0, 1);
+      // easeOutCubic
+      const e = 1 - Math.pow(1 - t, 3);
+      f.targetY = f.startY + (f.peakY - f.startY) * e;
+      if (t >= 1) {
+        f.phase = "GLIDE";
+        f.targetY = f.peakY;
+      }
+    } else if (f.phase === "GLIDE") {
+      // slowly drift down over time (planing)
+      f.targetY += CFG.glideSinkPxPerSec * dt;
+    }
+
+    // PD controller to follow targetY (prevents the "just падает вниз" feeling)
+    const err = f.targetY - hero.y;
+    const accel = err * CFG.vertKp - hero.vy * CFG.vertKd + CFG.vertGravityBias;
+    hero.vy += accel * dt;
     hero.vy = clamp(hero.vy, -CFG.heroMaxVy, CFG.heroMaxVy);
     hero.y += hero.vy * dt;
 
