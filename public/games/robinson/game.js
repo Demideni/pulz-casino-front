@@ -154,7 +154,7 @@ const BONUS_WEIGHT_ADD3 = 0.14;   // +3 stakes
 // Base pickup sprite size; we'll scale bonuses separately from rockets
 // (You asked: bonuses ~30% smaller, rockets keep size)
 const PICKUP_SIZE = 78;
-const BONUS_SIZE = Math.round(PICKUP_SIZE * 0.7);
+const BONUS_SIZE = Math.round(PICKUP_SIZE * 1.2);
 const ROCKET_SIZE = PICKUP_SIZE;
   // Ты имел в виду НЕ размер, а количество.
   // Размер оставляем базовым, а плотность увеличиваем.
