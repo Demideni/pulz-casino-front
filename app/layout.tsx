@@ -38,7 +38,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
             <div className="mx-auto grid max-w-6xl gap-4 px-4 py-3 text-xs text-slate-400 md:grid-cols-4">
               <div>
                 <img
-                  src="/pulz-logo-dark.PNG"
+                  src="/pulz-logo-dark.png"
                   alt="Pulz Casino"
                   className="h-12 w-auto"
                 />

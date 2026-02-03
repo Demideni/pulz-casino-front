@@ -109,7 +109,7 @@ export default function CashierPage() {
           <p className="mt-1 text-xs text-slate-400">Депозит криптой через PassimPay</p>
         </div>
         <Link href="/account" className="flex items-center gap-2">
-          <Image src="/pulz-logo-dark.PNG" alt="Pulz" width={44} height={44} />
+          <Image src="/pulz-logo-dark.png" alt="Pulz" width={44} height={44} />
         </Link>
       </header>
 

@@ -57,7 +57,7 @@ export default function PulzBootOverlay() {
       <div className="relative flex w-[300px] flex-col items-center">
         {/* LOGO */}
         <img
-          src="/pulz-logo-dark.PNG"
+          src="/pulz-logo-dark.png"
           alt="Pulz"
           draggable={false}
           className={[

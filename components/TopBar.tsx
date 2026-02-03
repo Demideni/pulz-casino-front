@@ -81,7 +81,7 @@ export default function TopBar() {
       <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3">
         <Link href="/" className="flex items-center gap-2">
           <img
-            src="/pulz-logo-dark.PNG"
+            src="/pulz-logo-dark.png"
             alt="Pulz Casino"
             className="pulz-logo-animated h-24 w-auto"
           />

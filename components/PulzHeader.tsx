@@ -20,7 +20,7 @@ export default function PulzHeader() {
       <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3">
         <Link href="/" className="flex items-center gap-3">
           <Image
-            src="/pulz-logo-dark.PNG"
+            src="/pulz-logo-dark.png"
             alt="Pulz Casino"
             width={120}
             height={32}

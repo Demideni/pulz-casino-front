@@ -94,7 +94,7 @@ export default function Loading() {
             {/* логотип */}
             <div className="mt-3 flex justify-center">
               <img
-                src="/pulz-logo-light.PNG"
+                src="/pulz-logo-light.png"
                 alt="Pulz"
                 draggable={false}
                 className={[
