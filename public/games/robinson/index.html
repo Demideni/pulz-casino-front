@@ -140,53 +140,44 @@
   cursor:pointer;
   transition: transform .15s ease;
 }
-.play-btn:active{ transform: scale(0.94); }
 
+.play-wrap{
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  gap:8px;
+}
 
-/* ===== STATS BAR (BGaming-like) ===== */
-.stats-bar{
-  position: fixed;
-  left: 50%;
-  transform: translateX(-50%);
-  bottom: calc(110px + env(safe-area-inset-bottom)); /* sits above bottom bar */
-  width: min(92vw, 720px);
-  height: 68px;
-  padding: 10px 14px;
-  border-radius: 18px;
-  background: rgba(8, 12, 24, 0.52);
+.speed-controls{
+  display:flex;
+  gap:8px;
+  padding:6px 8px;
+  border-radius:14px;
+  background: rgba(0,0,0,0.22);
   border: 1px solid rgba(255,255,255,0.10);
-  box-shadow: 0 10px 40px rgba(0,0,0,0.35);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 10px;
-  z-index: 25; /* below bottom-ui (30), above canvas */
-  pointer-events: none;
 }
-.stats-item{ display:flex; flex-direction:column; justify-content:center; }
-.stats-label{
-  font-size: 11px;
-  letter-spacing: .10em;
-  color: rgba(255,255,255,0.62);
+
+.speed-btn{
+  appearance:none;
+  border: 1px solid rgba(255,255,255,0.14);
+  background: rgba(0,0,0,0.25);
+  color: rgba(255,255,255,0.85);
+  font-weight: 800;
+  font-size: 12px;
+  padding: 6px 10px;
+  border-radius: 12px;
+  cursor: pointer;
+  user-select:none;
 }
-.stats-value{
-  margin-top: 2px;
-  font-size: 20px;
-  font-weight: 900;
-  letter-spacing: .02em;
+
+.speed-btn.active{
+  background: rgba(44, 242, 255, 0.22);
+  border-color: rgba(44, 242, 255, 0.45);
   color: rgba(255,255,255,0.95);
 }
-@media (min-width: 768px){
-  .stats-bar{
-    bottom: 132px;
-    height: 72px;
-    padding: 12px 16px;
-    border-radius: 20px;
-  }
-  .stats-value{ font-size: 22px; }
-}
 
+.play-btn:active{ transform: scale(0.94); }
 
 /* ===== MODAL ===== */
 .modal{
@@ -279,28 +270,6 @@
   <!-- HUD -->
   <div id="hud"></div>
 
-
-  <!-- STATS BAR -->
-  <div id="statsBar" class="stats-bar" aria-label="Stats">
-    <div class="stats-item">
-      <div class="stats-label">TIME</div>
-      <div class="stats-value" id="statTime">00:00</div>
-    </div>
-    <div class="stats-item">
-      <div class="stats-label">ALTITUDE</div>
-      <div class="stats-value" id="statAlt">0.0m</div>
-    </div>
-    <div class="stats-item">
-      <div class="stats-label">DISTANCE</div>
-      <div class="stats-value" id="statDist">0.0m</div>
-    </div>
-    <div class="stats-item">
-      <div class="stats-label">MULTIPLIER</div>
-      <div class="stats-value" id="statMult">x1.0</div>
-    </div>
-  </div>
-
-
     <!-- BOTTOM BAR -->
   <div id="bottom-ui">
     <button class="bet-box" id="bet-box" type="button" aria-label="Bet">
@@ -308,7 +277,14 @@
       <div class="bet-value" id="bet-value">$1.00</div>
     </button>
 
-    <div class="play-btn" id="play-btn">PLAY</div>
+    <div class="play-wrap">
+  <div id="speed-controls" class="speed-controls" aria-label="Speed controls">
+    <button type="button" class="speed-btn active" data-speed="normal">1x</button>
+    <button type="button" class="speed-btn" data-speed="slow">0.8x</button>
+    <button type="button" class="speed-btn" data-speed="fast">1.25x</button>
+  </div>
+  <div class="play-btn" id="play-btn">PLAY</div>
+</div>
 
     <div class="bal-box" aria-label="Balance">
       <div class="bal-label">BALANCE</div>
