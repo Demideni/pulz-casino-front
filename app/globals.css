@@ -196,13 +196,13 @@ radial-gradient(circle at 100% 0%, rgba(56,189,248,0.45), transparent 55%),
   min-height: 100vh;
   isolation: isolate;
   overflow: hidden;
+  /* Единый “cosmic” фон под баннеры + CTA: больше синего и лёгкий красный акцент */
   background:
-    radial-gradient(circle at 8% 10%, rgba(37,99,235,0.22), transparent 60%),
-    radial-gradient(circle at 92% 12%, rgba(56,189,248,0.18), transparent 62%),
-    radial-gradient(circle at 88% 62%, rgba(244,63,94,0.10), transparent 65%),
-    radial-gradient(circle at 50% 140%, rgba(7,10,18,1), #000208);
+    radial-gradient(circle at 8% 10%, rgba(37,99,235,0.32), transparent 58%),
+    radial-gradient(circle at 92% 12%, rgba(56,189,248,0.26), transparent 60%),
+    radial-gradient(circle at 88% 62%, rgba(244,63,94,0.14), transparent 62%),
+    radial-gradient(circle at 50% 140%, rgba(11,17,28,0.98), #01040a);
 }
-
 
 
 /* слой звёзд */
@@ -402,5 +402,158 @@ radial-gradient(circle at 100% 0%, rgba(56,189,248,0.45), transparent 55%),
   100% {
     transform: translate(calc(100vw + 40px), calc(-100vh - 140px)) rotate(18deg) scale(0.75);
     opacity: 0;
+  }
+}
+
+
+/* === Promo banners: neon runner + 2 sparks (Play Demo / Play For Real) === */
+
+.promo-neon{
+  position: relative;
+  border-radius: 22px;
+  overflow: hidden;
+  transform: translateZ(0);
+  will-change: transform, filter;
+  animation: promo-pulse 2.2s ease-in-out infinite;
+}
+
+.promo-img{
+  width: 100%;
+  height: auto;
+  display: block;
+  border-radius: 22px;
+}
+
+/* Soft pulse */
+@keyframes promo-pulse{
+  0%,100%{
+    transform: scale(1);
+    filter: drop-shadow(0 0 10px rgba(59,130,246,0.22));
+  }
+  50%{
+    transform: scale(1.01);
+    filter: drop-shadow(0 0 18px rgba(59,130,246,0.40));
+  }
+}
+
+/* Rotating neon border runner */
+.promo-neon::before{
+  content:"";
+  position:absolute;
+  inset:-2px;
+  border-radius: 24px;
+  padding: 2px;
+  background:
+    conic-gradient(
+      from 0deg,
+      rgba(59,130,246,0) 0deg,
+      rgba(59,130,246,0.95) 52deg,
+      rgba(255,255,255,0.85) 82deg,
+      rgba(59,130,246,0.95) 112deg,
+      rgba(59,130,246,0) 170deg,
+      rgba(59,130,246,0) 360deg
+    );
+  -webkit-mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  opacity: 0.85;
+  animation: promo-spin 3.2s linear infinite;
+  pointer-events:none;
+}
+
+@keyframes promo-spin{ to{ transform: rotate(360deg); } }
+
+/* outer glow */
+.promo-neon::after{
+  content:"";
+  position:absolute;
+  inset:0;
+  border-radius: 22px;
+  box-shadow: 0 0 26px rgba(59,130,246,0.18);
+  pointer-events:none;
+}
+
+/* two sparks that travel corner-to-corner */
+.promo-spark{
+  --s: 12px;
+  position:absolute;
+  width: var(--s);
+  height: var(--s);
+  border-radius: 9999px;
+  background: rgba(255,255,255,0.95);
+  box-shadow:
+    0 0 10px rgba(255,255,255,0.9),
+    0 0 22px rgba(59,130,246,0.95);
+  filter: blur(0.2px);
+  pointer-events:none;
+  opacity: 0.95;
+  animation: promo-spark-move 2.6s linear infinite;
+}
+
+.promo-spark--b{
+  animation-delay: -1.3s; /* second spark opposite phase */
+  opacity: 0.85;
+}
+
+@keyframes promo-spark-move{
+  0%   { top: 0; left: 0; }
+  25%  { top: 0; left: calc(100% - var(--s)); }
+  50%  { top: calc(100% - var(--s)); left: calc(100% - var(--s)); }
+  75%  { top: calc(100% - var(--s)); left: 0; }
+  100% { top: 0; left: 0; }
+}
+
+/* Green variant (Play For Real) */
+.promo-neon--green{
+  animation: promo-pulse-green 2.2s ease-in-out infinite;
+}
+
+@keyframes promo-pulse-green{
+  0%,100%{
+    transform: scale(1);
+    filter: drop-shadow(0 0 10px rgba(163,230,53,0.20));
+  }
+  50%{
+    transform: scale(1.01);
+    filter: drop-shadow(0 0 18px rgba(163,230,53,0.42));
+  }
+}
+
+.promo-neon--green::before{
+  background:
+    conic-gradient(
+      from 0deg,
+      rgba(163,230,53,0) 0deg,
+      rgba(163,230,53,0.95) 52deg,
+      rgba(255,255,255,0.85) 82deg,
+      rgba(163,230,53,0.95) 112deg,
+      rgba(163,230,53,0) 170deg,
+      rgba(163,230,53,0) 360deg
+    );
+}
+
+.promo-neon--green::after{
+  box-shadow: 0 0 26px rgba(163,230,53,0.16);
+}
+
+.promo-neon--green .promo-spark{
+  box-shadow:
+    0 0 10px rgba(255,255,255,0.9),
+    0 0 22px rgba(163,230,53,0.95);
+}
+
+/* Tap feedback */
+.promo-neon:active{
+  transform: scale(0.995);
+}
+
+/* Respect reduced motion */
+@media (prefers-reduced-motion: reduce){
+  .promo-neon,
+  .promo-neon::before,
+  .promo-spark{
+    animation: none !important;
   }
 }

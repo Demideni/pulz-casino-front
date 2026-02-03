@@ -24,14 +24,16 @@ export default function HomePage() {
           {/* DEMO (без регистрации) */}
           <Link
             href="/go/robinson-demo"
-            className="flex-1 overflow-hidden rounded-3xl border border-slate-800/80 bg-slate-950/80 block"
+            className="promo-neon flex-1 block"
           >
+            <span className="promo-spark promo-spark--a" aria-hidden="true" />
+            <span className="promo-spark promo-spark--b" aria-hidden="true" />
             <Image
               src="/banners/robinson_demo.png"
               alt="ROBINSON Demo"
               width={640}
               height={360}
-              className="h-full w-full object-cover"
+              className="promo-img"
               priority
             />
           </Link>
@@ -39,14 +41,16 @@ export default function HomePage() {
           {/* PLAY (через регистрацию) */}
           <Link
             href="/go/robinson"
-            className="flex-1 overflow-hidden rounded-3xl border border-slate-800/80 bg-slate-950/80 block"
+            className="promo-neon promo-neon--green flex-1 block"
           >
+            <span className="promo-spark promo-spark--a" aria-hidden="true" />
+            <span className="promo-spark promo-spark--b" aria-hidden="true" />
             <Image
               src="/banners/robinson_play.png"
               alt="Play ROBINSON"
               width={640}
               height={360}
-              className="h-full w-full object-cover"
+              className="promo-img"
             />
           </Link>
         </div>
