@@ -196,12 +196,11 @@ radial-gradient(circle at 100% 0%, rgba(56,189,248,0.45), transparent 55%),
   min-height: 100vh;
   isolation: isolate;
   overflow: hidden;
+  /* Единый “cosmic” фон под баннеры + CTA: больше синего и лёгкий красный акцент */
   background:
-    /* уменьшаем яркость левого синего пятна */
-    radial-gradient(circle at 0% 0%, rgba(37,99,235,0.25), transparent 55%),
-    /* уменьшаем яркость правого голубого пятна */
-    radial-gradient(circle at 100% 0%, rgba(56,189,248,0.22), transparent 55%),
-    /* делаем основной фон намного темнее */
+    radial-gradient(circle at 8% 10%, rgba(37,99,235,0.32), transparent 58%),
+    radial-gradient(circle at 92% 12%, rgba(56,189,248,0.26), transparent 60%),
+    radial-gradient(circle at 88% 62%, rgba(244,63,94,0.14), transparent 62%),
     radial-gradient(circle at 50% 140%, rgba(11,17,28,0.98), #01040a);
 }
 
@@ -228,8 +227,9 @@ radial-gradient(circle at 100% 0%, rgba(56,189,248,0.45), transparent 55%),
   inset: -80px;
   z-index: -3;
   background:
-    radial-gradient(circle at 20% 80%, rgba(15,118,210,0.26), transparent 60%),
-    radial-gradient(circle at 80% 20%, rgba(59,130,246,0.24), transparent 60%);
+    radial-gradient(circle at 20% 80%, rgba(15,118,210,0.24), transparent 62%),
+    radial-gradient(circle at 80% 20%, rgba(59,130,246,0.22), transparent 62%),
+    radial-gradient(circle at 78% 68%, rgba(244,63,94,0.12), transparent 60%);
   mix-blend-mode: screen;
   opacity: 0.75;
   animation: pulz-fog-move 32s ease-in-out infinite alternate;
@@ -316,9 +316,79 @@ radial-gradient(circle at 100% 0%, rgba(56,189,248,0.45), transparent 55%),
   height: auto;
   pointer-events: none;
   z-index: 60;
-  /* Делаем полёт заметным: 2.5s */
   animation: robinson-fly-kf 2.5s cubic-bezier(0.22, 1, 0.36, 1) forwards;
   filter: drop-shadow(0 0 18px rgba(74, 163, 255, 0.9));
+}
+
+/* === CTA panel (3 кнопки внизу) === */
+
+.footer-cta {
+  display: flex;
+  justify-content: center;
+  padding: 18px 14px 120px; /* запас под BottomNav */
+}
+
+.footer-cta-panel {
+  width: min(420px, 94vw);
+  padding: 16px 14px;
+  border-radius: 22px;
+  background:
+    radial-gradient(120% 120% at 50% 0%, rgba(50, 120, 255, 0.18) 0%, rgba(0,0,0,0) 65%),
+    radial-gradient(120% 120% at 20% 80%, rgba(244, 63, 94, 0.10) 0%, rgba(0,0,0,0) 60%),
+    rgba(10, 18, 35, 0.55);
+  border: 1px solid rgba(120, 180, 255, 0.18);
+  box-shadow:
+    0 10px 40px rgba(0,0,0,0.55),
+    0 0 26px rgba(60, 160, 255, 0.10);
+  backdrop-filter: blur(10px);
+}
+
+.footer-cta-stack {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px; /* убираем пустоту между кнопками */
+}
+
+.footer-cta-link {
+  display: block;
+  border-radius: 18px;
+  outline: none;
+}
+
+.footer-cta-img {
+  width: min(340px, 90vw);
+  height: auto;
+  display: block;
+  border-radius: 18px;
+  box-shadow: 0 0 0 rgba(0,0,0,0);
+  transform: translateZ(0);
+}
+
+/* мягкая “пульсация-кнопка” */
+.footer-cta-link {
+  animation: cta-breathe 2.2s ease-in-out infinite;
+}
+
+.footer-cta-link:active {
+  transform: translateY(1px) scale(0.99);
+}
+
+@keyframes cta-breathe {
+  0%, 100% {
+    filter: drop-shadow(0 0 10px rgba(59,130,246,0.25));
+  }
+  50% {
+    filter: drop-shadow(0 0 20px rgba(59,130,246,0.45));
+  }
+}
+
+/* верхняя панель тоже чуть “в теме” */
+.pulz-topbar-surface {
+  background:
+    radial-gradient(120% 180% at 20% 0%, rgba(37,99,235,0.18), rgba(0,0,0,0) 55%),
+    radial-gradient(120% 180% at 85% 30%, rgba(244,63,94,0.10), rgba(0,0,0,0) 60%),
+    rgba(0,0,0,0.88);
 }
 
 @keyframes robinson-fly-kf {
@@ -332,48 +402,5 @@ radial-gradient(circle at 100% 0%, rgba(56,189,248,0.45), transparent 55%),
   100% {
     transform: translate(calc(100vw + 40px), calc(-100vh - 140px)) rotate(18deg) scale(0.75);
     opacity: 0;
-  }
-}
-
-/* Footer CTA buttons (3 PNG) */
-.footer-cta-btn {
-  display: block;
-  width: min(420px, 94vw);
-  border-radius: 18px;
-  overflow: hidden;
-  transform: translateZ(0);
-}
-
-.footer-cta-img {
-  width: 100%;
-  height: auto;
-  display: block;
-  border-radius: 18px;
-  /* лёгкая неоновая обводка + glow */
-  box-shadow:
-    0 0 0 1px rgba(120, 190, 255, 0.22),
-    0 0 26px rgba(0, 140, 255, 0.14);
-  animation: footer-cta-pulse 2.2s ease-in-out infinite;
-}
-
-.footer-cta-btn:active .footer-cta-img {
-  transform: scale(0.985);
-}
-
-@keyframes footer-cta-pulse {
-  0% {
-    box-shadow:
-      0 0 0 1px rgba(120, 190, 255, 0.18),
-      0 0 18px rgba(0, 140, 255, 0.10);
-  }
-  50% {
-    box-shadow:
-      0 0 0 1px rgba(120, 190, 255, 0.28),
-      0 0 34px rgba(0, 140, 255, 0.18);
-  }
-  100% {
-    box-shadow:
-      0 0 0 1px rgba(120, 190, 255, 0.18),
-      0 0 18px rgba(0, 140, 255, 0.10);
   }
 }

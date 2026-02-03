@@ -32,55 +32,58 @@ export default function RootLayout({ children }: { children: ReactNode }) {
             {children}
           </main>
 
-          {/* FOOTER CTA (3 кнопки в Telegram) */}
-          <footer className="border-t border-slate-800/60 bg-black/80">
-            <div className="mx-auto flex max-w-6xl flex-col items-center gap-3 px-4 pb-28 pt-5">
-              <a
-                className="footer-cta-btn"
-                href="https://t.me/grandfather_jack"
-                target="_blank"
-                rel="noreferrer"
-              >
-                <img
-                  src="/cta/integration.png"
-                  alt="Интеграция в проекты"
-                  className="footer-cta-img"
-                />
-              </a>
+          {/* FOOTER: 3 CTA кнопки (всё в Telegram) */}
+          <footer className="border-t border-slate-900/60">
+            <div className="footer-cta">
+              <div className="footer-cta-panel">
+                <div className="footer-cta-stack">
+                  <a
+                    className="footer-cta-link"
+                    href="https://t.me/grandfather_jack"
+                    target="_blank"
+                    rel="noreferrer"
+                    aria-label="Интеграция в проекты — написать в Telegram"
+                  >
+                    <img
+                      src="/cta/integration.png"
+                      alt="Интеграция в проекты"
+                      className="footer-cta-img"
+                    />
+                  </a>
 
-              <a
-                className="footer-cta-btn"
-                href="https://t.me/grandfather_jack"
-                target="_blank"
-                rel="noreferrer"
-              >
-                <img
-                  src="/cta/affiliate.png"
-                  alt="Стать аффилейтом"
-                  className="footer-cta-img"
-                />
-              </a>
+                  <a
+                    className="footer-cta-link"
+                    href="https://t.me/grandfather_jack"
+                    target="_blank"
+                    rel="noreferrer"
+                    aria-label="Стать аффилейтом — написать в Telegram"
+                  >
+                    <img
+                      src="/cta/affiliate.png"
+                      alt="Стать аффилейтом"
+                      className="footer-cta-img"
+                    />
+                  </a>
 
-              <a
-                className="footer-cta-btn"
-                href="https://t.me/grandfather_jack"
-                target="_blank"
-                rel="noreferrer"
-              >
-                <img
-                  src="/cta/offers.png"
-                  alt="Предложения"
-                  className="footer-cta-img"
-                />
-              </a>
-
-              <div className="pt-2 text-center text-[11px] text-slate-500">
-                © {new Date().getFullYear()} Pulz. 18+
+                  <a
+                    className="footer-cta-link"
+                    href="https://t.me/grandfather_jack"
+                    target="_blank"
+                    rel="noreferrer"
+                    aria-label="Предложения — написать в Telegram"
+                  >
+                    <img
+                      src="/cta/offers.png"
+                      alt="Предложения"
+                      className="footer-cta-img"
+                    />
+                  </a>
+                </div>
               </div>
             </div>
           </footer>
 
-          {/* НИЖНИЙ ТАП-БАР */}
+          {/* НИЖНИЙ ТАП-БАР С КОЛЕСОМ */}
           <BottomNav />
         </div>
       </body>

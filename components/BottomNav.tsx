@@ -24,8 +24,8 @@ export default function BottomNav() {
 
   useEffect(() => {
     if (!fly) return;
-    // Длительность анимации задана в CSS (.robinson-fly): 2.5s
-    // Даем небольшой запас, чтобы персонаж не исчезал раньше конца полёта.
+    // Длительность анимации задана в CSS (.robinson-fly) = 2.5s.
+    // Даем небольшой запас, чтобы PNG не исчезал раньше конца полёта (особенно на iOS Safari).
     const t = setTimeout(() => setFly(false), 2700);
     return () => clearTimeout(t);
   }, [fly]);

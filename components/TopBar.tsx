@@ -77,7 +77,7 @@ export default function TopBar() {
   }
 
   return (
-    <header className="sticky top-0 z-30 border-b border-slate-900/60 bg-black/90 backdrop-blur">
+    <header className="sticky top-0 z-30 border-b border-slate-900/60 pulz-topbar-surface backdrop-blur">
       <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3">
         <Link href="/" className="flex items-center gap-2">
           <img
