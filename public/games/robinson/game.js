@@ -196,7 +196,7 @@
   const PICKUP_SPACING_MAX_PX = Math.round(330 / PICKUP_DENSITY);
   const PICKUP_MIN_SEP_PX = 135; // защита от “вплотную” даже при высокой плотности
   const BONUS_IMPULSE = 260; // up
-  const HIT_IMPULSE = 220; // down
+  const HIT_IMPULSE = 160; // down
 
   // ===== World =====
   const world = {
