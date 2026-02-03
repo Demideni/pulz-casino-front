@@ -289,3 +289,47 @@ radial-gradient(circle at 100% 0%, rgba(56,189,248,0.45), transparent 55%),
     opacity: 1;
   }
 }
+
+
+/* Robinson center button */
+.robinson-head-button {
+  width: 140px;
+  height: 140px;
+  border-radius: 9999px;
+  object-fit: contain;
+  filter: drop-shadow(0 0 16px rgba(74, 163, 255, 0.9));
+  animation: robinson-head-pulse 1.6s ease-in-out infinite;
+}
+
+@keyframes robinson-head-pulse {
+  0% { transform: scale(1); filter: drop-shadow(0 0 14px rgba(74, 163, 255, 0.8)); }
+  50% { transform: scale(1.04); filter: drop-shadow(0 0 24px rgba(74, 163, 255, 1)); }
+  100% { transform: scale(1); filter: drop-shadow(0 0 14px rgba(74, 163, 255, 0.8)); }
+}
+
+/* Robinson fly animation (bottom-left -> top-right) */
+.robinson-fly {
+  position: fixed;
+  left: -20px;
+  bottom: 70px; /* чуть выше таббара */
+  width: 140px;
+  height: auto;
+  pointer-events: none;
+  z-index: 60;
+  animation: robinson-fly-kf 0.85s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  filter: drop-shadow(0 0 18px rgba(74, 163, 255, 0.9));
+}
+
+@keyframes robinson-fly-kf {
+  0% {
+    transform: translate(0, 0) rotate(-12deg) scale(1);
+    opacity: 1;
+  }
+  70% {
+    opacity: 1;
+  }
+  100% {
+    transform: translate(calc(100vw + 40px), calc(-100vh - 140px)) rotate(18deg) scale(0.75);
+    opacity: 0;
+  }
+}
