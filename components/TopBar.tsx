@@ -101,7 +101,7 @@ export default function TopBar() {
       ) : (
         <Link
   href="/login"
-  className="rounded-full bg-blue-600 px-5 py-1.5 text-sm font-semibold text-white shadow-[0_0_22px_rgba(59,130,246,0.65)] hover:bg-blue-500"
+  className="rounded-full bg-blue-600 px-5 py-1.5 text-sm font-semibold text-white shadow-[0_0_22px_rgba(59,130,246,0.9)] hover:bg-blue-500"
 >
   Вход
 </Link>
@@ -130,13 +130,23 @@ export default function TopBar() {
           Выйти
         </button>
       ) : (
-        <Link
+       <Link
   href="/register"
-  className="rounded-full bg-emerald-500 px-6 py-1.5 text-sm font-semibold text-black shadow-[0_0_30px_rgba(16,185,129,0.85)] hover:bg-emerald-400"
+  className="
+    rounded-full
+    bg-lime-400
+    px-6 py-1.5
+    text-sm font-bold
+    text-black
+    shadow-[0_0_18px_rgba(163,230,53,0.9)]
+    transition
+    hover:bg-lime-300
+    hover:shadow-[0_0_30px_rgba(163,230,53,1)]
+    active:scale-95
+  "
 >
   Регистрация
 </Link>
-
       )}
     </div>
   </div>
