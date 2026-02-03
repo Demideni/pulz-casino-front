@@ -1,7 +1,6 @@
 (() => {
   const $play = document.getElementById("play-btn");
-    const $speedControls = document.getElementById("speed-controls");
-const $betBox = document.getElementById("bet-box");
+  const $betBox = document.getElementById("bet-box");
   const $betValue = document.getElementById("bet-value");
   const $balValue = document.getElementById("bal-value");
 
@@ -164,39 +163,9 @@ const $betBox = document.getElementById("bet-box");
 
   $play.addEventListener("click", onPlay);
 
-  // Speed controls (optional)
-  function setSpeedActive(mode){
-    if (!$speedControls) return;
-    const btns = $speedControls.querySelectorAll(".speed-btn");
-    btns.forEach(b => b.classList.toggle("active", b.dataset.speed === mode));
-  }
-
-  if ($speedControls){
-    $speedControls.addEventListener("click", (e) => {
-      const btn = e.target && e.target.closest ? e.target.closest(".speed-btn") : null;
-      if (!btn) return;
-      const mode = btn.dataset.speed;
-      if (!mode) return;
-      if (window.RobinsonGame && typeof window.RobinsonGame.setSpeedMode === "function"){
-        window.RobinsonGame.setSpeedMode(mode);
-        setSpeedActive(window.RobinsonGame.getSpeedMode ? window.RobinsonGame.getSpeedMode() : mode);
-      } else {
-        // if game not ready yet, still update UI state
-        setSpeedActive(mode);
-      }
-    });
-
-    // initialize UI from game state if possible
-    setTimeout(() => {
-      const mode = window.RobinsonGame?.getSpeedMode?.() || "normal";
-      setSpeedActive(mode);
-    }, 0);
-  }
-
-
   // Game → UI callbacks
   window.RobinsonUI = {
-    setSpeedMode(mode){ setSpeedActive(mode || "normal"); },
+
     lockForRound,
     unlockAfterRound,
     setBalance,
@@ -209,6 +178,33 @@ const $betBox = document.getElementById("bet-box");
         { filter: `brightness(${isWin ? 1.25 : 1.05})`, duration: 0.18, yoyo: true, repeat: 3, ease: "sine.inOut" }
       );
     },
+
+    setStats({ time, altitude, distance, multiplier }) {
+      const $bar = document.getElementById("statsBar");
+      const $t = document.getElementById("statTime");
+      const $a = document.getElementById("statAlt");
+      const $d = document.getElementById("statDist");
+      const $m = document.getElementById("statMult");
+      if (!$t || !$a || !$d || !$m) return;
+
+      const pad2 = (n) => String(n).padStart(2, "0");
+      const sec = Math.max(0, Number(time) || 0);
+      const mm = Math.floor(sec / 60);
+      const ss = Math.floor(sec % 60);
+      $t.textContent = `${pad2(mm)}:${pad2(ss)}`;
+
+      const alt = Math.max(0, Number(altitude) || 0);
+      const dist = Math.max(0, Number(distance) || 0);
+      $a.textContent = `${alt.toFixed(1)}m`;
+      $d.textContent = `${dist.toFixed(1)}m`;
+
+      const mult = Math.max(0, Number(multiplier) || 1);
+      $m.textContent = `x${mult.toFixed(1)}`;
+
+      // Ensure visible (in case something toggles display)
+      if ($bar && $bar.style.display === "none") $bar.style.display = "grid";
+    },
+
     showResultText(text) {
       const prev = $play.textContent;
       $play.textContent = text;

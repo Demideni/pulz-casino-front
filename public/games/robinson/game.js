@@ -13,6 +13,28 @@
     });
   }
 
+  // Try multiple paths to avoid iOS/iframe baseURI weirdness
+  function loadImageAny(src) {
+    const candidates = [
+      src,
+      src.startsWith("./") ? src.slice(2) : src,
+      src.startsWith("assets/") ? "./" + src : src,
+      src.startsWith("assets/") ? "/games/robinson/" + src : src,
+      src.startsWith("./assets/") ? "/games/robinson/" + src.slice(2) : src,
+      "/games/robinson/" + src.replace(/^\.\//, ""),
+    ];
+    // de-dupe
+    const uniq = [...new Set(candidates)];
+    return new Promise(async (resolve) => {
+      for (const u of uniq) {
+        const img = await loadImage(u);
+        if (img) return resolve(img);
+      }
+      return resolve(null);
+    });
+  }
+
+
   const GFX = {
     bg: null,
     bgSpace: null,
@@ -20,33 +42,69 @@
     mars: null,
     robinson: null,
     island: null,
-    bonus: null,
+
+    // pickups
+    bonusX2: null,
+    bonusX3: null,
+    bonusAdd1: null,
+    bonusAdd2: null,
+    bonusAdd3: null,
     rocket: null,
+
     ready: false,
   };
 
   Promise.all([
-    loadImage("./assets/splash_bg.png"),
-    loadImage("./assets/background/bg_space.png"),
-    loadImage("./assets/background/planet_moon.png"),
-    loadImage("./assets/background/planet_mars.png"),
+    loadImageAny("assets/splash_bg.png"),
+    loadImageAny("assets/background/bg_space.png"),
+    loadImageAny("assets/background/planet_moon.png"),
+    loadImageAny("assets/background/planet_mars.png"),
 
-    loadImage("./assets/robinson.png"),
-    loadImage("./assets/island_long.png"),
-    loadImage("./assets/bonus.png"),
-    loadImage("./assets/rocket.png"),
-  ]).then(([bg, bgSpace, moon, mars, robinson, island, bonus, rocket]) => {
-    GFX.bg = bg;
-    GFX.bgSpace = bgSpace;
-    GFX.moon = moon;
-    GFX.mars = mars;
+    loadImageAny("assets/robinson.png"),
+    loadImageAny("assets/island_long.png"),
 
-    GFX.robinson = robinson;
-    GFX.island = island;
-    GFX.bonus = bonus;
-    GFX.rocket = rocket;
-    GFX.ready = true;
-  });
+    // bonus types
+    loadImageAny("assets/bonus_x2.png"),
+    loadImageAny("assets/bonus_x3.png"),
+    loadImageAny("assets/bonus_add1.png"),
+    loadImageAny("assets/bonus_add2.png"),
+    loadImageAny("assets/bonus_add3.png"),
+
+    // hazards
+    loadImageAny("assets/rocket.png"),
+  ]).then(
+    ([
+      bg,
+      bgSpace,
+      moon,
+      mars,
+      robinson,
+      island,
+      bonusX2,
+      bonusX3,
+      bonusAdd1,
+      bonusAdd2,
+      bonusAdd3,
+      rocket,
+    ]) => {
+      GFX.bg = bg;
+      GFX.bgSpace = bgSpace;
+      GFX.moon = moon;
+      GFX.mars = mars;
+
+      GFX.robinson = robinson;
+      GFX.island = island;
+
+      GFX.bonusX2 = bonusX2;
+      GFX.bonusX3 = bonusX3;
+      GFX.bonusAdd1 = bonusAdd1;
+      GFX.bonusAdd2 = bonusAdd2;
+      GFX.bonusAdd3 = bonusAdd3;
+
+      GFX.rocket = rocket;
+      GFX.ready = true;
+    }
+  );
 
   // ===== Resize / DPR =====
   let W = 0,
@@ -75,6 +133,15 @@
     return ax < bx + bw && ax + aw > bx && ay < by + bh && ay + ah > by;
   }
 
+  function pushHeroFloater(text, color) {
+    if (!world.heroFloaters) world.heroFloaters = [];
+    world.heroFloaters.unshift({ text, color, t: 0 });
+    if (world.heroFloaters.length > HERO_FLOATER_MAX) {
+      world.heroFloaters.length = HERO_FLOATER_MAX;
+    }
+  }
+
+
   // ===== State =====
   const State = {
     IDLE: "IDLE",
@@ -90,6 +157,7 @@
   // ===== Params =====
   const HERO_X_REL = 0.25;
   const WATER_LINE_REL = 0.80;
+  const PLATFORM_Y_RAISE_PX = 110; // поднять палубы выше, чтобы не перекрывались инфо-блоком
   const PLAYFIELD_TOP_REL = 0.18;
 
   const GRAVITY = 750;
@@ -112,7 +180,7 @@
   // Шаг = длина 3 платформ (по ТЗ).
   // По ТЗ: авианосцы длиннее в 1.5 раза и стоят в 2 раза дальше.
   // Было: width_mul=1.0, spacing=3.0 длины → станет: width_mul=1.5, spacing=6.0 длины.
-  const PLATFORM_WIDTH_MUL = 1.5;
+  const PLATFORM_WIDTH_MUL = 1.95; // +30% длина авианосцев
   const PLATFORM_SPACING_MULT = 6.0; // расстояние между платформами = 6 длины платформы
 
   // landing zones (0..1 along deck)
@@ -125,17 +193,26 @@
 
   // pickups (air)
   const PICKUP_POOL = 70;
-  const BONUS_CHANCE = 0.66;
+  const BONUS_CHANCE = 0.80;
   // Ты имел в виду НЕ размер, а количество.
   // Размер оставляем базовым, а плотность увеличиваем.
   // По ТЗ: бонусов/ракет больше, заметнее, выше по экрану и уже в самом начале раунда.
   const PICKUP_SIZE = 78;
+  const BONUS_SIZE = Math.round(PICKUP_SIZE * 1.3); // бонусы +30%
+  const ROCKET_SIZE = PICKUP_SIZE; // ракеты без изменений
   const PICKUP_DENSITY = 3.2; // заметно плотнее
   const PICKUP_SPACING_MIN_PX = Math.round(170 / PICKUP_DENSITY);
   const PICKUP_SPACING_MAX_PX = Math.round(330 / PICKUP_DENSITY);
   const PICKUP_MIN_SEP_PX = 135; // защита от “вплотную” даже при высокой плотности
   const BONUS_IMPULSE = 260; // up
-  const HIT_IMPULSE = 220; // down
+  const HIT_IMPULSE = 160; // down
+
+  // hero stacked event labels (near hero)
+  const HERO_FLOATER_LIFE = 1.15;     // seconds
+  const HERO_FLOATER_RISE = 22;       // px
+  const HERO_FLOATER_STACK_GAP = 22;  // px between lines
+  const HERO_FLOATER_MAX = 6;         // max lines in stack
+
 
   // ===== World =====
   const world = {
@@ -162,8 +239,11 @@
 
     bet: 1,
     mult: 1,
+    add: 0, // additive winnings in bet currency
+
     roundId: null,
-    floaters: [], // {x,y,text,color,age}
+    floaters: [], // legacy world-space floaters
+    heroFloaters: [], // stacked labels near hero: {text,color,t}
 
     stars: [],
     result: null,
@@ -195,27 +275,52 @@
     freeze: 0,
   };
 
-  // ===== Speed modes (affect only real-time tempo) =====
-  let SPEED_MODE = "normal";
-  const SPEED_PRESETS = { slow: 0.8, normal: 1.0, fast: 1.25 };
+  // ===== User speed modes (does NOT change outcomes; only real-time pacing) =====
+  const SPEED = {
+    mode: 'NORMAL',
+    scale: 1,
+    scales: { SLOW: 0.8, NORMAL: 1, FAST: 1.25 },
+  };
 
-  function setSpeedMode(mode){
-    const m = (mode || "normal").toLowerCase();
-    SPEED_MODE = SPEED_PRESETS[m] ? m : "normal";
-    TIME.scale = SPEED_PRESETS[SPEED_MODE];
-    // notify UI if present
-    try { window.RobinsonUI?.setSpeedMode?.(SPEED_MODE); } catch(e){}
+  function setSpeedMode(mode) {
+    if (!SPEED.scales[mode]) return;
+    SPEED.mode = mode;
+    SPEED.scale = SPEED.scales[mode];
+    // show mode in UI if stats bar exists
+    const el = document.getElementById('statSpeed');
+    if (el) el.textContent = mode;
   }
 
-  function getSpeedMode(){ return SPEED_MODE; }
+  function cycleSpeedMode() {
+    const order = ['SLOW', 'NORMAL', 'FAST'];
+    const i = order.indexOf(SPEED.mode);
+    setSpeedMode(order[(i + 1) % order.length]);
+  }
 
-  window.RobinsonGame = window.RobinsonGame || {};
-  window.RobinsonGame.setSpeedMode = setSpeedMode;
-  window.RobinsonGame.getSpeedMode = getSpeedMode;
+  // keyboard (desktop): 1/2/3
+  window.addEventListener('keydown', (e) => {
+    if (e.key === '1') setSpeedMode('SLOW');
+    if (e.key === '2') setSpeedMode('NORMAL');
+    if (e.key === '3') setSpeedMode('FAST');
+  });
 
-  // default
-  setSpeedMode("normal");
-
+  // mobile-friendly: tap the stats bar to cycle speed
+  window.addEventListener('load', () => {
+    setSpeedMode('NORMAL');
+    // mobile: tap top-left corner of the game canvas to cycle speed
+    const handler = (ev) => {
+      const rect = canvas.getBoundingClientRect();
+      const clientX = ev.touches ? ev.touches[0].clientX : ev.clientX;
+      const clientY = ev.touches ? ev.touches[0].clientY : ev.clientY;
+      const x = (clientX - rect.left) * (canvas.width / rect.width);
+      const y = (clientY - rect.top) * (canvas.height / rect.height);
+      if (x >= 0 && y >= 0 && x < 110 && y < 70) {
+        cycleSpeedMode();
+      }
+    };
+    canvas.addEventListener('click', handler);
+    canvas.addEventListener('touchstart', handler, { passive: true });
+  });
 
   function hitPause(freezeSec = 0.06, slowScale = 0.25, slowRecover = 0.12) {
     TIME.freeze = Math.max(TIME.freeze, freezeSec);
@@ -319,8 +424,10 @@
     world.nextPlatformId = 1;
     world.nextPickupId = 1;
     world.bonusCount = 0;
-    world.mult = world.mult || 1;
+    world.mult = 1;
+    world.add = 0;
     world.floaters = [];
+    world.heroFloaters = [];
 
     const heroX = W * HERO_X_REL;
     world.hero.x = heroX;
@@ -361,7 +468,7 @@
 
     // ===== Platforms: ровная цепочка (фиксированная высота + фиксированный шаг) =====
     const { w: pw, h: ph } = platformBaseSize();
-    world.platformY = Math.round(H * WATER_LINE_REL);
+    world.platformY = Math.round(H * WATER_LINE_REL) - PLATFORM_Y_RAISE_PX;
     world.platformSpacingPx = Math.max(240, Math.round(pw * PLATFORM_SPACING_MULT));
 
     // стартовая платформа прямо под героем
@@ -453,6 +560,7 @@ window.RobinsonGame = {
     if (Number.isFinite(nBet) && nBet > 0) world.bet = nBet;
     world.roundId = opts.roundId || null;
     world.mult = 1;
+    world.add = 0;
     world.floaters = [];
     state = State.RUNNING;
 
@@ -572,7 +680,17 @@ window.RobinsonGame = {
     const target = clamp(world.hero.y - 120 + rnd(-210, 210), topMin, lowMax);
     const y = clamp(target + rnd(-45, 45), topMin, lowMax);
 
-    const type = Math.random() < BONUS_CHANCE ? "BONUS" : "ROCKET";
+    const isBonus = Math.random() < BONUS_CHANCE;
+    let type = "ROCKET";
+    if (isBonus) {
+      const r = Math.random();
+      // tune: more +1/+2, rarer x3/+3
+      if (r < 0.22) type = "BONUS_X2";
+      else if (r < 0.30) type = "BONUS_X3";
+      else if (r < 0.62) type = "BONUS_ADD1";
+      else if (r < 0.88) type = "BONUS_ADD2";
+      else type = "BONUS_ADD3";
+    }
 
     // Не даём объектам появляться вплотную друг к другу.
     for (const p of world.pickups) {
@@ -587,8 +705,8 @@ window.RobinsonGame = {
       id: world.nextPickupId++,
       x,
       y,
-      w: PICKUP_SIZE,
-      h: PICKUP_SIZE,
+      w: (type === "ROCKET" ? ROCKET_SIZE : BONUS_SIZE),
+      h: (type === "ROCKET" ? ROCKET_SIZE : BONUS_SIZE),
       type,
       age: 0,
     });
@@ -634,25 +752,32 @@ window.RobinsonGame = {
       if (aabb(hx, hy, hw, hh, px, py, p.w, p.h)) {
         world.pickups.splice(i, 1);
 
-        if (p.type === "BONUS") {
-          // multiplier: x2 or x3
-          const inc = Math.random() < 0.66 ? 2 : 3;
-          world.mult = clamp(world.mult * inc, 0.1, 999);
-
+        if (p.type === "BONUS_X2") {
+          world.mult = clamp(world.mult * 2, 0.1, 999);
           world.bonusCount += 1;
-          emitBonus("BONUS");
-
-          // floating text
-          world.floaters.push({ x: p.x, y: p.y - 30, text: "x" + inc, color: "rgba(70,255,160,1)", age: 0 });
-
-          // impulse UP, continue flight
+          emitBonus("BONUS_X2");
+          pushHeroFloater("x2", "rgba(70,255,160,1)");
+          world.hero.vy = Math.min(world.hero.vy, 0) - BONUS_IMPULSE;
+        } else if (p.type === "BONUS_X3") {
+          world.mult = clamp(world.mult * 3, 0.1, 999);
+          world.bonusCount += 1;
+          emitBonus("BONUS_X3");
+          pushHeroFloater("x3", "rgba(70,255,160,1)");
+          world.hero.vy = Math.min(world.hero.vy, 0) - BONUS_IMPULSE;
+        } else if (p.type === "BONUS_ADD1" || p.type === "BONUS_ADD2" || p.type === "BONUS_ADD3") {
+          const n = p.type === "BONUS_ADD1" ? 1 : p.type === "BONUS_ADD2" ? 2 : 3;
+          world.add += (Number(world.bet) || 0) * n;
+          world.bonusCount += 1;
+          emitBonus(p.type);
+          pushHeroFloater("+" + n, "rgba(70,255,160,1)");
           world.hero.vy = Math.min(world.hero.vy, 0) - BONUS_IMPULSE;
         } else {
-          // ROCKET: /2
+          // ROCKET: /2 on everything
           world.mult = clamp(world.mult * 0.5, 0.1, 999);
+          world.add *= 0.5;
 
           emitHit("ROCKET");
-          world.floaters.push({ x: p.x, y: p.y - 30, text: "/2", color: "rgba(255,90,90,1)", age: 0 });
+          pushHeroFloater("/2", "rgba(255,90,90,1)");
 
           setDamagedTrail(1.2);
           world.hero.vy = Math.max(world.hero.vy, 0) + HIT_IMPULSE;
@@ -868,6 +993,16 @@ window.RobinsonGame = {
       // camera FX disabled
     }
 
+
+    // hero stacked floaters: advance & cleanup
+    if (world.heroFloaters && world.heroFloaters.length) {
+      for (let i = world.heroFloaters.length - 1; i >= 0; i--) {
+        const f = world.heroFloaters[i];
+        f.t += dt;
+        if (f.t >= HERO_FLOATER_LIFE) world.heroFloaters.splice(i, 1);
+      }
+    }
+
     // ribbon life
     for (let i = world.fx.ribbon.length - 1; i >= 0; i--) {
       const rp = world.fx.ribbon[i];
@@ -990,28 +1125,31 @@ window.RobinsonGame = {
 
   function renderPickups() {
     for (const p of world.pickups) {
-      const pulse = 0.86 + 0.14 * Math.sin(world.t * 10 + p.id);
+      const isBonus = p.type.startsWith("BONUS");
+      const pulse = isBonus ? (0.92 + 0.08 * Math.sin(world.t * 5 + p.id)) : 1;
 
       ctx.save();
       ctx.translate(p.x, p.y);
       ctx.scale(pulse, pulse);
 
       // Если есть спрайты — рисуем их (это приоритет).
-      if (p.type === "BONUS" && GFX.bonus) {
+      let img = null;
+      if (p.type === "BONUS_X2") img = GFX.bonusX2;
+      else if (p.type === "BONUS_X3") img = GFX.bonusX3;
+      else if (p.type === "BONUS_ADD1") img = GFX.bonusAdd1;
+      else if (p.type === "BONUS_ADD2") img = GFX.bonusAdd2;
+      else if (p.type === "BONUS_ADD3") img = GFX.bonusAdd3;
+      else if (p.type === "ROCKET") img = GFX.rocket;
+
+      if (img) {
         ctx.globalAlpha = 1;
-        ctx.drawImage(GFX.bonus, -p.w / 2, -p.h / 2, p.w, p.h);
-        ctx.restore();
-        continue;
-      }
-      if (p.type === "ROCKET" && GFX.rocket) {
-        ctx.globalAlpha = 1;
-        ctx.drawImage(GFX.rocket, -p.w / 2, -p.h / 2, p.w, p.h);
+        ctx.drawImage(img, -p.w / 2, -p.h / 2, p.w, p.h);
         ctx.restore();
         continue;
       }
 
-      if (p.type === "BONUS") {
-        ctx.globalAlpha = 0.22;
+if (isBonus) {
+        ctx.globalAlpha = 0.10;
         ctx.fillStyle = "#ffd54a";
         ctx.beginPath();
         ctx.arc(0, 0, p.w * 0.75, 0, Math.PI * 2);
@@ -1146,8 +1284,8 @@ window.RobinsonGame = {
       const sizeMoon = Math.min(W, H) * 0.34;
       const sizeMars = Math.min(W, H) * 0.26;
 
-      const okMoon = drawPlanet(GFX.moon, W * 0.78, H * 0.30, 0.10, sizeMoon, 0.75);
-      const okMars = drawPlanet(GFX.mars, W * 0.85, H * 0.20, 0.15, sizeMars, 0.72);
+      const okMoon = drawPlanet(GFX.moon, W * 0.78, H * 0.30, 0.10, sizeMoon, 0.30);
+      const okMars = drawPlanet(GFX.mars, W * 0.85, H * 0.20, 0.15, sizeMars, 0.29);
 
       // fallback: simple circles if planets not found
       if (!okMoon || !okMars) {
@@ -1155,7 +1293,7 @@ window.RobinsonGame = {
         const p2x = (W * 0.38) - ((t * ws * 0.028) % (W + 420)) + 210;
 
         ctx.save();
-        ctx.globalAlpha = 0.22;
+        ctx.globalAlpha = 0.10;
         ctx.fillStyle = "#2cf2ff";
         ctx.beginPath();
         ctx.arc(p1x, H * 0.28, 58, 0, Math.PI * 2);
@@ -1186,6 +1324,7 @@ window.RobinsonGame = {
     if (world.fx.mode === "BLUE") renderRibbonTwoLayer();
     else renderFireParticles();
 
+
     // hero
     const h = world.hero;
     const heroDrawn = drawCentered(GFX.robinson, h.x, h.y, h.w, h.h, h.rot);
@@ -1197,43 +1336,70 @@ window.RobinsonGame = {
       ctx.beginPath();
       ctx.arc(0, 0, 18, 0, Math.PI * 2);
       ctx.fill();
-  
-// floating texts (world space)
-if (world.floaters && world.floaters.length) {
-  for (const f of world.floaters) {
-    const a = clamp(1 - f.age / 0.75, 0, 1);
-    ctx.save();
-    ctx.globalAlpha = a;
-    ctx.font = "900 22px Arial";
-    ctx.fillStyle = f.color || "#7CFFB1";
-    ctx.textAlign = "center";
-    ctx.textBaseline = "middle";
-    ctx.shadowColor = "rgba(0,0,0,0.45)";
-    ctx.shadowBlur = 10;
-    ctx.fillText(f.text, f.x, f.y);
-    ctx.restore();
-  }
-}
-    ctx.restore();
+      ctx.restore();
     }
 
-    ctx.restore();
+    // stacked labels near hero (top-right)
+    if (world.heroFloaters && world.heroFloaters.length) {
+      const hx = h.x + h.w * 0.65;
+      const hy = h.y - h.h * 0.15;
+
+      ctx.save();
+      ctx.textAlign = "left";
+      ctx.textBaseline = "middle";
+      ctx.font = "900 20px Arial";
+      ctx.shadowColor = "rgba(0,0,0,0.55)";
+      ctx.shadowBlur = 10;
+
+      for (let i = 0; i < world.heroFloaters.length; i++) {
+        const f = world.heroFloaters[i];
+        const k = clamp(f.t / HERO_FLOATER_LIFE, 0, 1);
+        const alpha = 1 - k;
+        const rise = HERO_FLOATER_RISE * k;
+
+        ctx.globalAlpha = alpha;
+        ctx.fillStyle = f.color || "rgba(70,255,160,1)";
+        ctx.fillText(f.text, hx, hy - i * HERO_FLOATER_STACK_GAP - rise);
+      }
+      ctx.restore();
+      ctx.globalAlpha = 1;
+    }
+
+    // legacy floating texts (world space) — keep if something else uses it
+    if (world.floaters && world.floaters.length) {
+      for (const f of world.floaters) {
+        const a = clamp(1 - f.age / 0.75, 0, 1);
+        ctx.save();
+        ctx.globalAlpha = a;
+        ctx.font = "900 22px Arial";
+        ctx.fillStyle = f.color || "#7CFFB1";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.shadowColor = "rgba(0,0,0,0.45)";
+        ctx.shadowBlur = 10;
+        ctx.fillText(f.text, f.x, f.y);
+        ctx.restore();
+      }
+      ctx.globalAlpha = 1;
+    }
+
 
     // HUD (screen space): potential win above hero
     {
       const h = world.hero;
       const sx = h.x + world.cam.x;
-      const sy = h.y + world.cam.y - h.h * 0.75;
+      const sy = h.y + world.cam.y - h.h * 0.60; // ближе к Робинзону
       const bet = Number(world.bet) || 0;
       const mult = Number(world.mult) || 1;
-      const pot = bet * mult;
+      const add = Number(world.add) || 0;
+      const pot = bet * mult + add;
 
       ctx.save();
       ctx.globalAlpha = state === State.RUNNING || state === State.LANDING_ROLL ? 1 : 0;
-      ctx.font = "900 18px Arial";
+      ctx.font = "900 22px Arial"; // +40% размер
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
-      ctx.fillStyle = "rgba(255,255,255,0.92)";
+      ctx.fillStyle = "#FFD84D";
       ctx.shadowColor = "rgba(0,0,0,0.55)";
       ctx.shadowBlur = 12;
       ctx.fillText("$" + pot.toFixed(pot >= 100 ? 0 : 2), sx, sy);
@@ -1262,7 +1428,7 @@ if (world.floaters && world.floaters.length) {
       TIME.freeze = Math.max(0, TIME.freeze - dt);
       dt = 0;
     } else {
-      dt = dt * TIME.scale;
+      dt = dt * TIME.scale * SPEED.scale;
     }
 
     // fixed timestep simulation (stable feel like "real game")
