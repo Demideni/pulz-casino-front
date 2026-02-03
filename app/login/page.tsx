@@ -43,9 +43,9 @@ export default function LoginPage() {
       {/* Шапка */}
       <header className="mb-4 flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-semibold text-slate-50">Вход в Pulz</h1>
+          <h1 className="text-xl font-semibold text-slate-50">Вход в Robinson</h1>
           <p className="mt-1 text-xs text-slate-400">
-            Продолжай игру в неоновой вселенной Pulz.
+            Продолжай игру в неоновой вселенной.
           </p>
         </div>
         <Link href="/" className="flex items-center gap-2">

@@ -7,9 +7,16 @@ export default function HomePage() {
   return (
     <div className="space-y-4 pb-4">
       {/* 1. Большой верхний баннер (клик -> регистрация) */}
-      <section className="px-0">
-        <BannerCarousel />
-      </section>
+      <div className="mx-4 mt-2">
+  <div className="overflow-hidden rounded-2xl border border-blue-400/20 shadow-[0_0_40px_rgba(59,130,246,0.15)]">
+    <img
+      src="/banners/hero_robinson.png"
+      alt="Robinson"
+      className="w-full object-cover"
+    />
+  </div>
+</div>
+
 
       {/* 2. Два промо-баннера под hero */}
       <section className="px-4">
