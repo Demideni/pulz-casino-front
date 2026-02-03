@@ -78,7 +78,7 @@ export default function TopBar() {
 
   return (
     <header className="sticky top-0 z-30 bg-transparent">
-  <div className="mx-auto grid max-w-6xl grid-cols-[1fr_auto_1fr] items-center px-4 py-1.5">
+  <div className="mx-auto grid max-w-6xl grid-cols-[1fr_auto_1fr] items-center px-4 py-0.4">
     {/* LEFT */}
     <div className="flex items-center justify-start gap-3">
       {loading ? (
