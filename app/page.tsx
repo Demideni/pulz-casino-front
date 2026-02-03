@@ -17,7 +17,7 @@ export default function HomePage() {
           {/* DEMO (без регистрации) */}
           <Link
             href="/go/robinson-demo"
-            className="flex-1 overflow-hidden rounded-3xl border border-slate-800/80 bg-slate-950/80 block"
+            className="promo-banner promo-banner-pulse flex-1 overflow-hidden rounded-3xl bg-slate-950/60 block"
           >
             <Image
               src="/banners/robinson_demo.png"
@@ -32,7 +32,7 @@ export default function HomePage() {
           {/* PLAY (через регистрацию) */}
           <Link
             href="/go/robinson"
-            className="flex-1 overflow-hidden rounded-3xl border border-slate-800/80 bg-slate-950/80 block"
+            className="promo-banner promo-banner-pulse flex-1 overflow-hidden rounded-3xl bg-slate-950/60 block"
           >
             <Image
               src="/banners/robinson_play.png"
