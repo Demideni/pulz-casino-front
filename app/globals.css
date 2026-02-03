@@ -383,7 +383,7 @@ radial-gradient(circle at 100% 0%, rgba(56,189,248,0.45), transparent 55%),
   height: auto;
   pointer-events: none;
   z-index: 60;
-  animation: robinson-fly-kf 1.8s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  animation: robinson-fly-kf 2.5s cubic-bezier(0.22, 1, 0.36, 1) forwards;
   filter: drop-shadow(0 0 18px rgba(74, 163, 255, 0.9));
 }
 

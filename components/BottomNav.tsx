@@ -24,7 +24,7 @@ export default function BottomNav() {
 
   useEffect(() => {
     if (!fly) return;
-    const t = setTimeout(() => setFly(false), 2000);
+    const t = setTimeout(() => setFly(false), 2800);
     return () => clearTimeout(t);
   }, [fly]);
 
