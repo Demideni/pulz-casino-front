@@ -1,7 +1,6 @@
 // app/layout.tsx
 import "./globals.css";
 import type { ReactNode } from "react";
-import Link from "next/link";
 import BottomNav from "@/components/BottomNav";
 import PulzBootOverlay from "@/components/PulzBootOverlay";
 import TopBar from "@/components/TopBar";
@@ -33,69 +32,55 @@ export default function RootLayout({ children }: { children: ReactNode }) {
             {children}
           </main>
 
-          {/* FOOTER */}
+          {/* FOOTER CTA (3 кнопки в Telegram) */}
           <footer className="border-t border-slate-800/60 bg-black/80">
-            <div className="mx-auto grid max-w-6xl gap-4 px-4 py-3 text-xs text-slate-400 md:grid-cols-4">
-              <div>
+            <div className="mx-auto flex max-w-6xl flex-col items-center gap-3 px-4 pb-28 pt-5">
+              <a
+                className="footer-cta-btn"
+                href="https://t.me/grandfather_jack"
+                target="_blank"
+                rel="noreferrer"
+              >
                 <img
-                  src="/pulz-logo-dark.png"
-                  alt="Pulz Casino"
-                  className="h-12 w-auto"
+                  src="/cta/integration.png"
+                  alt="Интеграция в проекты"
+                  className="footer-cta-img"
                 />
-                <p className="text-[11px] leading-snug text-slate-500">
-                  Pulz — честные коэффициенты. 
-                  Только для взрослых игроков 18+.
-                </p>
-              </div>
+              </a>
 
-              <div>
-                <div className="mb-1 font-semibold text-slate-200">Компания</div>
-                <ul className="space-y-1">
-                  <li>
-                    <Link href="/about" className="hover:text-slate-100">
-                      О нас
-                    </Link>
-                  </li>
-                  <li>
-                    <Link href="/partners" className="hover:text-slate-100">
-                      Партнёрам
-                    </Link>
-                  </li>
-                </ul>
-              </div>
+              <a
+                className="footer-cta-btn"
+                href="https://t.me/grandfather_jack"
+                target="_blank"
+                rel="noreferrer"
+              >
+                <img
+                  src="/cta/affiliate.png"
+                  alt="Стать аффилейтом"
+                  className="footer-cta-img"
+                />
+              </a>
 
-              <div>
-                <div className="mb-1 font-semibold text-slate-200">Помощь</div>
-                <ul className="space-y-1">
-                  <li>
-                    <Link href="/status" className="hover:text-slate-100">
-                      Статус платформы
-                    </Link>
-                  </li>
-                  <li>
-                    <span className="text-slate-500">Ответственная игра</span>
-                  </li>
-                </ul>
-              </div>
+              <a
+                className="footer-cta-btn"
+                href="https://t.me/grandfather_jack"
+                target="_blank"
+                rel="noreferrer"
+              >
+                <img
+                  src="/cta/offers.png"
+                  alt="Предложения"
+                  className="footer-cta-img"
+                />
+              </a>
 
-              <div>
-                <div className="mb-1 font-semibold text-slate-200">Контакты</div>
-                <ul className="space-y-1">
-                  <li>support@pulz.casino</li>
-                  <li>Чат 24/7 (в разработке)</li>
-                </ul>
-              </div>
-            </div>
-
-            <div className="border-t border-slate-800/80 bg-black/90">
-              <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3 text-[11px] text-slate-500">
-                <span>© {new Date().getFullYear()} Pulz 2026.</span>
-                <span>Играй ответственно 18+</span>
+              <div className="pt-2 text-center text-[11px] text-slate-500">
+                © {new Date().getFullYear()} Pulz. 18+
               </div>
             </div>
           </footer>
 
-          {/* НИЖНИЙ ТАП-БАР С КОЛЕСОМ */}
+          {/* НИЖНИЙ ТАП-БАР */}
           <BottomNav />
         </div>
       </body>
