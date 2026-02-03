@@ -133,6 +133,15 @@
     return ax < bx + bw && ax + aw > bx && ay < by + bh && ay + ah > by;
   }
 
+  function pushHeroFloater(text, color) {
+    if (!world.heroFloaters) world.heroFloaters = [];
+    world.heroFloaters.unshift({ text, color, t: 0 });
+    if (world.heroFloaters.length > HERO_FLOATER_MAX) {
+      world.heroFloaters.length = HERO_FLOATER_MAX;
+    }
+  }
+
+
   // ===== State =====
   const State = {
     IDLE: "IDLE",
@@ -171,7 +180,7 @@
   // Шаг = длина 3 платформ (по ТЗ).
   // По ТЗ: авианосцы длиннее в 1.5 раза и стоят в 2 раза дальше.
   // Было: width_mul=1.0, spacing=3.0 длины → станет: width_mul=1.5, spacing=6.0 длины.
-  const PLATFORM_WIDTH_MUL = 1.5;
+  const PLATFORM_WIDTH_MUL = 1.95; // +30% длина авианосцев
   const PLATFORM_SPACING_MULT = 6.0; // расстояние между платформами = 6 длины платформы
 
   // landing zones (0..1 along deck)
@@ -184,7 +193,7 @@
 
   // pickups (air)
   const PICKUP_POOL = 70;
-  const BONUS_CHANCE = 0.66;
+  const BONUS_CHANCE = 0.80;
   // Ты имел в виду НЕ размер, а количество.
   // Размер оставляем базовым, а плотность увеличиваем.
   // По ТЗ: бонусов/ракет больше, заметнее, выше по экрану и уже в самом начале раунда.
@@ -197,6 +206,13 @@
   const PICKUP_MIN_SEP_PX = 135; // защита от “вплотную” даже при высокой плотности
   const BONUS_IMPULSE = 260; // up
   const HIT_IMPULSE = 160; // down
+
+  // hero stacked event labels (near hero)
+  const HERO_FLOATER_LIFE = 1.15;     // seconds
+  const HERO_FLOATER_RISE = 22;       // px
+  const HERO_FLOATER_STACK_GAP = 22;  // px between lines
+  const HERO_FLOATER_MAX = 6;         // max lines in stack
+
 
   // ===== World =====
   const world = {
@@ -226,7 +242,8 @@
     add: 0, // additive winnings in bet currency
 
     roundId: null,
-    floaters: [], // {x,y,text,color,age}
+    floaters: [], // legacy world-space floaters
+    heroFloaters: [], // stacked labels near hero: {text,color,t}
 
     stars: [],
     result: null,
@@ -234,8 +251,6 @@
 
     plan: null,
     decided: false,
-
-    highCampT: 0, // seconds hero has been camping near top
 
     roll: { vx: 0, platformId: null, remain: 0, speed: 0 },
 
@@ -259,6 +274,53 @@
     scale: 1,
     freeze: 0,
   };
+
+  // ===== User speed modes (does NOT change outcomes; only real-time pacing) =====
+  const SPEED = {
+    mode: 'NORMAL',
+    scale: 1,
+    scales: { SLOW: 0.8, NORMAL: 1, FAST: 1.25 },
+  };
+
+  function setSpeedMode(mode) {
+    if (!SPEED.scales[mode]) return;
+    SPEED.mode = mode;
+    SPEED.scale = SPEED.scales[mode];
+    // show mode in UI if stats bar exists
+    const el = document.getElementById('statSpeed');
+    if (el) el.textContent = mode;
+  }
+
+  function cycleSpeedMode() {
+    const order = ['SLOW', 'NORMAL', 'FAST'];
+    const i = order.indexOf(SPEED.mode);
+    setSpeedMode(order[(i + 1) % order.length]);
+  }
+
+  // keyboard (desktop): 1/2/3
+  window.addEventListener('keydown', (e) => {
+    if (e.key === '1') setSpeedMode('SLOW');
+    if (e.key === '2') setSpeedMode('NORMAL');
+    if (e.key === '3') setSpeedMode('FAST');
+  });
+
+  // mobile-friendly: tap the stats bar to cycle speed
+  window.addEventListener('load', () => {
+    setSpeedMode('NORMAL');
+    // mobile: tap top-left corner of the game canvas to cycle speed
+    const handler = (ev) => {
+      const rect = canvas.getBoundingClientRect();
+      const clientX = ev.touches ? ev.touches[0].clientX : ev.clientX;
+      const clientY = ev.touches ? ev.touches[0].clientY : ev.clientY;
+      const x = (clientX - rect.left) * (canvas.width / rect.width);
+      const y = (clientY - rect.top) * (canvas.height / rect.height);
+      if (x >= 0 && y >= 0 && x < 110 && y < 70) {
+        cycleSpeedMode();
+      }
+    };
+    canvas.addEventListener('click', handler);
+    canvas.addEventListener('touchstart', handler, { passive: true });
+  });
 
   function hitPause(freezeSec = 0.06, slowScale = 0.25, slowRecover = 0.12) {
     TIME.freeze = Math.max(TIME.freeze, freezeSec);
@@ -362,8 +424,10 @@
     world.nextPlatformId = 1;
     world.nextPickupId = 1;
     world.bonusCount = 0;
-    world.mult = world.mult || 1;
+    world.mult = 1;
+    world.add = 0;
     world.floaters = [];
+    world.heroFloaters = [];
 
     const heroX = W * HERO_X_REL;
     world.hero.x = heroX;
@@ -599,28 +663,22 @@ window.RobinsonGame = {
   }
 
   function spawnPickupAtX(x) {
-    // Spawn across the whole playfield (not only on hero trajectory) to prevent "camping" at the top.
-    const topY = H * PLAYFIELD_TOP_REL + 40;
+
+    // Два "коридора" по Y: верхний и нижний, но без прилипания к палубе.
+    const topMin = H * PLAYFIELD_TOP_REL + 40;
+    // Делаем воздушные объекты выше и заметнее.
+    const topMax = H * 0.36;
+
+    // низ — выше палубы, чтобы бонусы/ракеты не оказывались "на платформе"
     const { h: ph } = platformBaseSize();
     const deckTop = world.platformY - ph / 2;
-    const bottomY = Math.min(deckTop - 120, H * (WATER_LINE_REL - 0.10));
+    // "Низ" всё равно выше палубы, но не сваливаемся в самый низ экрана.
+    const lowMin = H * 0.48;
+    const lowMax = Math.min(deckTop - 120, H * (WATER_LINE_REL - 0.16));
 
-    const FULL_FIELD_CHANCE_BASE = 0.70; // 70% of spawns anywhere on the height
-    const CORRIDOR_RANGE = 240;          // remaining 30% stays somewhat near the hero
-
-    const camp = (world.highCampT || 0);
-    const campBias = camp > 1.5 ? 0.15 : 0.0; // if hero camps at the top, bias spawns downward
-
-    let y;
-    if (Math.random() < (FULL_FIELD_CHANCE_BASE + campBias)) {
-      let t = Math.random();
-      // y grows downward; bias toward bottom when camping
-      if (campBias > 0) t = 1 - (1 - t) * (1 - t);
-      y = topY + t * (bottomY - topY);
-    } else {
-      y = clamp(world.hero.y + rnd(-CORRIDOR_RANGE, CORRIDOR_RANGE), topY, bottomY);
-    }
-
+    // Держим вокруг траектории героя, но специально сдвигаем вверх.
+    const target = clamp(world.hero.y - 120 + rnd(-210, 210), topMin, lowMax);
+    const y = clamp(target + rnd(-45, 45), topMin, lowMax);
 
     const isBonus = Math.random() < BONUS_CHANCE;
     let type = "ROCKET";
@@ -698,20 +756,20 @@ window.RobinsonGame = {
           world.mult = clamp(world.mult * 2, 0.1, 999);
           world.bonusCount += 1;
           emitBonus("BONUS_X2");
-          world.floaters.push({ x: world.hero.x + world.hero.w * 0.62, y: world.hero.y - world.hero.h * 0.72, text: "x2", color: "rgba(70,255,160,1)", age: 0  });
+          pushHeroFloater("x2", "rgba(70,255,160,1)");
           world.hero.vy = Math.min(world.hero.vy, 0) - BONUS_IMPULSE;
         } else if (p.type === "BONUS_X3") {
           world.mult = clamp(world.mult * 3, 0.1, 999);
           world.bonusCount += 1;
           emitBonus("BONUS_X3");
-          world.floaters.push({ x: world.hero.x + world.hero.w * 0.62, y: world.hero.y - world.hero.h * 0.72, text: "x3", color: "rgba(70,255,160,1)", age: 0  });
+          pushHeroFloater("x3", "rgba(70,255,160,1)");
           world.hero.vy = Math.min(world.hero.vy, 0) - BONUS_IMPULSE;
         } else if (p.type === "BONUS_ADD1" || p.type === "BONUS_ADD2" || p.type === "BONUS_ADD3") {
           const n = p.type === "BONUS_ADD1" ? 1 : p.type === "BONUS_ADD2" ? 2 : 3;
           world.add += (Number(world.bet) || 0) * n;
           world.bonusCount += 1;
           emitBonus(p.type);
-          world.floaters.push({ x: world.hero.x + world.hero.w * 0.62, y: world.hero.y - world.hero.h * 0.72, text: "+" + n, color: "rgba(70,255,160,1)", age: 0  });
+          pushHeroFloater("+" + n, "rgba(70,255,160,1)");
           world.hero.vy = Math.min(world.hero.vy, 0) - BONUS_IMPULSE;
         } else {
           // ROCKET: /2 on everything
@@ -719,7 +777,7 @@ window.RobinsonGame = {
           world.add *= 0.5;
 
           emitHit("ROCKET");
-          world.floaters.push({ x: world.hero.x + world.hero.w * 0.62, y: world.hero.y - world.hero.h * 0.72, text: "/2", color: "rgba(255,90,90,1)", age: 0  });
+          pushHeroFloater("/2", "rgba(255,90,90,1)");
 
           setDamagedTrail(1.2);
           world.hero.vy = Math.max(world.hero.vy, 0) + HIT_IMPULSE;
@@ -847,12 +905,6 @@ window.RobinsonGame = {
         if (world.hero.vy < 0) world.hero.vy = 0;
       }
 
-
-      // anti-camp: track time spent near top to bias spawns downward
-      const highZoneY = H * 0.22;
-      if (world.hero.y < highZoneY) world.highCampT = (world.highCampT || 0) + dt;
-      else world.highCampT = Math.max(0, (world.highCampT || 0) - dt * 2);
-
       // tilt
       world.hero.rot = clamp(world.hero.vy / 1200, -0.35, 0.55);
 
@@ -939,6 +991,16 @@ window.RobinsonGame = {
     if (state === State.FINISH_WIN) {
       world.finishT += dt;
       // camera FX disabled
+    }
+
+
+    // hero stacked floaters: advance & cleanup
+    if (world.heroFloaters && world.heroFloaters.length) {
+      for (let i = world.heroFloaters.length - 1; i >= 0; i--) {
+        const f = world.heroFloaters[i];
+        f.t += dt;
+        if (f.t >= HERO_FLOATER_LIFE) world.heroFloaters.splice(i, 1);
+      }
     }
 
     // ribbon life
@@ -1262,6 +1324,7 @@ if (isBonus) {
     if (world.fx.mode === "BLUE") renderRibbonTwoLayer();
     else renderFireParticles();
 
+
     // hero
     const h = world.hero;
     const heroDrawn = drawCentered(GFX.robinson, h.x, h.y, h.w, h.h, h.rot);
@@ -1273,9 +1336,36 @@ if (isBonus) {
       ctx.beginPath();
       ctx.arc(0, 0, 18, 0, Math.PI * 2);
       ctx.fill();
-  
+      ctx.restore();
+    }
 
-    // floating texts (world space)
+    // stacked labels near hero (top-right)
+    if (world.heroFloaters && world.heroFloaters.length) {
+      const hx = h.x + h.w * 0.65;
+      const hy = h.y - h.h * 0.15;
+
+      ctx.save();
+      ctx.textAlign = "left";
+      ctx.textBaseline = "middle";
+      ctx.font = "900 20px Arial";
+      ctx.shadowColor = "rgba(0,0,0,0.55)";
+      ctx.shadowBlur = 10;
+
+      for (let i = 0; i < world.heroFloaters.length; i++) {
+        const f = world.heroFloaters[i];
+        const k = clamp(f.t / HERO_FLOATER_LIFE, 0, 1);
+        const alpha = 1 - k;
+        const rise = HERO_FLOATER_RISE * k;
+
+        ctx.globalAlpha = alpha;
+        ctx.fillStyle = f.color || "rgba(70,255,160,1)";
+        ctx.fillText(f.text, hx, hy - i * HERO_FLOATER_STACK_GAP - rise);
+      }
+      ctx.restore();
+      ctx.globalAlpha = 1;
+    }
+
+    // legacy floating texts (world space) — keep if something else uses it
     if (world.floaters && world.floaters.length) {
       for (const f of world.floaters) {
         const a = clamp(1 - f.age / 0.75, 0, 1);
@@ -1290,17 +1380,15 @@ if (isBonus) {
         ctx.fillText(f.text, f.x, f.y);
         ctx.restore();
       }
-    }
-    ctx.restore();
+      ctx.globalAlpha = 1;
     }
 
-    ctx.restore();
 
     // HUD (screen space): potential win above hero
     {
       const h = world.hero;
       const sx = h.x + world.cam.x;
-      const sy = h.y + world.cam.y - h.h * 0.75;
+      const sy = h.y + world.cam.y - h.h * 0.60; // ближе к Робинзону
       const bet = Number(world.bet) || 0;
       const mult = Number(world.mult) || 1;
       const add = Number(world.add) || 0;
@@ -1308,7 +1396,7 @@ if (isBonus) {
 
       ctx.save();
       ctx.globalAlpha = state === State.RUNNING || state === State.LANDING_ROLL ? 1 : 0;
-      ctx.font = "900 18px Arial";
+      ctx.font = "900 22px Arial"; // +40% размер
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
       ctx.fillStyle = "#FFD84D";
@@ -1340,7 +1428,7 @@ if (isBonus) {
       TIME.freeze = Math.max(0, TIME.freeze - dt);
       dt = 0;
     } else {
-      dt = dt * TIME.scale;
+      dt = dt * TIME.scale * SPEED.scale;
     }
 
     // fixed timestep simulation (stable feel like "real game")
