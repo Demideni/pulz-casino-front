@@ -222,9 +222,6 @@
     roundT: 0,
     roundDur: 3.6,
 
-    // HUD metrics
-    distPx: 0,
-
     cam: { x: 0, y: 0, shake: 0, zoom: 1, zoomTarget: 1, zoomT: 0 },
 
     hero: { x: 0, y: 0, vy: 0, w: 0, h: 0, rot: 0, prevBottom: 0 },
@@ -418,7 +415,6 @@
 
   function resetRound() {
     world.roundT = 0;
-    world.distPx = 0;
     world.finishT = 0;
     world.result = null;
     world.decided = false;
@@ -505,50 +501,6 @@
     }
   }
 
-  // ===== Idle scene (show hero on the стартовый авианосец before round) =====
-  function initIdleScene() {
-    // Build the same стартовая палуба/герой, but without starting the round.
-    world.platforms = [];
-    world.pickups = [];
-    world.nextPlatformId = 1;
-    world.nextPickupId = 1;
-    world.roundT = 0;
-    world.distPx = 0;
-    world.result = null;
-    world.finishT = 0;
-    world.decided = false;
-
-    const heroX = W * HERO_X_REL;
-    const scale = Math.min(W / 1200, H / 800, 1);
-    const heroScale = 1.9;
-    world.hero.w = Math.round(110 * scale * heroScale);
-    world.hero.h = Math.round(110 * scale * heroScale);
-
-    const { w: pw, h: ph } = platformBaseSize();
-    world.platformY = Math.round(H * WATER_LINE_REL) - PLATFORM_Y_RAISE_PX;
-    world.platformSpacingPx = Math.max(240, Math.round(pw * PLATFORM_SPACING_MULT));
-
-    const startPlatform = spawnPlatform(heroX, world.platformY);
-    startPlatform.w = pw;
-    startPlatform.h = ph;
-
-    world.hero.x = heroX;
-    world.hero.y = deckTopY(startPlatform) - world.hero.h * 0.45;
-    world.hero.vy = 0;
-    world.hero.rot = 0;
-    world.hero.prevBottom = world.hero.y + world.hero.h / 2;
-
-    // fill a few platforms ahead so it looks "ready"
-    let x = heroX;
-    const neededRight = W * 2.2;
-    while (x < neededRight) {
-      x += world.platformSpacingPx;
-      const p = spawnPlatform(x, world.platformY);
-      p.w = pw;
-      p.h = ph;
-    }
-  }
-
   function endRound(result) {
     if (state !== State.RUNNING && state !== State.LANDING_ROLL) return;
 
@@ -581,8 +533,6 @@
 
     setTimeout(() => {
       state = State.IDLE;
-      // restore "ready to launch" pose on the стартовый авианосец
-      try { initIdleScene(); } catch {}
       window.RobinsonUI?.unlockAfterRound?.();
     }, 1050);
   }
@@ -936,8 +886,6 @@ window.RobinsonGame = {
       const p = clamp(world.roundT / world.roundDur, 0, 1);
       const speed = OBJECT_SPEED_BASE * (0.9 + 0.55 * easeInOut(p));
       world.fx.worldSpeed = speed;
-      // distance travelled (for HUD)
-      world.distPx += speed * dt;
 
       // spawn platforms
       maybeSpawnNextPlatform(dt);
@@ -1009,9 +957,6 @@ window.RobinsonGame = {
       const v = Math.max(240, world.roll.speed || 420);
       hero.x += v * dt;
       world.roll.remain -= v * dt;
-
-      // Continue distance counter while rolling (keeps HUD consistent)
-      world.distPx += v * dt;
 
       // приклеиваем к палубе
       hero.y = deckTopY(pRoll) - hero.h * 0.45;
@@ -1480,46 +1425,6 @@ if (isBonus) {
   }
 
   // ===== Loop =====
-  // ===== HUD Stats (TIME / ALTITUDE / DISTANCE / MULTIPLIER) =====
-  const HUD = (() => {
-    const $time = document.getElementById('statTime');
-    const $alt = document.getElementById('statAlt');
-    const $dist = document.getElementById('statDist');
-    const $mult = document.getElementById('statMult');
-
-    const fmtTime = (sec) => {
-      const s = Math.max(0, Math.floor(sec));
-      const mm = String(Math.floor(s / 60)).padStart(2, '0');
-      const ss = String(s % 60).padStart(2, '0');
-      return `${mm}:${ss}`;
-    };
-    const fmtM = (m) => `${(Math.max(0, m)).toFixed(1)}m`;
-    const fmtX = (x) => `x${(Math.max(1, x)).toFixed(1)}`;
-
-    return {
-      paint() {
-        if (!$time && !$alt && !$dist && !$mult) return;
-
-        const running = state === State.RUNNING || state === State.LANDING_ROLL;
-        const t = running ? world.roundT : 0;
-
-        // Approx: 10px = 1m (good enough for HUD feel)
-        const basePlat = world.platforms && world.platforms[0] ? world.platforms[0] : null;
-        const deckTop = basePlat ? deckTopY(basePlat) : (H * WATER_LINE_REL);
-        const altPx = deckTop - world.hero.y;
-        const altM = altPx / 10;
-
-        const distM = (world.distPx || 0) / 10;
-        const mult = Number(world.mult) || 1;
-
-        if ($time) $time.textContent = fmtTime(t);
-        if ($alt) $alt.textContent = fmtM(altM);
-        if ($dist) $dist.textContent = fmtM(distM);
-        if ($mult) $mult.textContent = fmtX(mult);
-      }
-    };
-  })();
-
   function loop(time) {
     let dt = (time - lastTime) / 1000;
     lastTime = time;
@@ -1548,27 +1453,12 @@ if (isBonus) {
       loop.acc -= FIXED;
     }
 
-    // update HUD numbers every frame (even when IDLE)
-    HUD.paint();
-
-    // keep HUD in sync even in IDLE
-    HUD.paint();
-
     // if we didn't step, ensure camPrev exists
     if (!world.camPrev) world.camPrev = { x: world.cam.x, y: world.cam.y, zoom: world.cam.zoom, shake: world.cam.shake, t: world.t };
     const alpha = loop.acc / FIXED;
     render(alpha);
     requestAnimationFrame(loop);
   }
-
-  // Show стартовая сцена (герой стоит на авианосце) еще до старта раунда.
-  window.addEventListener('load', () => {
-    if (state === State.IDLE) initIdleScene();
-    HUD.paint();
-  });
-
-  // Ensure the start carrier + Robinson are visible before the first round.
-  try { initIdleScene(); } catch (e) { console.warn('[game] initIdleScene failed', e); }
 
   requestAnimationFrame(loop);
 })();
