@@ -1,6 +1,5 @@
 (() => {
   const $play = document.getElementById("play-btn");
-  const $playText = $play ? $play.querySelector?.(".playOrbText") : null;
   const $betBox = document.getElementById("bet-box");
   const $betValue = document.getElementById("bet-value");
   const $balValue = document.getElementById("bal-value");
@@ -77,15 +76,13 @@
     state = "RUNNING";
     stopIdleAnim();
     setEnabled(false);
-    $play.classList?.add("is-running");
-    if ($playText) $playText.textContent = "...";
+    const $label = document.getElementById("play-label"); if ($label) $label.textContent = "...";
   };
 
   const unlockAfterRound = () => {
     state = "IDLE";
     setEnabled(true);
-    $play.classList?.remove("is-running");
-    if ($playText) $playText.textContent = "PLAY";
+    const $label = document.getElementById("play-label"); if ($label) $label.textContent = "PLAY";
     startIdleAnim();
     roundId = null;
     if (window.gsap) gsap.fromTo($play, { scale: 0.98 }, { scale: 1, duration: 0.22, ease: "back.out(2)" });
@@ -209,9 +206,9 @@
     },
 
     showResultText(text) {
-      const prev = $play.textContent;
-      $play.textContent = text;
-      setTimeout(() => ($play.textContent = prev), 650);
+      const $label = document.getElementById("play-label"); const prev = $label ? $label.textContent : "";
+      const $label = document.getElementById("play-label"); if ($label) $label.textContent = text;
+      setTimeout(() => (const $label = document.getElementById("play-label"); if ($label) $label.textContent = prev), 650);
     },
   };
 
