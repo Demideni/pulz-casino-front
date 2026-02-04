@@ -206,9 +206,14 @@
     },
 
     showResultText(text) {
-      const $label = document.getElementById("play-label"); const prev = $label ? $label.textContent : "";
-      const $label = document.getElementById("play-label"); if ($label) $label.textContent = text;
-      setTimeout(() => (const $label = document.getElementById("play-label"); if ($label) $label.textContent = prev), 650);
+      const label = document.getElementById("play-label");
+      if (!label) return;
+      const prev = label.textContent || "";
+      label.textContent = text;
+      setTimeout(() => {
+        const l = document.getElementById("play-label");
+        if (l) l.textContent = prev;
+      }, 650);
     },
   };
 
