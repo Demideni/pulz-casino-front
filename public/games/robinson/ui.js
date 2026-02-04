@@ -171,7 +171,8 @@
   };
 
   const setEnabled = (enabled) => {
-        $betBox.style.pointerEvents = enabled ? "auto" : "none";
+    $play.style.pointerEvents = enabled ? "auto" : "none";
+    $betBox.style.pointerEvents = enabled ? "auto" : "none";
     $betBox.style.opacity = enabled ? "1" : "0.65";
   };
 
@@ -181,15 +182,10 @@
     $play.classList.toggle("is-armed", next === "ARMED");
     $play.classList.toggle("is-idle", next === "IDLE");
     if ($playLabel) $playLabel.textContent = next === "RUNNING" ? "..." : "PLAY";
-    SFX.setHum(0); // no background hum
+    SFX.setHum(0);
   };
 
   const refreshArmed = () => {
-    // If UI got stuck in RUNNING (e.g., missed callback), resync with game state
-    const gs = window.RobinsonGame?.getState?.();
-    if (state === "RUNNING" && gs === "IDLE") {
-      unlockAfterRound();
-    }
     if (state === "RUNNING") return;
     const armed = bet > 0 && balance >= bet;
     setVisualState(armed ? "ARMED" : "IDLE");
@@ -223,6 +219,8 @@
   };
 
   const unlockAfterRound = () => {
+    // важно: после раунда вернуть UI в IDLE/ARMED, иначе PLAY срабатывает только один раз
+    setVisualState("IDLE");
     setEnabled(true);
     roundId = null;
     refreshArmed();
@@ -250,11 +248,6 @@
   };
 
   $betBox.addEventListener("click", () => {
-    // If UI got stuck in RUNNING (e.g., missed callback), resync with game state
-    const gs = window.RobinsonGame?.getState?.();
-    if (state === "RUNNING" && gs === "IDLE") {
-      unlockAfterRound();
-    }
     if (state === "RUNNING") return;
     renderBetGrid();
     openModal();
@@ -279,11 +272,6 @@
   }
 
   async function onPlay() {
-    // If UI got stuck in RUNNING (e.g., missed callback), resync with game state
-    const gs = window.RobinsonGame?.getState?.();
-    if (state === "RUNNING" && gs === "IDLE") {
-      unlockAfterRound();
-    }
     if (state === "RUNNING") return;
 
     // unlock audio on first interaction
