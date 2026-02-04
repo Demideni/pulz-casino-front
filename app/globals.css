@@ -196,13 +196,34 @@ radial-gradient(circle at 100% 0%, rgba(56,189,248,0.45), transparent 55%),
   min-height: 100vh;
   isolation: isolate;
   overflow: hidden;
-  /* Единый “cosmic” фон под баннеры + CTA: больше синего и лёгкий красный акцент */
+
   background:
-    radial-gradient(circle at 8% 10%, rgba(37,99,235,0.32), transparent 58%),
-    radial-gradient(circle at 92% 12%, rgba(56,189,248,0.26), transparent 60%),
-    radial-gradient(circle at 88% 62%, rgba(244,63,94,0.14), transparent 62%),
-    radial-gradient(circle at 50% 140%, rgba(11,17,28,0.98), #01040a);
+    /* 1️⃣ СИЛЬНОЕ ЗАТЕМНЕНИЕ (≈80%) — ВСЕГДА СВЕРХУ */
+    linear-gradient(
+      180deg,
+      rgba(3, 6, 12, 0.94) 0%,
+      rgba(4, 8, 18, 0.92) 45%,
+      rgba(2, 4, 10, 0.96) 100%
+    ),
+
+    /* 2️⃣ ТВОЯ КАРТИНКА */
+    url('/bg/site-bg.png') center / cover no-repeat;
 }
+/* ГЛУБИНА И ОБЪЁМ */
+.pulz-animated-bg::after {
+  content: "";
+  position: fixed;
+  inset: -120px;
+  z-index: -2;
+
+  background: url('/bg/site-bg.png') center / cover no-repeat;
+  filter: blur(32px);
+  opacity: 0.22;
+
+  transform: scale(1.08);
+  pointer-events: none;
+}
+
 
 
 /* слой звёзд */
