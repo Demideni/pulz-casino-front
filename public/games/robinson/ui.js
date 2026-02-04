@@ -182,6 +182,7 @@
     $play.classList.toggle("is-armed", next === "ARMED");
     $play.classList.toggle("is-idle", next === "IDLE");
     if ($playLabel) $playLabel.textContent = next === "RUNNING" ? "..." : "PLAY";
+    // Убираем фоновый "hum" звук во время полёта (и вообще) — по запросу.
     SFX.setHum(0);
   };
 
@@ -219,8 +220,6 @@
   };
 
   const unlockAfterRound = () => {
-    // важно: после раунда вернуть UI в IDLE/ARMED, иначе PLAY срабатывает только один раз
-    setVisualState("IDLE");
     setEnabled(true);
     roundId = null;
     refreshArmed();
