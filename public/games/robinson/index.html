@@ -121,26 +121,107 @@
   user-select:none;
 }
 
-.play-btn{
+
+
+
+/* ===== PLAY ORB BUTTON ===== */
+.playOrb{
   width: 86px;
   height: 86px;
   margin-top: -28px; /* “выпирает” из бара */
+  border: 0;
+  padding: 0;
+  background: transparent;
+  position: relative;
   border-radius: 50%;
-  background: radial-gradient(circle at 30% 30%, #2cf2ff, #0077ff);
-  box-shadow:
-    0 0 34px rgba(0, 180, 255, 0.75),
-    inset 0 0 12px rgba(255, 255, 255, 0.35);
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  font-size: 16px;
-  font-weight: 900;
-  color:#fff;
-  user-select:none;
-  cursor:pointer;
-  transition: transform .15s ease;
+  cursor: pointer;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  transform: translateZ(0);
+  filter: drop-shadow(0 0 18px rgba(0,180,255,0.45));
 }
-.play-btn:active{ transform: scale(0.94); }
+.playOrb:active{ transform: scale(0.94); }
+
+.playOrb .layer{
+  position:absolute;
+  inset:-18px; /* halo больше кнопки */
+  background-size: contain;
+  background-position: center;
+  background-repeat: no-repeat;
+  border-radius:50%;
+  pointer-events:none;
+  transform: translateZ(0);
+}
+
+.playOrb .glow{
+  background-image:url("./orb/glow_256.png");
+  opacity: .95;
+  filter: drop-shadow(0 0 22px rgba(0,220,255,.55));
+}
+.playOrb .orb{
+  inset:0;
+  background-image:url("./orb/orb_256.png");
+  opacity: 1;
+}
+.playOrb .lightning{
+  inset:0;
+  background-image:url("./orb/lightning_256.png");
+  opacity: .55;
+  mix-blend-mode: screen;
+}
+.playOrb .icon{
+  inset:0;
+  background-image:url("./orb/play_icon_256.png");
+  opacity: .85;
+  mix-blend-mode: screen;
+  filter: drop-shadow(0 0 10px rgba(255,255,255,.25));
+}
+
+/* маленький текст (на случай, если иконка слишком “холо”) */
+.playOrb .playOrbText{
+  position:absolute;
+  left:50%;
+  top:50%;
+  transform: translate(-50%,-50%);
+  font-size: 12px;
+  font-weight: 900;
+  letter-spacing: .18em;
+  color: rgba(255,255,255,0.92);
+  text-shadow: 0 0 14px rgba(0,210,255,0.55);
+  pointer-events:none;
+  mix-blend-mode: screen;
+  opacity: 0; /* по умолчанию скрыт (иконка уже есть) */
+}
+
+/* Animations */
+@keyframes orb-breathe { 0%,100%{ transform:scale(.98);} 50%{ transform:scale(1.05);} }
+@keyframes orb-spin { to{ transform:rotate(360deg);} }
+@keyframes orb-flicker { 0%,100%{opacity:.45;} 50%{opacity:.80;} }
+@keyframes orb-icon { 0%,100%{opacity:.75;} 50%{opacity:1;} }
+
+.playOrb{ animation: orb-breathe 1.35s ease-in-out infinite; }
+.playOrb .glow{ animation: orb-spin 3.6s linear infinite; }
+.playOrb .lightning{ animation: orb-flicker .9s ease-in-out infinite; }
+.playOrb .icon{ animation: orb-icon 1.2s ease-in-out infinite; }
+
+/* when round running (js adds this) */
+.playOrb.is-running{
+  animation: none;
+  filter: drop-shadow(0 0 10px rgba(0,180,255,0.25)) saturate(0.9);
+}
+.playOrb.is-running .glow{ animation: none; opacity: .55; }
+.playOrb.is-running .lightning{ opacity: .25; }
+.playOrb.is-running .icon{ opacity: .35; }
+.playOrb.is-running .playOrbText{ opacity: 1; }
+
+/* Desktop */
+@media (min-width: 768px) {
+  .playOrb{
+    width: 92px;
+    height: 92px;
+    margin-top: -30px;
+  }
+}
 
 
 /* ===== STATS BAR (BGaming-like) ===== */
@@ -257,12 +338,6 @@
     height: 92px;
     padding: 14px 18px 14px;
   }
-  .play-btn{
-    width: 92px;
-    height: 92px;
-    font-size: 17px;
-    margin-top: -30px;
-  }
   .bet-value, .bal-value{ font-size: 20px; }
 }
 
@@ -308,7 +383,13 @@
       <div class="bet-value" id="bet-value">$1.00</div>
     </button>
 
-    <div class="play-btn" id="play-btn">PLAY</div>
+    <button class="playOrb" id="play-btn" type="button" aria-label="Play">
+      <span class="layer glow"></span>
+      <span class="layer orb"></span>
+      <span class="layer lightning"></span>
+      <span class="layer icon"></span>
+      <span class="playOrbText" aria-hidden="true">PLAY</span>
+    </button>
 
     <div class="bal-box" aria-label="Balance">
       <div class="bal-label">BALANCE</div>

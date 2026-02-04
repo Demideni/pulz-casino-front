@@ -1,5 +1,6 @@
 (() => {
   const $play = document.getElementById("play-btn");
+  const $playText = $play ? $play.querySelector?.(".playOrbText") : null;
   const $betBox = document.getElementById("bet-box");
   const $betValue = document.getElementById("bet-value");
   const $balValue = document.getElementById("bal-value");
@@ -76,13 +77,15 @@
     state = "RUNNING";
     stopIdleAnim();
     setEnabled(false);
-    $play.textContent = "...";
+    $play.classList?.add("is-running");
+    if ($playText) $playText.textContent = "...";
   };
 
   const unlockAfterRound = () => {
     state = "IDLE";
     setEnabled(true);
-    $play.textContent = "PLAY";
+    $play.classList?.remove("is-running");
+    if ($playText) $playText.textContent = "PLAY";
     startIdleAnim();
     roundId = null;
     if (window.gsap) gsap.fromTo($play, { scale: 0.98 }, { scale: 1, duration: 0.22, ease: "back.out(2)" });
