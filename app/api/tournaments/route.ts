@@ -44,7 +44,6 @@ export async function GET(req: NextRequest) {
       endsAt: t.endsAt,
       kFactor: t.kFactor,
       prizePoolCents: t.prizePoolCents,
-      prizes: t.prizes,
     },
     me,
   });
