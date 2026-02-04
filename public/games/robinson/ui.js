@@ -171,8 +171,7 @@
   };
 
   const setEnabled = (enabled) => {
-    $play.style.pointerEvents = enabled ? "auto" : "none";
-    $betBox.style.pointerEvents = enabled ? "auto" : "none";
+        $betBox.style.pointerEvents = enabled ? "auto" : "none";
     $betBox.style.opacity = enabled ? "1" : "0.65";
   };
 
@@ -182,10 +181,15 @@
     $play.classList.toggle("is-armed", next === "ARMED");
     $play.classList.toggle("is-idle", next === "IDLE");
     if ($playLabel) $playLabel.textContent = next === "RUNNING" ? "..." : "PLAY";
-    SFX.setHum(next === "RUNNING" ? 0.08 : next === "ARMED" ? 0.06 : 0.035);
+    SFX.setHum(0); // no background hum
   };
 
   const refreshArmed = () => {
+    // If UI got stuck in RUNNING (e.g., missed callback), resync with game state
+    const gs = window.RobinsonGame?.getState?.();
+    if (state === "RUNNING" && gs === "IDLE") {
+      unlockAfterRound();
+    }
     if (state === "RUNNING") return;
     const armed = bet > 0 && balance >= bet;
     setVisualState(armed ? "ARMED" : "IDLE");
@@ -246,6 +250,11 @@
   };
 
   $betBox.addEventListener("click", () => {
+    // If UI got stuck in RUNNING (e.g., missed callback), resync with game state
+    const gs = window.RobinsonGame?.getState?.();
+    if (state === "RUNNING" && gs === "IDLE") {
+      unlockAfterRound();
+    }
     if (state === "RUNNING") return;
     renderBetGrid();
     openModal();
@@ -270,6 +279,11 @@
   }
 
   async function onPlay() {
+    // If UI got stuck in RUNNING (e.g., missed callback), resync with game state
+    const gs = window.RobinsonGame?.getState?.();
+    if (state === "RUNNING" && gs === "IDLE") {
+      unlockAfterRound();
+    }
     if (state === "RUNNING") return;
 
     // unlock audio on first interaction

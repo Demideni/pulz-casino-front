@@ -568,6 +568,13 @@ window.RobinsonGame = {
     kickStartFeel();
     emitStart();
   },
+  getState() {
+    return state;
+  },
+  forceIdle() {
+    state = State.IDLE;
+    window.RobinsonUI?.unlockAfterRound?.();
+  },
 };
 
 
