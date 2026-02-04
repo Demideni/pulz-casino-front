@@ -845,6 +845,14 @@ window.RobinsonGame = {
       return;
     }
   }
+    // UI sync (play button FX speed follows multiplier)
+    try {
+      const m = Number(world.mult) || 1;
+      const running = state === State.RUNNING || state === State.LANDING_ROLL;
+      window.RobinsonUI?.setPlayFX?.({ multiplier: m, running });
+    } catch (e) {}
+
+
 
 
   // ===== Update =====
