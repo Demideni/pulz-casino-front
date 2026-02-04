@@ -3,7 +3,6 @@ import { z } from "zod";
 import { prisma } from "@/lib/db";
 import { getUserFromRequest } from "@/lib/auth";
 import { jsonErr, jsonOk } from "@/lib/http";
-import { ensureDailySprintTournament, calcTournamentPoints } from "@/lib/tournaments";
 
 export const runtime = "nodejs";
 
@@ -19,7 +18,7 @@ export async function POST(req: NextRequest) {
   try {
     const body = Body.parse(await req.json());
 
-    // Find the bet transaction for this round
+    // 1) Find the BET transaction for this round
     const betTx = await prisma.transaction.findFirst({
       where: {
         userId: au.id,
@@ -28,102 +27,39 @@ export async function POST(req: NextRequest) {
       },
       orderBy: { createdAt: "desc" },
     });
+
     if (!betTx) return jsonErr("Round not found", 404);
 
-    // Prevent double-finish (simple check: if WIN exists for this round)
+    // 2) Prevent double-finish: if WIN already exists for this round, return current balance
     const winExists = await prisma.transaction.findFirst({
       where: {
         userId: au.id,
         type: "WIN",
         meta: { path: ["roundId"], equals: body.roundId },
       },
-    });
-    if (winExists) return jsonOk({ balanceCents: (await prisma.user.findUnique({where:{id:au.id},select:{balanceCents:true}}))?.balanceCents ?? 0, winCents: 0 });
-
-    const payoutCents = Math.max(0, Math.round(betTx.amountCents * body.multiplier));
-
-
-    // Tournament (Daily Sprint 24/7)
-    const activeTournament = await prisma.tournament.findFirst({
-      where: { status: "ACTIVE", type: "DAILY_SPRINT" },
-      orderBy: { createdAt: "desc" },
+      select: { id: true },
     });
 
-    const tournament = activeTournament ?? (await ensureDailySprintTournament());
-
-
-    await prisma.$transaction(async (tx) => {
-  if (payoutCents > 0) {
-    await tx.user.update({
-      where: { id: au.id },
-      data: { balanceCents: { increment: payoutCents } },
-    });
-  }
-
-  await tx.transaction.create({
-    data: {
-      userId: au.id,
-      type: "WIN",
-      amountCents: payoutCents,
-      meta: { game: "robinson", roundId: body.roundId, multiplier: body.multiplier },
-    },
-  });
-
-  // Update tournament leaderboard (idempotent per roundId)
-  if (tournament && tournament.status === "ACTIVE") {
-    const points = calcTournamentPoints({
-      stakeCents: betTx.amountCents,
-      multiplier: body.multiplier,
-      kFactor: tournament.kFactor,
-    });
-
-    // Store per-round result (guarded by unique constraint)
-    try {
-      await tx.tournamentRound.create({
-        data: {
-          tournamentId: tournament.id,
-          userId: au.id,
-          roundId: body.roundId,
-          stakeCents: betTx.amountCents,
-          multiplier: body.multiplier,
-          points,
-        },
+    if (winExists) {
+      const u = await prisma.user.findUnique({
+        where: { id: au.id },
+        select: { balanceCents: true },
       });
-    } catch {
-      // already counted for this roundId
-      return;
+      return jsonOk({ balanceCents: u?.balanceCents ?? 0, winCents: 0 });
     }
 
-    const existingEntry = await tx.tournamentEntry.findUnique({
-      where: { tournamentId_userId: { tournamentId: tournament.id, userId: au.id } },
-      select: { bestMultiplier: true },
-    });
+    // 3) Calculate payout
+    const payoutCents = Math.max(0, Math.round(betTx.amountCents * body.multiplier));
 
-    const bestMultiplier =
-      existingEntry && existingEntry.bestMultiplier > body.multiplier
-        ? existingEntry.bestMultiplier
-        : body.multiplier;
-
-    await tx.tournamentEntry.upsert({
-      where: { tournamentId_userId: { tournamentId: tournament.id, userId: au.id } },
-      update: {
-        points: { increment: points },
-        roundsCount: { increment: 1 },
-        lastRoundAt: new Date(),
-        bestMultiplier,
-      },
-      create: {
-        tournamentId: tournament.id,
-        userId: au.id,
-        points,
-        roundsCount: 1,
-        lastRoundAt: new Date(),
-        bestMultiplier,
-      },
-    });
-  }
-});
+    // 4) Atomic write: update balance + create WIN tx
+    await prisma.$transaction(async (tx) => {
+      if (payoutCents > 0) {
+        await tx.user.update({
+          where: { id: au.id },
+          data: { balanceCents: { increment: payoutCents } },
+        });
       }
+
       await tx.transaction.create({
         data: {
           userId: au.id,
@@ -132,58 +68,6 @@ export async function POST(req: NextRequest) {
           meta: { game: "robinson", roundId: body.roundId, multiplier: body.multiplier },
         },
       });
-
-      // Update tournament leaderboard (idempotent per roundId)
-      if (tournament && tournament.status === "ACTIVE") {
-        const points = calcTournamentPoints({
-          stakeCents: betTx.amountCents,
-          multiplier: body.multiplier,
-          kFactor: tournament.kFactor,
-        });
-      
-        // Store per-round result (guarded by unique constraint)
-        try {
-          await tx.tournamentRound.create({
-            data: {
-              tournamentId: tournament.id,
-              userId: au.id,
-              roundId: body.roundId,
-              stakeCents: betTx.amountCents,
-              multiplier: body.multiplier,
-              points,
-            },
-    });
-  } catch {
-    // already counted for this roundId
-  }
-
-  const existingEntry = await tx.tournamentEntry.findUnique({
-    where: { tournamentId_userId: { tournamentId: tournament.id, userId: au.id } },
-    select: { bestMultiplier: true },
-  });
-
-  await tx.tournamentEntry.upsert({
-    where: { tournamentId_userId: { tournamentId: tournament.id, userId: au.id } },
-    update: {
-      points: { increment: points },
-      roundsCount: { increment: 1 },
-      lastRoundAt: new Date(),
-      bestMultiplier:
-        existingEntry && existingEntry.bestMultiplier > body.multiplier
-          ? existingEntry.bestMultiplier
-          : body.multiplier,
-    },
-    create: {
-      tournamentId: tournament.id,
-      userId: au.id,
-      points,
-      roundsCount: 1,
-      lastRoundAt: new Date(),
-      bestMultiplier: body.multiplier,
-    },
-  });
-}
-
     });
 
     const updated = await prisma.user.findUnique({
