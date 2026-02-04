@@ -35,6 +35,9 @@ model User {
   withdrawals  WithdrawRequest[]
 
   affiliate Affiliate?
+
+  tournamentEntries TournamentEntry[]
+  tournamentRounds  TournamentRound[]
 }
 
 model Transaction {
@@ -157,4 +160,83 @@ model AffiliatePayoutRequest {
   affiliate Affiliate @relation(fields: [affiliateId], references: [id])
 
   @@index([affiliateId, createdAt])
+}
+
+
+
+enum TournamentStatus {
+  UPCOMING
+  ACTIVE
+  COMPLETED
+}
+
+enum TournamentType {
+  DAILY_SPRINT
+}
+
+model Tournament {
+  id             String           @id @default(cuid())
+  slug           String           @unique
+  name           String
+  type           TournamentType
+  status         TournamentStatus @default(ACTIVE)
+  startsAt       DateTime
+  endsAt         DateTime
+  kFactor        Int              @default(10)
+  prizePoolCents Int              @default(0)
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+
+  entries TournamentEntry[]
+  rounds  TournamentRound[]
+  prizes  TournamentPrize[]
+}
+
+model TournamentEntry {
+  id            String   @id @default(cuid())
+  tournamentId  String
+  userId        String
+  points        Float    @default(0)
+  bestMultiplier Float   @default(0)
+  roundsCount   Int      @default(0)
+  lastRoundAt   DateTime?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  tournament Tournament @relation(fields: [tournamentId], references: [id])
+  user       User       @relation(fields: [userId], references: [id])
+
+  @@unique([tournamentId, userId])
+  @@index([tournamentId, points])
+  @@index([userId, updatedAt])
+}
+
+model TournamentRound {
+  id           String   @id @default(cuid())
+  tournamentId String
+  userId       String
+  roundId      String
+  stakeCents   Int
+  multiplier   Float
+  points       Float
+  createdAt    DateTime @default(now())
+
+  tournament Tournament @relation(fields: [tournamentId], references: [id])
+  user       User       @relation(fields: [userId], references: [id])
+
+  @@unique([tournamentId, userId, roundId])
+  @@index([tournamentId, createdAt])
+  @@index([userId, createdAt])
+}
+
+model TournamentPrize {
+  id          String   @id @default(cuid())
+  tournamentId String
+  placeFrom   Int
+  placeTo     Int
+  amountCents Int
+
+  tournament Tournament @relation(fields: [tournamentId], references: [id])
+
+  @@index([tournamentId, placeFrom])
 }

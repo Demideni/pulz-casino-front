@@ -1175,7 +1175,7 @@ if (isBonus) {
         ctx.arc(-3, -3, p.w * 0.18, 0, Math.PI * 2);
         ctx.fill();
       } else {
-      ctx.globalAlpha = 0.30;
+        ctx.globalAlpha = 0.20;
         ctx.fillStyle = "#ff3b3b";
         ctx.beginPath();
         ctx.arc(0, 0, p.w * 0.80, 0, Math.PI * 2);
@@ -1240,7 +1240,7 @@ if (isBonus) {
       drawTiledX(GFX.bgSpace, 0.15, 1);
       // subtle overlay for readability
       ctx.save();
-      ctx.globalAlpha = 0.30;
+      ctx.globalAlpha = 0.20;
       ctx.fillStyle = "#05070d";
       ctx.fillRect(0, 0, W, H);
       ctx.restore();
@@ -1253,7 +1253,7 @@ if (isBonus) {
       ctx.globalAlpha = 1;
       ctx.drawImage(img, (W - dw) / 2, (H - dh) / 2, dw, dh);
 
-      ctx.globalAlpha = 0.30;
+      ctx.globalAlpha = 0.18;
       ctx.fillStyle = "#05070d";
       ctx.fillRect(0, 0, W, H);
       ctx.globalAlpha = 1;
@@ -1292,8 +1292,8 @@ if (isBonus) {
       const sizeMoon = Math.min(W, H) * 0.34;
       const sizeMars = Math.min(W, H) * 0.26;
 
-      const okMoon = drawPlanet(GFX.moon, W * 0.78, H * 0.45, 0.10, sizeMoon, 0.45);
-      const okMars = drawPlanet(GFX.mars, W * 0.85, H * 0.20, 0.15, sizeMars, 0.42);
+      const okMoon = drawPlanet(GFX.moon, W * 0.78, H * 0.30, 0.10, sizeMoon, 0.30);
+      const okMars = drawPlanet(GFX.mars, W * 0.85, H * 0.20, 0.15, sizeMars, 0.29);
 
       // fallback: simple circles if planets not found
       if (!okMoon || !okMars) {

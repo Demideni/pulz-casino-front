@@ -3,12 +3,11 @@
 import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import CashierPage from "@/app/cashier/page";
-import TournamentsSheetContent from "@/components/TournamentsSheetContent";
 
 const ICONS: Record<string, string> = {
   "/cashier": "/icons/wallet.png",
   "/login": "/icons/login.png",
+  "/robinson": "/icons/games.png",
   "/tournaments": "/icons/promotions.png",
   "/menu": "/icons/menu.png",
 };
@@ -17,23 +16,10 @@ type AuthMode = "login" | "register";
 
 export default function BottomNav() {
   const [openAuth, setOpenAuth] = useState(false);
-  const [authMode, setAuthMode] = useState<AuthMode>("login");
-  const [openMenu, setOpenMenu] = useState(false);
-
   const [openCashier, setOpenCashier] = useState(false);
   const [openTournaments, setOpenTournaments] = useState(false);
-
-  // полёт Робинзона по тапу на центральную кнопку
-  const [fly, setFly] = useState(false);
-  const [flyKey, setFlyKey] = useState(0);
-
-  useEffect(() => {
-    if (!fly) return;
-    // Длительность анимации задана в CSS (.robinson-fly) = 2.5s.
-    // Даем небольшой запас, чтобы PNG не исчезал раньше конца полёта (особенно на iOS Safari).
-    const t = setTimeout(() => setFly(false), 2700);
-    return () => clearTimeout(t);
-  }, [fly]);
+  const [authMode, setAuthMode] = useState<AuthMode>("login");
+  const [openMenu, setOpenMenu] = useState(false);
 
   return (
     <>
@@ -50,10 +36,10 @@ export default function BottomNav() {
             backdrop-blur-lg
           "
         >
-          {/* Касса — bottom sheet */}
+          {/* Касса */}
           <button
             type="button"
-            className="flex w-[72px] flex-col items-center gap-1 text-[10px] text-slate-100 border-r border-slate-700/70"
+            className="flex w-[72px] flex-col items-center gap-1 text-[10px] text-slate-100"
             onClick={() => setOpenCashier(true)}
           >
             <NavIcon src={ICONS["/cashier"]} alt="Касса" />
@@ -63,7 +49,7 @@ export default function BottomNav() {
           {/* Вход / Регистрация — bottom sheet */}
           <button
             type="button"
-            className="flex w-[72px] flex-col items-center gap-1 text-[10px] text-slate-100"
+            className="flex w-[72px] flex-col items-center gap-1 text-[10px] text-slate-100 border-l border-slate-700/70"
             onClick={() => {
               setAuthMode("login");
               setOpenAuth(true);
@@ -76,15 +62,8 @@ export default function BottomNav() {
           {/* Пустое место под центральную кнопку */}
           <div className="w-[96px]" />
 
-          {/* ТУРНИРЫ — bottom sheet */}
-          <button
-            type="button"
-            className="flex w-[72px] flex-col items-center gap-1 text-[10px] text-slate-100 border-l border-slate-700/70"
-            onClick={() => setOpenTournaments(true)}
-          >
-            <NavIcon src={ICONS["/tournaments"]} alt="Турниры" />
-            <span>Турниры</span>
-          </button>
+          {/* Игра */}
+          <NavLink href="/go/robinson" label="Играть" iconKey="/robinson" />
 
           {/* Меню — bottom sheet */}
           <button
@@ -96,25 +75,21 @@ export default function BottomNav() {
             <span>Меню</span>
           </button>
 
-          {/* Центральная кнопка — голова Робинзона */}
+          {/* Центральная кнопка — Турниры */}
           <button
             type="button"
-            onClick={() => {
-              // перезапуск анимации
-              setFlyKey((k) => k + 1);
-              setFly(true);
-            }}
+            onClick={() => setOpenTournaments(true)}
             className="
               absolute
               -top-6 left-1/2
               -translate-x-1/2
               flex items-center justify-center
             "
-            aria-label="Robinson"
+            aria-label="Tournaments"
           >
             <img
-              src="/ui/robinson_head.png"
-              alt="Robinson"
+              src="/icons/promotions.png"
+              alt="Tournaments"
               className="robinson-head-button"
             />
           </button>
@@ -122,72 +97,6 @@ export default function BottomNav() {
       </div>
 
       {/* Полёт Робинзона: снизу-слева -> вверх-вправо */}
-      {fly && (
-        <img
-          key={flyKey}
-          src="/animations/robinson_fly.png"
-          alt=""
-          className="robinson-fly"
-        />
-      )}
-
-      {/* Bottom-sheet кассы */}
-      {openCashier && (
-        <div
-          className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 backdrop-blur-sm pulz-sheet-backdrop"
-          onClick={() => setOpenCashier(false)}
-        >
-          <div
-            className="pulz-sheet w-full max-w-xl rounded-t-3xl bg-[#0b0f1a] px-5 pb-6 pt-4"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="mx-auto mb-4 h-1.5 w-12 rounded-full bg-slate-700/60" />
-
-            <div className="flex items-center justify-between">
-              <div className="text-lg font-semibold text-slate-100">Касса</div>
-              <button
-                type="button"
-                onClick={() => setOpenCashier(false)}
-                className="rounded-xl px-3 py-2 text-sm text-slate-300 hover:bg-white/5"
-              >
-                Закрыть
-              </button>
-            </div>
-
-            <div className="mt-4 max-h-[78vh] overflow-y-auto pb-24">
-              <CashierPage />
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Bottom-sheet турниров */}
-      {openTournaments && (
-        <div
-          className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 backdrop-blur-sm pulz-sheet-backdrop"
-          onClick={() => setOpenTournaments(false)}
-        >
-          <div
-            className="pulz-sheet w-full max-w-xl rounded-t-3xl bg-[#0b0f1a] px-5 pb-8 pt-4"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="mx-auto mb-4 h-1.5 w-12 rounded-full bg-slate-700/60" />
-
-            <div className="flex items-center justify-between">
-              <div className="text-lg font-semibold text-slate-100">Турниры</div>
-              <button
-                type="button"
-                onClick={() => setOpenTournaments(false)}
-                className="rounded-xl px-3 py-2 text-sm text-slate-300 hover:bg-white/5"
-              >
-                Закрыть
-              </button>
-            </div>
-
-            <TournamentsSheetContent onClose={() => setOpenTournaments(false)} />
-          </div>
-        </div>
-      )}
 
       {/* Bottom-sheet авторизации (Вход / Регистрация) */}
       {openAuth && (
@@ -199,7 +108,7 @@ export default function BottomNav() {
           onClick={() => setOpenAuth(false)}
         >
           <div
-            className="pulz-sheet w-full max-w-xl rounded-t-3xl bg-[#0b0f1a] px-5 pb-8 pt-4"
+            className="w-full max-w-xl rounded-t-3xl bg-[#0b0f1a] px-5 pb-8 pt-4"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="mx-auto mb-4 h-1.5 w-12 rounded-full bg-slate-700/60" />
@@ -246,7 +155,7 @@ export default function BottomNav() {
           onClick={() => setOpenMenu(false)}
         >
           <div
-            className="pulz-sheet w-full max-w-xl rounded-t-3xl bg-[#0b0f1a] px-5 pb-8 pt-4"
+            className="w-full max-w-xl rounded-t-3xl bg-[#0b0f1a] px-5 pb-8 pt-4"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="mx-auto mb-4 h-1.5 w-12 rounded-full bg-slate-700/60" />
@@ -271,47 +180,111 @@ export default function BottomNav() {
                 Аккаунт
               </Link>
 
-              <button
-                type="button"
-                className="rounded-2xl border border-slate-700/70 bg-slate-900/40 px-4 py-3 text-center text-sm text-slate-100"
-                onClick={() => {
-                  setOpenMenu(false);
-                  setOpenCashier(true);
-                }}
-              >
-                Касса
-              </button>
-
-              <button
-                type="button"
-                className="rounded-2xl border border-slate-700/70 bg-slate-900/40 px-4 py-3 text-center text-sm text-slate-100"
-                onClick={() => {
-                  setOpenMenu(false);
-                  setOpenTournaments(true);
-                }}
-              >
-                Турниры
-              </button>
-
               <Link
-                href="/go/robinson"
+                href="/cashier"
                 className="rounded-2xl border border-slate-700/70 bg-slate-900/40 px-4 py-3 text-center text-sm text-slate-100"
                 onClick={() => setOpenMenu(false)}
               >
-                Робинзон
+                Касса
               </Link>
             </div>
           </div>
         </div>
       )}
-    </>
+    {/* Bottom-sheet: Cashier */}
+{openCashier && (
+  <div
+    className="
+      fixed inset-0 z-50 flex items-end justify-center
+      bg-black/60 backdrop-blur-sm pulz-sheet-backdrop
+    "
+    onClick={() => setOpenCashier(false)}
+  >
+    <div
+      className="pulz-sheet w-full max-w-xl rounded-t-3xl border border-blue-400/20 bg-[#0b1020] shadow-[0_0_80px_rgba(59,130,246,0.12)]"
+      onClick={(e) => e.stopPropagation()}
+    >
+      <div className="mx-auto mt-2 h-1.5 w-12 rounded-full bg-white/20" />
+      <div className="px-4 py-3 flex items-center justify-between">
+        <div className="text-white font-semibold">Касса</div>
+        <button onClick={() => setOpenCashier(false)} className="text-white/60 hover:text-white">✕</button>
+      </div>
+      <div className="h-[78vh]">
+        <iframe
+          src="/cashier"
+          className="h-full w-full border-0"
+          allow="autoplay; clipboard-write"
+        />
+      </div>
+    </div>
+  </div>
+)}
+
+{/* Bottom-sheet: Tournaments */}
+{openTournaments && (
+  <div
+    className="
+      fixed inset-0 z-50 flex items-end justify-center
+      bg-black/60 backdrop-blur-sm pulz-sheet-backdrop
+    "
+    onClick={() => setOpenTournaments(false)}
+  >
+    <div
+      className="pulz-sheet w-full max-w-xl rounded-t-3xl border border-blue-400/20 bg-[#0b1020] shadow-[0_0_80px_rgba(59,130,246,0.12)]"
+      onClick={(e) => e.stopPropagation()}
+    >
+      <div className="mx-auto mt-2 h-1.5 w-12 rounded-full bg-white/20" />
+      <div className="px-4 py-3 flex items-center justify-between">
+        <div className="text-white font-semibold">Турниры</div>
+        <button onClick={() => setOpenTournaments(false)} className="text-white/60 hover:text-white">✕</button>
+      </div>
+      <div className="h-[78vh]">
+        <iframe
+          src="/tournaments"
+          className="h-full w-full border-0"
+          allow="autoplay; clipboard-write"
+        />
+      </div>
+    </div>
+  </div>
+)}
+
+</>
+  );
+}
+
+function NavLink({
+  href,
+  label,
+  first,
+  iconKey,
+}: {
+  href: string;
+  label: string;
+  first?: boolean;
+  iconKey?: string;
+}) {
+  const key = iconKey ?? href;
+  const icon = ICONS[key] ?? ICONS["/cashier"];
+
+  return (
+    <Link
+      href={href}
+      className={[
+        "flex w-[72px] flex-col items-center gap-1 text-[10px] text-slate-100",
+        first ? "" : "border-l border-slate-700/70",
+      ].join(" ")}
+    >
+      <NavIcon src={icon} alt={label} />
+      <span>{label}</span>
+    </Link>
   );
 }
 
 function NavIcon({ src, alt }: { src: string; alt: string }) {
   return (
-    <span className="relative grid h-10 w-10 place-items-center">
-      <Image src={src} alt={alt} width={22} height={22} className="opacity-90" />
+    <span className="relative h-7 w-7">
+      <Image src={src} alt={alt} fill className="object-contain" />
     </span>
   );
 }
