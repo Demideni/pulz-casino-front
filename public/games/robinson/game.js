@@ -107,24 +107,56 @@
   );
 
   // ===== Resize / DPR =====
-  let W = 0,
-    H = 0,
-    dpr = 1;
+let W = 0,
+  H = 0,
+  dpr = 1,
+  viewScale = 1;
 
-  function resize() {
-    dpr = Math.min(window.devicePixelRatio || 1, 2);
-    W = window.innerWidth;
-    H = window.innerHeight;
+// "Phone" logical size for desktop rendering (prevents huge sprites on wide monitors)
+const DESKTOP_W = 720;
+const DESKTOP_H = 1280;
+
+function resize() {
+  dpr = Math.min(window.devicePixelRatio || 1, 2);
+
+  const ww = window.innerWidth;
+  const wh = window.innerHeight;
+
+  if (ww >= 1024) {
+    // Desktop: render the phone-like world centered, never upscale above 1
+    W = DESKTOP_W;
+    H = DESKTOP_H;
+
+    viewScale = Math.min(ww / W, wh / H);
+    viewScale = Math.min(viewScale, 1);
+
+    const cssW = Math.floor(W * viewScale);
+    const cssH = Math.floor(H * viewScale);
+
+    canvas.width = Math.floor(cssW * dpr);
+    canvas.height = Math.floor(cssH * dpr);
+    canvas.style.width = cssW + "px";
+    canvas.style.height = cssH + "px";
+
+    ctx.setTransform(dpr * viewScale, 0, 0, dpr * viewScale, 0, 0);
+  } else {
+    // Mobile/tablet: keep EXACT old behavior (fullscreen, scale=1)
+    W = ww;
+    H = wh;
+    viewScale = 1;
+
     canvas.width = Math.floor(W * dpr);
     canvas.height = Math.floor(H * dpr);
     canvas.style.width = W + "px";
     canvas.style.height = H + "px";
+
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   }
-  window.addEventListener("resize", resize);
-  resize();
+}
+window.addEventListener("resize", resize);
+resize();
 
-  // ===== Utils =====
+// ===== Utils =====
   const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
   const easeInOut = (t) => 0.5 - 0.5 * Math.cos(Math.PI * clamp(t, 0, 1));
   const rnd = (a, b) => a + Math.random() * (b - a);
@@ -312,8 +344,9 @@
       const rect = canvas.getBoundingClientRect();
       const clientX = ev.touches ? ev.touches[0].clientX : ev.clientX;
       const clientY = ev.touches ? ev.touches[0].clientY : ev.clientY;
-      const x = (clientX - rect.left) * (canvas.width / rect.width);
-      const y = (clientY - rect.top) * (canvas.height / rect.height);
+      // Map pointer to logical game coords (independent of DPR/scale)
+      const x = (clientX - rect.left) / viewScale;
+      const y = (clientY - rect.top) / viewScale;
       if (x >= 0 && y >= 0 && x < 110 && y < 70) {
         cycleSpeedMode();
       }
