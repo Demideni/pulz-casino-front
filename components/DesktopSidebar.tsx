@@ -9,7 +9,6 @@ const ITEMS = [
   { href: "/tournaments", label: "Tournaments", icon: "/icons/promotions.png" },
   { href: "/cashier", label: "Cashier", icon: "/icons/wallet.png" },
   { href: "/partners", label: "Partners", icon: "/icons/promotions.png" },
-  { href: "/status", label: "Status", icon: "/icons/promotions.png" },
 ];
 
 function cls(active: boolean) {
@@ -29,13 +28,6 @@ export default function DesktopSidebar() {
       <div className="rounded-3xl border border-slate-800/70 bg-black/30 p-4">
         <div className="text-xs text-slate-500">Pulz</div>
         <div className="mt-1 text-lg font-semibold text-slate-100">Robinson</div>
-
-        <Link
-          href="/go/robinson"
-          className="mt-3 inline-flex w-full items-center justify-center rounded-2xl border border-sky-500/40 bg-sky-500/10 px-3 py-3 text-sm font-semibold text-slate-100 hover:bg-sky-500/15"
-        >
-          Play Robinson
-        </Link>
       </div>
 
       <nav className="rounded-3xl border border-slate-800/70 bg-black/30 p-3">
