@@ -67,11 +67,11 @@ try {
     : await prisma.tournament.create({
         data: {
           slug: "daily-sprint",
-          name: "Daily Sprint",
+          name: "Daily Sprint 24/7",
           type: "DAILY_SPRINT",
           status: "ACTIVE",
           startsAt: new Date(),
-          endsAt: null,
+          endsAt: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000),
           kFactor: 10,
           prizePoolCents: 0,
         },
