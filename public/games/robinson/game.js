@@ -111,6 +111,26 @@
     H = 0,
     dpr = 1;
 
+  function isDesktopLayout(w, h) {
+    // Landscape with enough horizontal space.
+    return w >= 900 && w / Math.max(1, h) > 1.15;
+  }
+
+  function computeScale(w, h) {
+    // Make desktop feel like Aviamasters: smaller elements, more space.
+    const desktop = isDesktopLayout(w, h);
+    const baseW = desktop ? 1800 : 1200;
+    const baseH = desktop ? 900 : 800;
+    return Math.min(w / baseW, h / baseH, 1);
+  }
+
+  function recalcSizes() {
+    const s = computeScale(W, H);
+    PICKUP_SIZE = Math.max(42, Math.round(PICKUP_SIZE_BASE * s));
+    BONUS_SIZE = Math.round(PICKUP_SIZE * 1.3);
+    ROCKET_SIZE = PICKUP_SIZE;
+  }
+
   function resize() {
     dpr = Math.min(window.devicePixelRatio || 1, 2);
     W = window.innerWidth;
@@ -120,6 +140,7 @@
     canvas.style.width = W + "px";
     canvas.style.height = H + "px";
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    recalcSizes();
   }
   window.addEventListener("resize", resize);
   resize();
@@ -197,9 +218,10 @@
   // Ты имел в виду НЕ размер, а количество.
   // Размер оставляем базовым, а плотность увеличиваем.
   // По ТЗ: бонусов/ракет больше, заметнее, выше по экрану и уже в самом начале раунда.
-  const PICKUP_SIZE = 78;
-  const BONUS_SIZE = Math.round(PICKUP_SIZE * 1.3); // бонусы +30%
-  const ROCKET_SIZE = PICKUP_SIZE; // ракеты без изменений
+  const PICKUP_SIZE_BASE = 78;
+  let PICKUP_SIZE = PICKUP_SIZE_BASE;
+  let BONUS_SIZE = Math.round(PICKUP_SIZE * 1.3); // бонусы +30%
+  let ROCKET_SIZE = PICKUP_SIZE; // ракеты без изменений
   const PICKUP_DENSITY = 3.2; // заметно плотнее
   const PICKUP_SPACING_MIN_PX = Math.round(170 / PICKUP_DENSITY);
   const PICKUP_SPACING_MAX_PX = Math.round(330 / PICKUP_DENSITY);
@@ -392,7 +414,7 @@
   }
 
   function platformBaseSize() {
-    const scale = Math.min(W / 1200, H / 800, 1);
+    const scale = computeScale(W, H);
     return {
       w: Math.round(520 * scale * PLATFORM_WIDTH_MUL),
       h: Math.round(170 * scale),
@@ -435,7 +457,7 @@
     world.hero.vy = START_VY;
     world.hero.rot = 0;
 
-    const scale = Math.min(W / 1200, H / 800, 1);
+    const scale = computeScale(W, H);
     const heroScale = 1.9; // +90%
     world.hero.w = Math.round(110 * scale * heroScale);
     world.hero.h = Math.round(110 * scale * heroScale);

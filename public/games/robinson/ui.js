@@ -303,6 +303,38 @@
 
   $play.addEventListener("click", onPlay);
 
+  // Desktop conveniences: Space = Play/Start, Fullscreen toggle
+  document.addEventListener("keydown", (e) => {
+    if (e.defaultPrevented) return;
+    if (e.repeat) return;
+    const t = e.target;
+    if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.isContentEditable)) return;
+    if (e.code === "Space") {
+      e.preventDefault();
+      onPlay();
+    }
+  });
+
+  const $fs = document.getElementById("fullscreen-btn");
+  if ($fs) {
+    const target = document.getElementById("app") || document.documentElement;
+    const isFs = () => !!document.fullscreenElement;
+    const updateIcon = () => {
+      // keep it subtle; CSS handles button look
+      $fs.style.opacity = isFs() ? "0.95" : "1";
+    };
+    updateIcon();
+    document.addEventListener("fullscreenchange", updateIcon);
+    $fs.addEventListener("click", async () => {
+      try {
+        if (!isFs()) await target.requestFullscreen();
+        else await document.exitFullscreen();
+      } catch (err) {
+        console.warn("[ui] fullscreen failed", err);
+      }
+    });
+  }
+
   // Game → UI callbacks
   window.RobinsonUI = {
     lockForRound,
@@ -345,42 +377,6 @@
       if (!isWin) SFX.snap();
     },
   };
-
-
-  // ===== Keyboard + Fullscreen (PC) =====
-  const fsBtn = document.getElementById("fs-btn");
-  function _isFullscreen() {
-    return !!(document.fullscreenElement || (document).webkitFullscreenElement);
-  }
-  async function toggleFullscreen() {
-    const el = document.documentElement;
-    try {
-      if (!_isFullscreen()) {
-        const req = el.requestFullscreen || el.webkitRequestFullscreen;
-        if (req) await req.call(el);
-      } else {
-        const exit = document.exitFullscreen || document.webkitExitFullscreen;
-        if (exit) await exit.call(document);
-      }
-    } catch (e) {
-      console.warn("[ui] fullscreen failed", e);
-    }
-  }
-  fsBtn && fsBtn.addEventListener("click", toggleFullscreen);
-
-  // Space = start round (when idle)
-  window.addEventListener(
-    "keydown",
-    (ev) => {
-      if (ev.code !== "Space") return;
-      const t = ev.target;
-      if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA")) return;
-      ev.preventDefault();
-      if (state === "RUNNING") return;
-      if ($play && !$play.classList.contains("is-locked")) $play.click();
-    },
-    { passive: false }
-  );
 
   // init
   setBet(bet);

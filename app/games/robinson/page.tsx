@@ -57,7 +57,7 @@ export default function RobinsonPage() {
         {/* GAME AREA */}
         <div className="h-full w-full lg:h-auto lg:w-auto lg:flex-1 lg:max-w-[1100px] lg:rounded-3xl lg:border lg:border-slate-800/70 lg:bg-black/30 lg:p-4">
           <div className="h-full w-full lg:flex lg:items-center lg:justify-center">
-            <div className="h-full w-full lg:h-auto lg:aspect-[16/9] lg:max-h-[calc(100vh-140px)]  lg:max-w-[1200px] lg:overflow-hidden lg:rounded-2xl lg:border lg:border-slate-800/70 lg:bg-black">
+            <div className="h-full w-full lg:h-auto lg:aspect-[9/16] lg:max-h-[calc(100vh-96px)] lg:max-w-[560px] lg:overflow-hidden lg:rounded-2xl lg:border lg:border-slate-800/70 lg:bg-black">
               <iframe
                 src="/games/robinson/index.html"
                 className="h-full w-full border-0 block"
@@ -73,7 +73,8 @@ export default function RobinsonPage() {
             <div className="text-xs text-slate-500">Robinson</div>
             <div className="mt-1 text-lg font-semibold text-slate-100">Desktop mode</div>
             <div className="mt-2 text-sm leading-relaxed text-slate-300">
-              Game UI is inside the frame. Use mouse in-game. For the best view the ⛶ fullscreen button or <span className="font-semibold">F11</span>.
+              Game UI is inside the frame. Use mouse in-game. For the best view press{" "}
+              <span className="font-semibold">F11</span>.
             </div>
           </div>
 
