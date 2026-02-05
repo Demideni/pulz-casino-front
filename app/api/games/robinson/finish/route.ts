@@ -56,68 +56,68 @@ export async function POST(req: NextRequest) {
           meta: { game: "robinson", roundId: body.roundId, multiplier: body.multiplier },
         },
       });
-    });
 
-
-// ---- Tournament (Daily Sprint 24/7) ----
+// --- Tournament (Daily Sprint 24/7) ---
 try {
-  const t = await prisma.tournament.findUnique({ where: { slug: "daily-sprint" } });
-  const tour = t
-    ? (t.status === "ACTIVE" ? t : await prisma.tournament.update({ where: { id: t.id }, data: { status: "ACTIVE" } }))
-    : await prisma.tournament.create({
-        data: {
-          slug: "daily-sprint",
-          name: "Daily Sprint 24/7",
-          type: "DAILY_SPRINT",
-          status: "ACTIVE",
-          startsAt: new Date(),
-          endsAt: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000),
-          kFactor: 10,
-          prizePoolCents: 0,
-        },
-      });
+  const now = new Date();
+  const t = await tx.tournament.findFirst({
+    where: { slug: "daily-sprint", status: "ACTIVE", endsAt: { gt: now } },
+  });
 
-  const stakeCents = betTx.amountCents;
-  const points = Math.sqrt(stakeCents / 100) * body.multiplier * (tour.kFactor ?? 10);
+  if (t) {
+    const stake = betTx.amountCents;
+    const points = Math.sqrt(stake / 100) * body.multiplier * t.kFactor;
 
-  await prisma.$transaction(async (tx) => {
-    // write round (idempotent per tournamentId+userId+roundId)
+    // idempotent per tournamentId+roundId
     await tx.tournamentRound.upsert({
-      where: { tournamentId_userId_roundId: { tournamentId: tour.id, userId: au.id, roundId: body.roundId } },
-      update: {},
+      where: { tournamentId_roundId: { tournamentId: t.id, roundId: body.roundId } },
       create: {
-        tournamentId: tour.id,
+        tournamentId: t.id,
         userId: au.id,
         roundId: body.roundId,
-        stakeCents,
+        stakeCents: stake,
+        multiplier: body.multiplier,
+        points,
+      },
+      update: {
+        stakeCents: stake,
         multiplier: body.multiplier,
         points,
       },
     });
 
-    // update entry
-    await tx.tournamentEntry.upsert({
-      where: { tournamentId_userId: { tournamentId: tour.id, userId: au.id } },
-      update: {
-        points: { increment: points },
-        roundsCount: { increment: 1 },
-        bestMultiplier: { set: Math.max(0, body.multiplier) },
-        lastRoundAt: new Date(),
-      },
-      create: {
-        tournamentId: tour.id,
-        userId: au.id,
-        points,
-        roundsCount: 1,
-        bestMultiplier: Math.max(0, body.multiplier),
-        lastRoundAt: new Date(),
-      },
+    const existing = await tx.tournamentEntry.findUnique({
+      where: { tournamentId_userId: { tournamentId: t.id, userId: au.id } },
     });
-  });
+
+    if (!existing) {
+      await tx.tournamentEntry.create({
+        data: {
+          tournamentId: t.id,
+          userId: au.id,
+          points,
+          bestMultiplier: body.multiplier,
+          roundsCount: 1,
+          lastRoundAt: now,
+        },
+      });
+    } else {
+      await tx.tournamentEntry.update({
+        where: { id: existing.id },
+        data: {
+          points: { increment: points },
+          bestMultiplier: Math.max(existing.bestMultiplier, body.multiplier),
+          roundsCount: { increment: 1 },
+          lastRoundAt: now,
+        },
+      });
+    }
+  }
 } catch (e) {
-  // never break payouts if tournament fails
   console.error("tournament update failed", e);
 }
+    });
+
     const updated = await prisma.user.findUnique({
       where: { id: au.id },
       select: { balanceCents: true },

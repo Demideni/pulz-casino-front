@@ -1,83 +1,79 @@
 import { NextRequest } from "next/server";
 import { prisma } from "@/lib/db";
 import { getUserFromRequest } from "@/lib/auth";
-import { jsonErr, jsonOk } from "@/lib/http";
+import { jsonOk, jsonErr } from "@/lib/http";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-async function ensureDailySprint() {
+function endOfTodayUTC() {
   const now = new Date();
-  const slug = "daily-sprint";
-  let t = await prisma.tournament.findUnique({ where: { slug } });
-  if (!t) {
-    t = await prisma.tournament.create({
-      data: {
-        slug,
-        name: "Daily Sprint 24/7",
-        type: "DAILY_SPRINT",
-        status: "ACTIVE",
-        startsAt: now,
-        endsAt: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000),
-        kFactor: 10,
-        prizePoolCents: 0,
-      },
-    });
-  } else if (t.status !== "ACTIVE") {
-    t = await prisma.tournament.update({ where: { id: t.id }, data: { status: "ACTIVE" } });
-  }
-  return t;
+  const end = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 23, 59, 59, 999));
+  return end;
 }
 
 export async function GET(req: NextRequest) {
+  const au = await getUserFromRequest(req).catch(() => null);
+
   try {
-    const au = await getUserFromRequest(req);
-    const t = await ensureDailySprint();
+    const now = new Date();
+
+    // find active daily sprint (24/7 style)
+    let t = await prisma.tournament.findFirst({
+      where: { slug: "daily-sprint", status: "ACTIVE", endsAt: { gt: now } },
+    });
+
+    if (!t) {
+      // create if missing
+      t = await prisma.tournament.create({
+        data: {
+          id: crypto.randomUUID(),
+          slug: "daily-sprint",
+          name: "Daily Sprint 24/7",
+          type: "DAILY_SPRINT",
+          status: "ACTIVE",
+          startsAt: now,
+          endsAt: endOfTodayUTC(),
+          kFactor: 10,
+          prizePoolCents: 0,
+        },
+      });
+    }
 
     const top = await prisma.tournamentEntry.findMany({
       where: { tournamentId: t.id },
       orderBy: [{ points: "desc" }, { updatedAt: "asc" }],
       take: 100,
-      select: {
-        userId: true,
-        points: true,
-        bestMultiplier: true,
-        roundsCount: true,
-        user: { select: { email: true } },
-      },
+      include: { user: { select: { id: true, email: true } } },
     });
 
     let me: any = null;
     if (au) {
-      const mine = await prisma.tournamentEntry.findUnique({
+      const entry = await prisma.tournamentEntry.findUnique({
         where: { tournamentId_userId: { tournamentId: t.id, userId: au.id } },
-        select: { points: true, bestMultiplier: true, roundsCount: true },
+        include: { user: { select: { id: true, email: true } } },
       });
-
-      if (mine) {
-        // rank: count users with more points
-        const better = await prisma.tournamentEntry.count({
-          where: { tournamentId: t.id, points: { gt: mine.points } },
+      if (entry) {
+        // compute rank (cheap: count above)
+        const higher = await prisma.tournamentEntry.count({
+          where: { tournamentId: t.id, points: { gt: entry.points } },
         });
-        me = { rank: better + 1, ...mine };
+        me = { ...entry, rank: higher + 1 };
       } else {
-        me = { rank: null, points: 0, bestMultiplier: 0, roundsCount: 0 };
+        me = { rank: null, points: 0 };
       }
     }
 
     return jsonOk({
-      tournament: {
-        id: t.id,
-        slug: t.slug,
-        name: t.name,
-        type: t.type,
-        status: t.status,
-        startsAt: t.startsAt,
-        endsAt: t.endsAt,
-        kFactor: t.kFactor,
-        prizePoolCents: t.prizePoolCents,
-      },
-      top,
+      tournament: t,
+      leaderboard: top.map((r) => ({
+        userId: r.userId,
+        email: r.user.email,
+        points: r.points,
+        bestMultiplier: r.bestMultiplier,
+        roundsCount: r.roundsCount,
+        updatedAt: r.updatedAt,
+      })),
       me,
     });
   } catch (e) {
