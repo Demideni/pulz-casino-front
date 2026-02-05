@@ -37,7 +37,7 @@ model User {
   affiliate Affiliate?
 
   tournamentEntries TournamentEntry[]
-  tournamentRounds  TournamentRound[]
+  tournamentRounds TournamentRound[]
 }
 
 model Transaction {
@@ -168,6 +168,7 @@ enum TournamentType {
 }
 
 enum TournamentStatus {
+  UPCOMING
   ACTIVE
   COMPLETED
 }
@@ -176,33 +177,36 @@ model Tournament {
   id             String           @id @default(cuid())
   slug           String           @unique
   name           String
-  type           TournamentType
+  type           TournamentType   @default(DAILY_SPRINT)
   status         TournamentStatus @default(ACTIVE)
   startsAt       DateTime
   endsAt         DateTime
-  kFactor        Int              @default(10)
+  kFactor        Float            @default(10)
   prizePoolCents Int              @default(0)
   createdAt      DateTime         @default(now())
   updatedAt      DateTime         @updatedAt
 
   entries TournamentEntry[]
   rounds  TournamentRound[]
+
+  @@index([status, endsAt])
 }
 
 model TournamentEntry {
-  id            String    @id @default(cuid())
-  tournamentId  String
-  userId        String
-  points        Float     @default(0)
-  bestMultiplier Float    @default(0)
-  roundsCount   Int       @default(0)
-  lastRoundAt   DateTime?
+  id           String   @id @default(cuid())
+  tournamentId String
+  userId       String
+  points       Float    @default(0)
+  bestMultiplier Float  @default(1)
+  roundsCount  Int      @default(0)
+  lastRoundAt  DateTime?
 
   tournament Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
   user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([tournamentId, userId])
   @@index([tournamentId, points])
+  @@index([userId, lastRoundAt])
 }
 
 model TournamentRound {
@@ -220,5 +224,5 @@ model TournamentRound {
 
   @@unique([tournamentId, roundId])
   @@index([tournamentId, createdAt])
+  @@index([userId, createdAt])
 }
-
