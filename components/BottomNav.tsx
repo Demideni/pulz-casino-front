@@ -3,11 +3,13 @@
 import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
+import CashierPage from "@/app/cashier/page";
+import TournamentsSheetContent from "@/components/TournamentsSheetContent";
 
 const ICONS: Record<string, string> = {
   "/cashier": "/icons/wallet.png",
   "/login": "/icons/login.png",
-  "/robinson": "/icons/games.png",
+  "/tournaments": "/icons/promotions.png",
   "/menu": "/icons/menu.png",
 };
 
@@ -17,6 +19,9 @@ export default function BottomNav() {
   const [openAuth, setOpenAuth] = useState(false);
   const [authMode, setAuthMode] = useState<AuthMode>("login");
   const [openMenu, setOpenMenu] = useState(false);
+
+  const [openCashier, setOpenCashier] = useState(false);
+  const [openTournaments, setOpenTournaments] = useState(false);
 
   // полёт Робинзона по тапу на центральную кнопку
   const [fly, setFly] = useState(false);
@@ -45,13 +50,20 @@ export default function BottomNav() {
             backdrop-blur-lg
           "
         >
-          {/* Касса */}
-          <NavLink href="/cashier" label="Касса" first />
+          {/* Касса — bottom sheet */}
+          <button
+            type="button"
+            className="flex w-[72px] flex-col items-center gap-1 text-[10px] text-slate-100 border-r border-slate-700/70"
+            onClick={() => setOpenCashier(true)}
+          >
+            <NavIcon src={ICONS["/cashier"]} alt="Касса" />
+            <span>Касса</span>
+          </button>
 
           {/* Вход / Регистрация — bottom sheet */}
           <button
             type="button"
-            className="flex w-[72px] flex-col items-center gap-1 text-[10px] text-slate-100 border-l border-slate-700/70"
+            className="flex w-[72px] flex-col items-center gap-1 text-[10px] text-slate-100"
             onClick={() => {
               setAuthMode("login");
               setOpenAuth(true);
@@ -64,8 +76,15 @@ export default function BottomNav() {
           {/* Пустое место под центральную кнопку */}
           <div className="w-[96px]" />
 
-          {/* ROBINSON */}
-          <NavLink href="/go/robinson" label="Робинзон" />
+          {/* ТУРНИРЫ — bottom sheet */}
+          <button
+            type="button"
+            className="flex w-[72px] flex-col items-center gap-1 text-[10px] text-slate-100 border-l border-slate-700/70"
+            onClick={() => setOpenTournaments(true)}
+          >
+            <NavIcon src={ICONS["/tournaments"]} alt="Турниры" />
+            <span>Турниры</span>
+          </button>
 
           {/* Меню — bottom sheet */}
           <button
@@ -112,6 +131,64 @@ export default function BottomNav() {
         />
       )}
 
+      {/* Bottom-sheet кассы */}
+      {openCashier && (
+        <div
+          className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 backdrop-blur-sm pulz-sheet-backdrop"
+          onClick={() => setOpenCashier(false)}
+        >
+          <div
+            className="pulz-sheet w-full max-w-xl rounded-t-3xl bg-[#0b0f1a] px-5 pb-6 pt-4"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="mx-auto mb-4 h-1.5 w-12 rounded-full bg-slate-700/60" />
+
+            <div className="flex items-center justify-between">
+              <div className="text-lg font-semibold text-slate-100">Касса</div>
+              <button
+                type="button"
+                onClick={() => setOpenCashier(false)}
+                className="rounded-xl px-3 py-2 text-sm text-slate-300 hover:bg-white/5"
+              >
+                Закрыть
+              </button>
+            </div>
+
+            <div className="mt-4 max-h-[78vh] overflow-y-auto pb-24">
+              <CashierPage />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Bottom-sheet турниров */}
+      {openTournaments && (
+        <div
+          className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 backdrop-blur-sm pulz-sheet-backdrop"
+          onClick={() => setOpenTournaments(false)}
+        >
+          <div
+            className="pulz-sheet w-full max-w-xl rounded-t-3xl bg-[#0b0f1a] px-5 pb-8 pt-4"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="mx-auto mb-4 h-1.5 w-12 rounded-full bg-slate-700/60" />
+
+            <div className="flex items-center justify-between">
+              <div className="text-lg font-semibold text-slate-100">Турниры</div>
+              <button
+                type="button"
+                onClick={() => setOpenTournaments(false)}
+                className="rounded-xl px-3 py-2 text-sm text-slate-300 hover:bg-white/5"
+              >
+                Закрыть
+              </button>
+            </div>
+
+            <TournamentsSheetContent onClose={() => setOpenTournaments(false)} />
+          </div>
+        </div>
+      )}
+
       {/* Bottom-sheet авторизации (Вход / Регистрация) */}
       {openAuth && (
         <div
@@ -122,7 +199,7 @@ export default function BottomNav() {
           onClick={() => setOpenAuth(false)}
         >
           <div
-            className="w-full max-w-xl rounded-t-3xl bg-[#0b0f1a] px-5 pb-8 pt-4"
+            className="pulz-sheet w-full max-w-xl rounded-t-3xl bg-[#0b0f1a] px-5 pb-8 pt-4"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="mx-auto mb-4 h-1.5 w-12 rounded-full bg-slate-700/60" />
@@ -169,7 +246,7 @@ export default function BottomNav() {
           onClick={() => setOpenMenu(false)}
         >
           <div
-            className="w-full max-w-xl rounded-t-3xl bg-[#0b0f1a] px-5 pb-8 pt-4"
+            className="pulz-sheet w-full max-w-xl rounded-t-3xl bg-[#0b0f1a] px-5 pb-8 pt-4"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="mx-auto mb-4 h-1.5 w-12 rounded-full bg-slate-700/60" />
@@ -194,12 +271,34 @@ export default function BottomNav() {
                 Аккаунт
               </Link>
 
+              <button
+                type="button"
+                className="rounded-2xl border border-slate-700/70 bg-slate-900/40 px-4 py-3 text-center text-sm text-slate-100"
+                onClick={() => {
+                  setOpenMenu(false);
+                  setOpenCashier(true);
+                }}
+              >
+                Касса
+              </button>
+
+              <button
+                type="button"
+                className="rounded-2xl border border-slate-700/70 bg-slate-900/40 px-4 py-3 text-center text-sm text-slate-100"
+                onClick={() => {
+                  setOpenMenu(false);
+                  setOpenTournaments(true);
+                }}
+              >
+                Турниры
+              </button>
+
               <Link
-                href="/cashier"
+                href="/go/robinson"
                 className="rounded-2xl border border-slate-700/70 bg-slate-900/40 px-4 py-3 text-center text-sm text-slate-100"
                 onClick={() => setOpenMenu(false)}
               >
-                Касса
+                Робинзон
               </Link>
             </div>
           </div>
@@ -209,25 +308,10 @@ export default function BottomNav() {
   );
 }
 
-function NavLink({ href, label, first }: { href: string; label: string; first?: boolean }) {
-  return (
-    <Link
-      href={href}
-      className={[
-        "flex w-[72px] flex-col items-center gap-1 text-[10px] text-slate-100",
-        first ? "" : "border-l border-slate-700/70",
-      ].join(" ")}
-    >
-      <NavIcon src={href === "/cashier" ? ICONS["/cashier"] : ICONS["/robinson"]} alt={label} />
-      <span>{label}</span>
-    </Link>
-  );
-}
-
 function NavIcon({ src, alt }: { src: string; alt: string }) {
   return (
-    <span className="relative h-7 w-7">
-      <Image src={src} alt={alt} fill className="object-contain" />
+    <span className="relative grid h-10 w-10 place-items-center">
+      <Image src={src} alt={alt} width={22} height={22} className="opacity-90" />
     </span>
   );
 }
