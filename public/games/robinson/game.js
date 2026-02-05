@@ -3,6 +3,11 @@
   if (!canvas) return console.error("[game] Canvas not found");
   const ctx = canvas.getContext("2d");
 
+  // ===== Platform =====
+  function isDesktop() {
+    return (window.innerWidth || 0) >= 1024;
+  }
+
   // ===== Assets =====
   function loadImage(src) {
     return new Promise((resolve) => {
@@ -60,8 +65,8 @@
     loadImageAny("assets/background/planet_moon.png"),
     loadImageAny("assets/background/planet_mars.png"),
 
-    loadImageAny("assets/robinson.png"),
-    loadImageAny("assets/island_long.png"),
+    loadImageAny(isDesktop() ? "assets/robinson_pc.png" : "assets/robinson.png"),
+    loadImageAny(isDesktop() ? "assets/island_long_pc.png" : "assets/island_long.png"),
 
     // bonus types
     loadImageAny("assets/bonus_x2.png"),
@@ -1461,4 +1466,43 @@ if (isBonus) {
   }
 
   requestAnimationFrame(loop);
+
+// ===== Desktop controls (SPACE to play, F / button for fullscreen) =====
+function toggleFullscreen() {
+  const el = document.documentElement;
+  if (!document.fullscreenElement) {
+    el.requestFullscreen?.().catch?.(() => {});
+  } else {
+    document.exitFullscreen?.().catch?.(() => {});
+  }
+}
+
+// Hook HUD button if exists
+window.addEventListener("DOMContentLoaded", () => {
+  const fsBtn = document.getElementById("fs-btn");
+  if (fsBtn) fsBtn.addEventListener("click", toggleFullscreen);
+});
+
+window.addEventListener("keydown", (e) => {
+  const tag = (e.target && e.target.tagName) ? String(e.target.tagName).toLowerCase() : "";
+  if (tag === "input" || tag === "textarea") return;
+
+  if (e.code === "KeyF") {
+    toggleFullscreen();
+  }
+
+  if (e.code === "Space" || e.code === "Enter") {
+    // Prefer UI play button click (keeps your existing flow)
+    const btn = document.getElementById("play-btn");
+    if (btn && !btn.disabled) {
+      e.preventDefault();
+      btn.click();
+      return;
+    }
+    // Fallback: call exposed start if present
+    try { window.RobinsonUI?.clickPlay?.(); } catch {}
+    try { window.RobinsonGame?.startRound?.(); } catch {}
+  }
+});
+
 })();

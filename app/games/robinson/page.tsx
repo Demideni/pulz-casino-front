@@ -55,9 +55,9 @@ export default function RobinsonPage() {
     <div className="fixed inset-0 z-[9999] overflow-hidden bg-[#050509]">
       <div className="h-full w-full lg:flex lg:items-stretch lg:justify-center lg:gap-6 lg:p-6">
         {/* GAME AREA */}
-        <div className="h-full w-full lg:h-auto lg:w-auto lg:flex-1 lg:max-w-[1400px] lg:rounded-3xl lg:border lg:border-slate-800/70 lg:bg-black/30 lg:p-4">
+        <div className="h-full w-full lg:h-auto lg:w-auto lg:flex-1 lg:max-w-[1100px] lg:rounded-3xl lg:border lg:border-slate-800/70 lg:bg-black/30 lg:p-4">
           <div className="h-full w-full lg:flex lg:items-center lg:justify-center">
-            <div className="h-full w-full lg:h-auto lg:aspect-video lg:max-h-[calc(100vh-96px)] lg:overflow-hidden lg:rounded-2xl lg:border lg:border-slate-800/70 lg:bg-black">
+            <div className="h-full w-full lg:h-auto lg:aspect-[9/16] lg:max-h-[calc(100vh-96px)] lg:max-w-[560px] lg:overflow-hidden lg:rounded-2xl lg:border lg:border-slate-800/70 lg:bg-black">
               <iframe
                 src="/games/robinson/index.html"
                 className="h-full w-full border-0 block"
