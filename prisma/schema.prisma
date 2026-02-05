@@ -34,10 +34,10 @@ model User {
   invoices     PaymentInvoice[]
   withdrawals  WithdrawRequest[]
 
-  affiliate Affiliate?
-
   tournamentEntries TournamentEntry[]
   tournamentRounds  TournamentRound[]
+
+  affiliate Affiliate?
 }
 
 model Transaction {
@@ -163,15 +163,13 @@ model AffiliatePayoutRequest {
 }
 
 
-
-enum TournamentStatus {
-  UPCOMING
-  ACTIVE
-  COMPLETED
-}
-
 enum TournamentType {
   DAILY_SPRINT
+}
+
+enum TournamentStatus {
+  ACTIVE
+  COMPLETED
 }
 
 model Tournament {
@@ -189,22 +187,24 @@ model Tournament {
 
   entries TournamentEntry[]
   rounds  TournamentRound[]
-  prizes  TournamentPrize[]
+
+  @@index([status, endsAt])
 }
 
 model TournamentEntry {
-  id            String   @id @default(cuid())
-  tournamentId  String
-  userId        String
-  points        Float    @default(0)
-  bestMultiplier Float   @default(0)
-  roundsCount   Int      @default(0)
-  lastRoundAt   DateTime?
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  id           String   @id @default(cuid())
+  tournamentId String
+  userId       String
+  points       Float    @default(0)
+  bestMultiplier Float  @default(1)
+  roundsCount  Int      @default(0)
+  lastRoundAt  DateTime?
 
-  tournament Tournament @relation(fields: [tournamentId], references: [id])
-  user       User       @relation(fields: [userId], references: [id])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tournament Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+  user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([tournamentId, userId])
   @@index([tournamentId, points])
@@ -221,22 +221,10 @@ model TournamentRound {
   points       Float
   createdAt    DateTime @default(now())
 
-  tournament Tournament @relation(fields: [tournamentId], references: [id])
-  user       User       @relation(fields: [userId], references: [id])
+  tournament Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+  user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  @@unique([tournamentId, userId, roundId])
+  @@unique([tournamentId, roundId])
   @@index([tournamentId, createdAt])
   @@index([userId, createdAt])
-}
-
-model TournamentPrize {
-  id          String   @id @default(cuid())
-  tournamentId String
-  placeFrom   Int
-  placeTo     Int
-  amountCents Int
-
-  tournament Tournament @relation(fields: [tournamentId], references: [id])
-
-  @@index([tournamentId, placeFrom])
 }

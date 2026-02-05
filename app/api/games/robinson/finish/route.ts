@@ -68,6 +68,82 @@ export async function POST(req: NextRequest) {
           meta: { game: "robinson", roundId: body.roundId, multiplier: body.multiplier },
         },
       });
+
+      // ---- Tournament (Daily Sprint 24/7) ----
+      try {
+        const now = new Date();
+        let t = await tx.tournament.findFirst({
+          where: { slug: "daily-sprint", status: "ACTIVE", endsAt: { gt: now } },
+        });
+
+        if (!t) {
+          t = await tx.tournament.create({
+            data: {
+              slug: "daily-sprint",
+              name: "Daily Sprint",
+              type: "DAILY_SPRINT",
+              status: "ACTIVE",
+              startsAt: now,
+              endsAt: new Date(now.getTime() + 24 * 60 * 60 * 1000),
+              kFactor: 10,
+              prizePoolCents: 0,
+            },
+          });
+        }
+
+        const points = Math.sqrt(bet.amountCents / 100) * body.multiplier * t.kFactor;
+
+        // write round (idempotent per tournamentId+roundId)
+        await tx.tournamentRound.upsert({
+          where: { tournamentId_roundId: { tournamentId: t.id, roundId: body.roundId } },
+          update: {},
+          create: {
+            tournamentId: t.id,
+            userId: au.id,
+            roundId: body.roundId,
+            stakeCents: bet.amountCents,
+            multiplier: body.multiplier,
+            points,
+          },
+        });
+
+        await tx.tournamentEntry.upsert({
+          where: { tournamentId_userId: { tournamentId: t.id, userId: au.id } },
+          update: {
+            points: { increment: points },
+            roundsCount: { increment: 1 },
+            bestMultiplier: { set: Math.max(body.multiplier, 1) }, // will be corrected below
+            lastRoundAt: now,
+          },
+          create: {
+            tournamentId: t.id,
+            userId: au.id,
+            points,
+            roundsCount: 1,
+            bestMultiplier: Math.max(body.multiplier, 1),
+            lastRoundAt: now,
+          },
+        });
+
+        // ensure bestMultiplier is max (needs separate read in update; keep simple: recompute)
+        await tx.tournamentEntry.update({
+          where: { tournamentId_userId: { tournamentId: t.id, userId: au.id } },
+          data: {
+            bestMultiplier: {
+              set: await (async () => {
+                const cur = await tx.tournamentEntry.findUnique({
+                  where: { tournamentId_userId: { tournamentId: t.id, userId: au.id } },
+                  select: { bestMultiplier: true },
+                });
+                return Math.max(cur?.bestMultiplier ?? 1, body.multiplier);
+              })(),
+            },
+          },
+        });
+      } catch (e) {
+        // Do not fail the payout if tournament tables are unavailable.
+        console.error("[tournament] update failed", e);
+      }
     });
 
     const updated = await prisma.user.findUnique({

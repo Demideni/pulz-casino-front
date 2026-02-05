@@ -8,7 +8,6 @@ const ICONS: Record<string, string> = {
   "/cashier": "/icons/wallet.png",
   "/login": "/icons/login.png",
   "/robinson": "/icons/games.png",
-  "/tournaments": "/icons/promotions.png",
   "/menu": "/icons/menu.png",
 };
 
@@ -16,10 +15,20 @@ type AuthMode = "login" | "register";
 
 export default function BottomNav() {
   const [openAuth, setOpenAuth] = useState(false);
-  const [openCashier, setOpenCashier] = useState(false);
-  const [openTournaments, setOpenTournaments] = useState(false);
   const [authMode, setAuthMode] = useState<AuthMode>("login");
   const [openMenu, setOpenMenu] = useState(false);
+
+  // полёт Робинзона по тапу на центральную кнопку
+  const [fly, setFly] = useState(false);
+  const [flyKey, setFlyKey] = useState(0);
+
+  useEffect(() => {
+    if (!fly) return;
+    // Длительность анимации задана в CSS (.robinson-fly) = 2.5s.
+    // Даем небольшой запас, чтобы PNG не исчезал раньше конца полёта (особенно на iOS Safari).
+    const t = setTimeout(() => setFly(false), 2700);
+    return () => clearTimeout(t);
+  }, [fly]);
 
   return (
     <>
@@ -37,14 +46,7 @@ export default function BottomNav() {
           "
         >
           {/* Касса */}
-          <button
-            type="button"
-            className="flex w-[72px] flex-col items-center gap-1 text-[10px] text-slate-100"
-            onClick={() => setOpenCashier(true)}
-          >
-            <NavIcon src={ICONS["/cashier"]} alt="Касса" />
-            <span>Касса</span>
-          </button>
+          <NavLink href="/cashier" label="Касса" first />
 
           {/* Вход / Регистрация — bottom sheet */}
           <button
@@ -62,8 +64,8 @@ export default function BottomNav() {
           {/* Пустое место под центральную кнопку */}
           <div className="w-[96px]" />
 
-          {/* Игра */}
-          <NavLink href="/go/robinson" label="Играть" iconKey="/robinson" />
+          {/* ROBINSON */}
+          <NavLink href="/go/robinson" label="Робинзон" />
 
           {/* Меню — bottom sheet */}
           <button
@@ -75,21 +77,25 @@ export default function BottomNav() {
             <span>Меню</span>
           </button>
 
-          {/* Центральная кнопка — Турниры */}
+          {/* Центральная кнопка — голова Робинзона */}
           <button
             type="button"
-            onClick={() => setOpenTournaments(true)}
+            onClick={() => {
+              // перезапуск анимации
+              setFlyKey((k) => k + 1);
+              setFly(true);
+            }}
             className="
               absolute
               -top-6 left-1/2
               -translate-x-1/2
               flex items-center justify-center
             "
-            aria-label="Tournaments"
+            aria-label="Robinson"
           >
             <img
-              src="/icons/promotions.png"
-              alt="Tournaments"
+              src="/ui/robinson_head.png"
+              alt="Robinson"
               className="robinson-head-button"
             />
           </button>
@@ -97,6 +103,14 @@ export default function BottomNav() {
       </div>
 
       {/* Полёт Робинзона: снизу-слева -> вверх-вправо */}
+      {fly && (
+        <img
+          key={flyKey}
+          src="/animations/robinson_fly.png"
+          alt=""
+          className="robinson-fly"
+        />
+      )}
 
       {/* Bottom-sheet авторизации (Вход / Регистрация) */}
       {openAuth && (
@@ -191,82 +205,11 @@ export default function BottomNav() {
           </div>
         </div>
       )}
-    {/* Bottom-sheet: Cashier */}
-{openCashier && (
-  <div
-    className="
-      fixed inset-0 z-50 flex items-end justify-center
-      bg-black/60 backdrop-blur-sm pulz-sheet-backdrop
-    "
-    onClick={() => setOpenCashier(false)}
-  >
-    <div
-      className="pulz-sheet w-full max-w-xl rounded-t-3xl border border-blue-400/20 bg-[#0b1020] shadow-[0_0_80px_rgba(59,130,246,0.12)]"
-      onClick={(e) => e.stopPropagation()}
-    >
-      <div className="mx-auto mt-2 h-1.5 w-12 rounded-full bg-white/20" />
-      <div className="px-4 py-3 flex items-center justify-between">
-        <div className="text-white font-semibold">Касса</div>
-        <button onClick={() => setOpenCashier(false)} className="text-white/60 hover:text-white">✕</button>
-      </div>
-      <div className="h-[78vh]">
-        <iframe
-          src="/cashier"
-          className="h-full w-full border-0"
-          allow="autoplay; clipboard-write"
-        />
-      </div>
-    </div>
-  </div>
-)}
-
-{/* Bottom-sheet: Tournaments */}
-{openTournaments && (
-  <div
-    className="
-      fixed inset-0 z-50 flex items-end justify-center
-      bg-black/60 backdrop-blur-sm pulz-sheet-backdrop
-    "
-    onClick={() => setOpenTournaments(false)}
-  >
-    <div
-      className="pulz-sheet w-full max-w-xl rounded-t-3xl border border-blue-400/20 bg-[#0b1020] shadow-[0_0_80px_rgba(59,130,246,0.12)]"
-      onClick={(e) => e.stopPropagation()}
-    >
-      <div className="mx-auto mt-2 h-1.5 w-12 rounded-full bg-white/20" />
-      <div className="px-4 py-3 flex items-center justify-between">
-        <div className="text-white font-semibold">Турниры</div>
-        <button onClick={() => setOpenTournaments(false)} className="text-white/60 hover:text-white">✕</button>
-      </div>
-      <div className="h-[78vh]">
-        <iframe
-          src="/tournaments"
-          className="h-full w-full border-0"
-          allow="autoplay; clipboard-write"
-        />
-      </div>
-    </div>
-  </div>
-)}
-
-</>
+    </>
   );
 }
 
-function NavLink({
-  href,
-  label,
-  first,
-  iconKey,
-}: {
-  href: string;
-  label: string;
-  first?: boolean;
-  iconKey?: string;
-}) {
-  const key = iconKey ?? href;
-  const icon = ICONS[key] ?? ICONS["/cashier"];
-
+function NavLink({ href, label, first }: { href: string; label: string; first?: boolean }) {
   return (
     <Link
       href={href}
@@ -275,7 +218,7 @@ function NavLink({
         first ? "" : "border-l border-slate-700/70",
       ].join(" ")}
     >
-      <NavIcon src={icon} alt={label} />
+      <NavIcon src={href === "/cashier" ? ICONS["/cashier"] : ICONS["/robinson"]} alt={label} />
       <span>{label}</span>
     </Link>
   );
