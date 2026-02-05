@@ -303,6 +303,18 @@
 
   $play.addEventListener("click", onPlay);
 
+  // Desktop: start round with SPACE
+  document.addEventListener("keydown", (e) => {
+    if (e.code !== "Space") return;
+    // don't hijack typing
+    const t = (e.target && e.target.tagName) ? e.target.tagName.toUpperCase() : "";
+    if (t === "INPUT" || t === "TEXTAREA" || t === "SELECT") return;
+    // don't start while bet modal is open
+    if (!$modal.classList.contains("hidden")) return;
+    e.preventDefault();
+    onPlay();
+  });
+
   // Game → UI callbacks
   window.RobinsonUI = {
     lockForRound,

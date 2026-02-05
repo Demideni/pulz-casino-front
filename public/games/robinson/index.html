@@ -399,6 +399,29 @@
   .play-orb__img{ width: 80px; height: 80px; }
 }
 
+/* Fullscreen button */
+#fs-btn{
+  position: fixed;
+  top: 14px;
+  right: 14px;
+  z-index: 70;
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  border: 1px solid rgba(255,255,255,0.14);
+  background: rgba(10,12,20,0.55);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+#fs-btn svg{ width: 20px; height: 20px; opacity: 0.9; }
+#fs-btn:hover{ background: rgba(10,12,20,0.72); border-color: rgba(255,255,255,0.22); }
+#fs-btn:active{ transform: scale(0.98); }
+
+
 </style>
 </head>
 
@@ -407,6 +430,16 @@
   <div id="canvas-container">
     <canvas id="game-canvas"></canvas>
   </div>
+
+  <!-- Fullscreen -->
+  <button id="fs-btn" type="button" aria-label="Fullscreen">
+    <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M9 4H4V9" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="M15 4H20V9" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="M9 20H4V15" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="M15 20H20V15" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+  </button>
 
   <!-- HUD -->
   <div id="hud"></div>
@@ -473,6 +506,22 @@
 <script src="./bridge.js"></script>
 <script src="./ui.js"></script>
 <script src="./game.js"></script>
+
+<script>
+  (function(){
+    const btn = document.getElementById('fs-btn');
+    if (!btn) return;
+    const el = document.documentElement;
+    const isFs = () => document.fullscreenElement || document.webkitFullscreenElement;
+    const requestFs = () => (el.requestFullscreen ? el.requestFullscreen() : el.webkitRequestFullscreen ? el.webkitRequestFullscreen() : null);
+    const exitFs = () => (document.exitFullscreen ? document.exitFullscreen() : document.webkitExitFullscreen ? document.webkitExitFullscreen() : null);
+    btn.addEventListener('click', () => {
+      try {
+        if (isFs()) exitFs(); else requestFs();
+      } catch(e) {}
+    });
+  })();
+</script>
 
 </body>
 </html>
