@@ -91,7 +91,11 @@ export async function POST(req: NextRequest) {
           });
         }
 
-        const points = Math.sqrt(bet.amountCents / 100) * body.multiplier * t.kFactor;
+        const points =
+  Math.sqrt(betTx.amountCents / 100) *
+  body.multiplier *
+  t.kFactor;
+
 
         // write round (idempotent per tournamentId+roundId)
         await tx.tournamentRound.upsert({
@@ -101,7 +105,7 @@ export async function POST(req: NextRequest) {
             tournamentId: t.id,
             userId: au.id,
             roundId: body.roundId,
-            stakeCents: bet.amountCents,
+            stakeCents: betTx.amountCents,
             multiplier: body.multiplier,
             points,
           },
