@@ -35,9 +35,6 @@ model User {
   withdrawals  WithdrawRequest[]
 
   affiliate Affiliate?
-
-  tournamentEntries TournamentEntry[]
-  tournamentRounds TournamentRound[]
 }
 
 model Transaction {
@@ -160,69 +157,4 @@ model AffiliatePayoutRequest {
   affiliate Affiliate @relation(fields: [affiliateId], references: [id])
 
   @@index([affiliateId, createdAt])
-}
-
-
-enum TournamentType {
-  DAILY_SPRINT
-}
-
-enum TournamentStatus {
-  UPCOMING
-  ACTIVE
-  COMPLETED
-}
-
-model Tournament {
-  id             String           @id @default(cuid())
-  slug           String           @unique
-  name           String
-  type           TournamentType   @default(DAILY_SPRINT)
-  status         TournamentStatus @default(ACTIVE)
-  startsAt       DateTime
-  endsAt         DateTime
-  kFactor        Float            @default(10)
-  prizePoolCents Int              @default(0)
-  createdAt      DateTime         @default(now())
-  updatedAt      DateTime         @updatedAt
-
-  entries TournamentEntry[]
-  rounds  TournamentRound[]
-
-  @@index([status, endsAt])
-}
-
-model TournamentEntry {
-  id           String   @id @default(cuid())
-  tournamentId String
-  userId       String
-  points       Float    @default(0)
-  bestMultiplier Float  @default(1)
-  roundsCount  Int      @default(0)
-  lastRoundAt  DateTime?
-
-  tournament Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
-  user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@unique([tournamentId, userId])
-  @@index([tournamentId, points])
-  @@index([userId, lastRoundAt])
-}
-
-model TournamentRound {
-  id           String   @id @default(cuid())
-  tournamentId String
-  userId       String
-  roundId      String
-  stakeCents   Int
-  multiplier   Float
-  points       Float
-  createdAt    DateTime @default(now())
-
-  tournament Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
-  user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@unique([tournamentId, roundId])
-  @@index([tournamentId, createdAt])
-  @@index([userId, createdAt])
 }

@@ -58,66 +58,6 @@ export async function POST(req: NextRequest) {
       });
     });
 
-
-// ---- Tournament (Daily Sprint 24/7) ----
-// Never break payouts if tournament code fails.
-try {
-  const now = new Date();
-  const t = await prisma.tournament.findFirst({
-    where: { slug: "daily-sprint", status: "ACTIVE", endsAt: { gt: now } },
-  }) ?? await prisma.tournament.create({
-    data: {
-      slug: "daily-sprint",
-      name: "Daily Sprint",
-      type: "DAILY_SPRINT",
-      status: "ACTIVE",
-      startsAt: now,
-      endsAt: new Date(now.getTime() + 24 * 60 * 60 * 1000),
-      kFactor: 10,
-      prizePoolCents: 0,
-    },
-  });
-
-  const stakeCents = betTx.amountCents;
-  const points = Math.sqrt(Math.max(0, stakeCents) / 100) * body.multiplier * t.kFactor;
-
-  await prisma.tournamentRound.upsert({
-    where: { tournamentId_roundId: { tournamentId: t.id, roundId: body.roundId } },
-    create: {
-      tournamentId: t.id,
-      userId: au.id,
-      roundId: body.roundId,
-      stakeCents,
-      multiplier: body.multiplier,
-      points,
-    },
-    update: {
-      stakeCents,
-      multiplier: body.multiplier,
-      points,
-    },
-  });
-
-  await prisma.tournamentEntry.upsert({
-    where: { tournamentId_userId: { tournamentId: t.id, userId: au.id } },
-    create: {
-      tournamentId: t.id,
-      userId: au.id,
-      points,
-      bestMultiplier: body.multiplier,
-      roundsCount: 1,
-      lastRoundAt: new Date(),
-    },
-    update: {
-      points: { increment: points },
-      bestMultiplier: { set: Math.max(body.multiplier, 1) },
-      roundsCount: { increment: 1 },
-      lastRoundAt: new Date(),
-    },
-  });
-} catch (e) {
-  console.warn("tournament update failed", e);
-}
     const updated = await prisma.user.findUnique({
       where: { id: au.id },
       select: { balanceCents: true },
