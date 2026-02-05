@@ -29,15 +29,13 @@ export default function RootLayout({ children }: { children: ReactNode }) {
           <TopBar />
 
           {/* КОНТЕНТ СТРАНИЦЫ */}
-          <div className="mx-auto flex w-full max-w-[1400px] flex-1 flex-col lg:flex-row">
+          <main className="mx-auto flex w-full max-w-6xl flex-1 flex-col px-0 pb-2 pt-2 lg:flex-row lg:gap-4">
             <DesktopSidebar />
-            <main className="flex w-full flex-1 flex-col px-0 pb-2 pt-2 lg:px-6 lg:pt-6">
-              {children}
-            </main>
-          </div>
+            <div className="flex-1">{children}</div>
+          </main>
 
           {/* FOOTER: 3 CTA кнопки (всё в Telegram) */}
-          <footer className="border-t border-slate-900/60">
+          <footer className="border-t border-slate-900/60 lg:hidden">
             <div className="footer-cta">
               <div className="footer-cta-panel">
                 <div className="footer-cta-stack">
