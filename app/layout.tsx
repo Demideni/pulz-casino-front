@@ -4,7 +4,6 @@ import type { ReactNode } from "react";
 import BottomNav from "@/components/BottomNav";
 import PulzBootOverlay from "@/components/PulzBootOverlay";
 import TopBar from "@/components/TopBar";
-import DesktopSidebar from "@/components/DesktopSidebar";
 
 export const metadata = {
   title: "Robinson",
@@ -29,12 +28,9 @@ export default function RootLayout({ children }: { children: ReactNode }) {
           <TopBar />
 
           {/* КОНТЕНТ СТРАНИЦЫ */}
-          <div className="mx-auto flex w-full max-w-[1400px] flex-1 flex-col lg:flex-row">
-            <DesktopSidebar />
-            <main className="flex w-full flex-1 flex-col px-0 pb-2 pt-2 lg:px-6 lg:pt-6">
-              {children}
-            </main>
-          </div>
+          <main className="mx-auto flex w-full max-w-6xl flex-1 flex-col px-0 pb-2 pt-2">
+            {children}
+          </main>
 
           {/* FOOTER: 3 CTA кнопки (всё в Telegram) */}
           <footer className="border-t border-slate-900/60">
@@ -88,7 +84,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
           </footer>
 
           {/* НИЖНИЙ ТАП-БАР С КОЛЕСОМ */}
-          <div className="lg:hidden"><BottomNav /></div>
+          <BottomNav />
         </div>
       </body>
     </html>

@@ -8,6 +8,7 @@
   const $modal = document.getElementById("bet-modal");
   const $grid = document.getElementById("bet-grid");
   const $close = document.getElementById("bet-close");
+  const $fs = document.getElementById("fs-btn");
 
   if (!$play || !$betBox || !$betValue || !$balValue || !$modal || !$grid || !$close) {
     console.error("[ui] required elements not found");
@@ -345,6 +346,61 @@
       if (!isWin) SFX.snap();
     },
   };
+
+  // ---- PC hotkeys + fullscreen ----
+  const isTextInput = (el) => {
+    if (!el) return false;
+    const tag = (el.tagName || "").toUpperCase();
+    return tag === "INPUT" || tag === "TEXTAREA" || el.isContentEditable;
+  };
+
+  const getFsElement = () => document.fullscreenElement || document.webkitFullscreenElement;
+  const requestFs = (el) => {
+    const fn = el.requestFullscreen || el.webkitRequestFullscreen;
+    return fn ? fn.call(el) : Promise.reject();
+  };
+  const exitFs = () => {
+    const fn = document.exitFullscreen || document.webkitExitFullscreen;
+    return fn ? fn.call(document) : Promise.reject();
+  };
+
+  async function toggleFullscreen(){
+    try {
+      if (getFsElement()) await exitFs();
+      else await requestFs(document.documentElement);
+    } catch {}
+  }
+
+  if ($fs) {
+    $fs.addEventListener("click", toggleFullscreen);
+    document.addEventListener("fullscreenchange", () => {
+      $fs.textContent = getFsElement() ? "⤫" : "⛶";
+    });
+  }
+
+  window.addEventListener("keydown", (e) => {
+    if (isTextInput(e.target)) return;
+    const key = (e.key || "").toLowerCase();
+    if (key === " " || key === "enter") {
+      // SPACE/ENTER = Play (only when modal closed)
+      if (!$modal.classList.contains("hidden")) return;
+      e.preventDefault();
+      onPlay();
+      return;
+    }
+    if (key === "escape") {
+      if (!$modal.classList.contains("hidden")) {
+        e.preventDefault();
+        closeModal();
+      }
+      return;
+    }
+    if (key === "f") {
+      e.preventDefault();
+      toggleFullscreen();
+      return;
+    }
+  }, { passive: false });
 
   // init
   setBet(bet);
