@@ -8,7 +8,7 @@ export default function TournamentsSheetContent({ onClose }: { onClose: () => vo
       <div className="rounded-2xl border border-slate-700/60 bg-slate-900/30 p-4">
         <div className="text-base font-semibold">Турниры</div>
         <div className="mt-2 text-sm text-slate-300">
-          Здесь будет список активных турниров и лидерборды. Пока что — заглушка.
+          Открой Daily Sprint и смотри лидерборд. активных турниров и лидерборды. Пока что — заглушка.
         </div>
 
         <div className="mt-4 grid gap-2">

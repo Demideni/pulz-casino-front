@@ -35,6 +35,9 @@ model User {
   withdrawals  WithdrawRequest[]
 
   affiliate Affiliate?
+
+  tournamentEntries TournamentEntry[]
+  tournamentRounds  TournamentRound[]
 }
 
 model Transaction {
@@ -158,3 +161,64 @@ model AffiliatePayoutRequest {
 
   @@index([affiliateId, createdAt])
 }
+
+
+enum TournamentType {
+  DAILY_SPRINT
+}
+
+enum TournamentStatus {
+  ACTIVE
+  COMPLETED
+}
+
+model Tournament {
+  id             String           @id @default(cuid())
+  slug           String           @unique
+  name           String
+  type           TournamentType
+  status         TournamentStatus @default(ACTIVE)
+  startsAt       DateTime
+  endsAt         DateTime
+  kFactor        Int              @default(10)
+  prizePoolCents Int              @default(0)
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+
+  entries TournamentEntry[]
+  rounds  TournamentRound[]
+}
+
+model TournamentEntry {
+  id            String    @id @default(cuid())
+  tournamentId  String
+  userId        String
+  points        Float     @default(0)
+  bestMultiplier Float    @default(0)
+  roundsCount   Int       @default(0)
+  lastRoundAt   DateTime?
+
+  tournament Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+  user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([tournamentId, userId])
+  @@index([tournamentId, points])
+}
+
+model TournamentRound {
+  id           String   @id @default(cuid())
+  tournamentId String
+  userId       String
+  roundId      String
+  stakeCents   Int
+  multiplier   Float
+  points       Float
+  createdAt    DateTime @default(now())
+
+  tournament Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+  user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([tournamentId, roundId])
+  @@index([tournamentId, createdAt])
+}
+
