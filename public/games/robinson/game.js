@@ -7,7 +7,7 @@
   // ===== PC sizing (desktop only) =====
   const isDesktop = () => (window.innerWidth || 0) >= 1024;
   // "уменьшить на 75%" => оставить 25% размера
-  const PC_SIZE_MUL = 0.25;
+  const PC_SIZE_MUL = 0.37;
 // ===== Assets =====
   function loadImage(src) {
     return new Promise((resolve) => {
