@@ -346,6 +346,42 @@
     },
   };
 
+
+  // ===== Keyboard + Fullscreen (PC) =====
+  const fsBtn = document.getElementById("fs-btn");
+  function _isFullscreen() {
+    return !!(document.fullscreenElement || (document).webkitFullscreenElement);
+  }
+  async function toggleFullscreen() {
+    const el = document.documentElement;
+    try {
+      if (!_isFullscreen()) {
+        const req = el.requestFullscreen || el.webkitRequestFullscreen;
+        if (req) await req.call(el);
+      } else {
+        const exit = document.exitFullscreen || document.webkitExitFullscreen;
+        if (exit) await exit.call(document);
+      }
+    } catch (e) {
+      console.warn("[ui] fullscreen failed", e);
+    }
+  }
+  fsBtn && fsBtn.addEventListener("click", toggleFullscreen);
+
+  // Space = start round (when idle)
+  window.addEventListener(
+    "keydown",
+    (ev) => {
+      if (ev.code !== "Space") return;
+      const t = ev.target;
+      if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA")) return;
+      ev.preventDefault();
+      if (state === "RUNNING") return;
+      if ($play && !$play.classList.contains("is-locked")) $play.click();
+    },
+    { passive: false }
+  );
+
   // init
   setBet(bet);
   refreshBalance();
