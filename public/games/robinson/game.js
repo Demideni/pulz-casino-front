@@ -3,26 +3,6 @@
   if (!canvas) return console.error("[game] Canvas not found");
   const ctx = canvas.getContext("2d");
 
-// ===== PC Optimization =====
-const BASE_W = 900;
-const BASE_H = 1600;
-function resizeCanvas() {
-  const dpr = Math.min(window.devicePixelRatio || 1, 2);
-  const rect = canvas.parentElement
-    ? canvas.parentElement.getBoundingClientRect()
-    : { width: window.innerWidth, height: window.innerHeight };
-  const scale = Math.min(rect.width / BASE_W, rect.height / BASE_H);
-  const w = Math.floor(BASE_W * scale);
-  const h = Math.floor(BASE_H * scale);
-  canvas.style.width = w + "px";
-  canvas.style.height = h + "px";
-  canvas.width = Math.floor(w * dpr);
-  canvas.height = Math.floor(h * dpr);
-  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-}
-window.addEventListener("resize", resizeCanvas);
-
-
   // ===== Assets =====
   function loadImage(src) {
     return new Promise((resolve) => {
@@ -1482,25 +1462,3 @@ if (isBonus) {
 
   requestAnimationFrame(loop);
 })();
-
-// ===== PC Hotkeys & Fullscreen =====
-document.addEventListener("keydown", (e) => {
-  if (e.code === "Space" || e.code === "Enter") {
-    const btn = document.querySelector('[data-action="play"]');
-    btn && btn.click();
-  }
-  if (e.code === "Escape" && document.fullscreenElement) {
-    document.exitFullscreen();
-  }
-});
-
-const fsBtn = document.createElement("button");
-fsBtn.textContent = "⛶";
-fsBtn.style.cssText = "position:absolute;right:10px;top:10px;z-index:50;background:#0b1220;color:#7dd3fc;border:1px solid rgba(125,211,252,.3);border-radius:10px;padding:6px 10px;cursor:pointer";
-fsBtn.onclick = () => {
-  if (!document.fullscreenElement) canvas.requestFullscreen();
-  else document.exitFullscreen();
-};
-canvas.parentElement && canvas.parentElement.appendChild(fsBtn);
-
-resizeCanvas();
