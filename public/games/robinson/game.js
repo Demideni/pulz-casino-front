@@ -3,12 +3,12 @@
   if (!canvas) return console.error("[game] Canvas not found");
   const ctx = canvas.getContext("2d");
 
-  // ===== Platform =====
-  function isDesktop() {
-    return (window.innerWidth || 0) >= 1024;
-  }
-
-  // ===== Assets =====
+  
+  // ===== PC sizing (desktop only) =====
+  const isDesktop = () => (window.innerWidth || 0) >= 1024;
+  // "уменьшить на 75%" => оставить 25% размера
+  const PC_SIZE_MUL = 0.25;
+// ===== Assets =====
   function loadImage(src) {
     return new Promise((resolve) => {
       const img = new Image();
@@ -65,8 +65,8 @@
     loadImageAny("assets/background/planet_moon.png"),
     loadImageAny("assets/background/planet_mars.png"),
 
-    loadImageAny(isDesktop() ? "assets/robinson_pc.png" : "assets/robinson.png"),
-    loadImageAny(isDesktop() ? "assets/island_long_pc.png" : "assets/island_long.png"),
+    loadImageAny("assets/robinson.png"),
+    loadImageAny("assets/island_long.png"),
 
     // bonus types
     loadImageAny("assets/bonus_x2.png"),
@@ -398,9 +398,10 @@
 
   function platformBaseSize() {
     const scale = Math.min(W / 1200, H / 800, 1);
+    const mul = isDesktop() ? PC_SIZE_MUL : 1;
     return {
-      w: Math.round(520 * scale * PLATFORM_WIDTH_MUL),
-      h: Math.round(170 * scale),
+      w: Math.round(520 * scale * PLATFORM_WIDTH_MUL * mul),
+      h: Math.round(170 * scale * mul),
     };
   }
 
@@ -441,7 +442,8 @@
     world.hero.rot = 0;
 
     const scale = Math.min(W / 1200, H / 800, 1);
-    const heroScale = 1.9; // +90%
+    const mul = isDesktop() ? PC_SIZE_MUL : 1;
+    const heroScale = 1.9 * mul; // +90% (PC scaled down)
     world.hero.w = Math.round(110 * scale * heroScale);
     world.hero.h = Math.round(110 * scale * heroScale);
     world.hero.prevBottom = world.hero.y + world.hero.h / 2;
@@ -1466,43 +1468,4 @@ if (isBonus) {
   }
 
   requestAnimationFrame(loop);
-
-// ===== Desktop controls (SPACE to play, F / button for fullscreen) =====
-function toggleFullscreen() {
-  const el = document.documentElement;
-  if (!document.fullscreenElement) {
-    el.requestFullscreen?.().catch?.(() => {});
-  } else {
-    document.exitFullscreen?.().catch?.(() => {});
-  }
-}
-
-// Hook HUD button if exists
-window.addEventListener("DOMContentLoaded", () => {
-  const fsBtn = document.getElementById("fs-btn");
-  if (fsBtn) fsBtn.addEventListener("click", toggleFullscreen);
-});
-
-window.addEventListener("keydown", (e) => {
-  const tag = (e.target && e.target.tagName) ? String(e.target.tagName).toLowerCase() : "";
-  if (tag === "input" || tag === "textarea") return;
-
-  if (e.code === "KeyF") {
-    toggleFullscreen();
-  }
-
-  if (e.code === "Space" || e.code === "Enter") {
-    // Prefer UI play button click (keeps your existing flow)
-    const btn = document.getElementById("play-btn");
-    if (btn && !btn.disabled) {
-      e.preventDefault();
-      btn.click();
-      return;
-    }
-    // Fallback: call exposed start if present
-    try { window.RobinsonUI?.clickPlay?.(); } catch {}
-    try { window.RobinsonGame?.startRound?.(); } catch {}
-  }
-});
-
 })();
