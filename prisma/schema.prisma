@@ -35,6 +35,9 @@ model User {
   withdrawals  WithdrawRequest[]
 
   affiliate Affiliate?
+  tournamentEntries TournamentEntry[]
+  tournamentRounds  TournamentRound[]
+
 }
 
 model Transaction {
@@ -157,4 +160,77 @@ model AffiliatePayoutRequest {
   affiliate Affiliate @relation(fields: [affiliateId], references: [id])
 
   @@index([affiliateId, createdAt])
+}
+// --- Tournaments ---
+enum TournamentType {
+  DAILY_SPRINT
+
+  @@map("TournamentType")
+}
+
+enum TournamentStatus {
+  ACTIVE
+  COMPLETED
+  UPCOMING
+
+  @@map("TournamentStatus")
+}
+
+model Tournament {
+  id             String           @id @db.Text
+  slug           String           @unique @db.Text
+  name           String           @db.Text
+  type           TournamentType
+  status         TournamentStatus @default(ACTIVE)
+  startsAt       DateTime         @db.Timestamp(3)
+  endsAt         DateTime         @db.Timestamp(3)
+  kFactor        Int              @default(10)
+  prizePoolCents Int              @default(0)
+  createdAt      DateTime         @default(now()) @db.Timestamp(3)
+
+  entries        TournamentEntry[]
+  rounds         TournamentRound[]
+
+  @@index([status, endsAt])
+  @@map("Tournament")
+}
+
+model TournamentEntry {
+  id           String    @id @default(cuid())
+  tournamentId String    @db.Text
+  userId       String
+  points       Float     @default(0)
+  bestMultiplier Float   @default(1)
+  roundsCount  Int       @default(0)
+  lastRoundAt  DateTime? @db.Timestamp(3)
+  createdAt    DateTime  @default(now()) @db.Timestamp(3)
+  updatedAt    DateTime  @updatedAt @db.Timestamp(3)
+
+  tournament   Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+  user         User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([tournamentId, userId])
+  @@index([tournamentId, points])
+  @@index([userId, updatedAt])
+  @@map("TournamentEntry")
+}
+
+model TournamentRound {
+  id           String    @id @default(cuid())
+  tournamentId String    @db.Text
+  userId       String
+  roundId      String    @db.Text
+  stakeCents   Int
+  multiplier   Float
+  points       Float
+  createdAt    DateTime  @default(now()) @db.Timestamp(3)
+
+  tournament   Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+  user         User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([tournamentId, userId, roundId])
+  @@unique([tournamentId, roundId])
+  @@index([tournamentId, createdAt])
+  @@index([userId, createdAt])
+  @@map("TournamentRound")
 }
