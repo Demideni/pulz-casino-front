@@ -58,6 +58,66 @@ export async function POST(req: NextRequest) {
       });
     });
 
+
+// ---- Tournament (Daily Sprint 24/7) ----
+try {
+  const t = await prisma.tournament.findUnique({ where: { slug: "daily-sprint" } });
+  const tour = t
+    ? (t.status === "ACTIVE" ? t : await prisma.tournament.update({ where: { id: t.id }, data: { status: "ACTIVE" } }))
+    : await prisma.tournament.create({
+        data: {
+          slug: "daily-sprint",
+          name: "Daily Sprint",
+          type: "DAILY_SPRINT",
+          status: "ACTIVE",
+          startsAt: new Date(),
+          endsAt: null,
+          kFactor: 10,
+          prizePoolCents: 0,
+        },
+      });
+
+  const stakeCents = betTx.amountCents;
+  const points = Math.sqrt(stakeCents / 100) * body.multiplier * (tour.kFactor ?? 10);
+
+  await prisma.$transaction(async (tx) => {
+    // write round (idempotent per tournamentId+userId+roundId)
+    await tx.tournamentRound.upsert({
+      where: { tournamentId_userId_roundId: { tournamentId: tour.id, userId: au.id, roundId: body.roundId } },
+      update: {},
+      create: {
+        tournamentId: tour.id,
+        userId: au.id,
+        roundId: body.roundId,
+        stakeCents,
+        multiplier: body.multiplier,
+        points,
+      },
+    });
+
+    // update entry
+    await tx.tournamentEntry.upsert({
+      where: { tournamentId_userId: { tournamentId: tour.id, userId: au.id } },
+      update: {
+        points: { increment: points },
+        roundsCount: { increment: 1 },
+        bestMultiplier: { set: Math.max(0, body.multiplier) },
+        lastRoundAt: new Date(),
+      },
+      create: {
+        tournamentId: tour.id,
+        userId: au.id,
+        points,
+        roundsCount: 1,
+        bestMultiplier: Math.max(0, body.multiplier),
+        lastRoundAt: new Date(),
+      },
+    });
+  });
+} catch (e) {
+  // never break payouts if tournament fails
+  console.error("tournament update failed", e);
+}
     const updated = await prisma.user.findUnique({
       where: { id: au.id },
       select: { balanceCents: true },
