@@ -3,12 +3,7 @@
   if (!canvas) return console.error("[game] Canvas not found");
   const ctx = canvas.getContext("2d");
 
-  
-  // ===== PC sizing (desktop only) =====
-  const isDesktop = () => (window.innerWidth || 0) >= 1024;
-  // "уменьшить на 75%" => оставить 25% размера
-  const PC_SIZE_MUL = 0.37;
-// ===== Assets =====
+  // ===== Assets =====
   function loadImage(src) {
     return new Promise((resolve) => {
       const img = new Image();
@@ -398,10 +393,9 @@
 
   function platformBaseSize() {
     const scale = Math.min(W / 1200, H / 800, 1);
-    const mul = isDesktop() ? PC_SIZE_MUL : 1;
     return {
-      w: Math.round(520 * scale * PLATFORM_WIDTH_MUL * mul),
-      h: Math.round(170 * scale * mul),
+      w: Math.round(520 * scale * PLATFORM_WIDTH_MUL),
+      h: Math.round(170 * scale),
     };
   }
 
@@ -442,8 +436,7 @@
     world.hero.rot = 0;
 
     const scale = Math.min(W / 1200, H / 800, 1);
-    const mul = isDesktop() ? PC_SIZE_MUL : 1;
-    const heroScale = 1.9 * mul; // +90% (PC scaled down)
+    const heroScale = 1.9; // +90%
     world.hero.w = Math.round(110 * scale * heroScale);
     world.hero.h = Math.round(110 * scale * heroScale);
     world.hero.prevBottom = world.hero.y + world.hero.h / 2;
