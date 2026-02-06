@@ -8,7 +8,7 @@ import TournamentsSheetContent from "@/components/TournamentsSheetContent";
 
 const ICONS: Record<string, string> = {
   "/cashier": "/icons/wallet.png",
-  "/login": "/icons/login.png",
+  "/sports": "/icons/games.png",
   "/tournaments": "/icons/promotions.png",
   "/menu": "/icons/menu.png",
 };
@@ -60,18 +60,14 @@ export default function BottomNav() {
             <span>Касса</span>
           </button>
 
-          {/* Вход / Регистрация — bottom sheet */}
-          <button
-            type="button"
+          {/* Спорт */}
+          <Link
+            href="/sports"
             className="flex w-[72px] flex-col items-center gap-1 text-[10px] text-slate-100"
-            onClick={() => {
-              setAuthMode("login");
-              setOpenAuth(true);
-            }}
           >
-            <NavIcon src={ICONS["/login"]} alt="Вход" />
-            <span>Вход</span>
-          </button>
+            <NavIcon src={ICONS["/sports"]} alt="Спорт" />
+            <span>Спорт</span>
+          </Link>
 
           {/* Пустое место под центральную кнопку */}
           <div className="w-[96px]" />
