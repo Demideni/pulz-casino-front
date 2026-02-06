@@ -3,8 +3,6 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { usePathname } from "next/navigation";
-import { LANGS } from "@/lib/i18n";
-import { useLang } from "@/components/LanguageProvider";
 
 type User = { id: string; email: string; balanceCents: number };
 
@@ -28,7 +26,6 @@ function extractUser(payload: any): User | null {
 }
 
 export default function TopBar() {
-  const { lang, setLang, t } = useLang();
   const pathname = usePathname();
 
   const [loading, setLoading] = useState(true);
@@ -106,7 +103,7 @@ export default function TopBar() {
   href="/login"
   className="rounded-full bg-blue-600 px-5 py-1.5 text-sm font-semibold text-white shadow-[0_0_22px_rgba(59,130,246,0.9)] hover:bg-blue-500"
 >
-  {t("login")}
+  Вход
 </Link>
 
       )}
@@ -125,30 +122,12 @@ export default function TopBar() {
 
     {/* RIGHT */}
     <div className="flex items-center justify-end gap-3">
-      <div className="hidden items-center rounded-full border border-slate-800/80 bg-slate-900/40 p-1 md:flex">
-        {LANGS.map((l) => (
-          <button
-            key={l.code}
-            type="button"
-            onClick={() => setLang(l.code)}
-            className={
-              "rounded-full px-3 py-1 text-xs font-semibold transition " +
-              (lang === l.code
-                ? "bg-white/10 text-white"
-                : "text-slate-300 hover:bg-white/5")
-            }
-            aria-label={`${t("language")}: ${l.label}`}
-          >
-            {l.label}
-          </button>
-        ))}
-      </div>
       {loading ? null : isAuthed ? (
         <button
           onClick={logout}
           className="rounded-full bg-slate-800 px-4 py-1.5 text-sm font-semibold text-white hover:bg-slate-700"
         >
-          {t("logout")}
+          Выйти
         </button>
       ) : (
        <Link
@@ -166,7 +145,7 @@ export default function TopBar() {
     active:scale-95
   "
 >
-  {t("register")}
+  Регистрация
 </Link>
       )}
     </div>
