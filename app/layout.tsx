@@ -5,6 +5,7 @@ import BottomNav from "@/components/BottomNav";
 import PulzBootOverlay from "@/components/PulzBootOverlay";
 import TopBar from "@/components/TopBar";
 import DesktopSidebar from "@/components/DesktopSidebar";
+import { LanguageProvider } from "@/components/LanguageProvider";
 
 export const metadata = {
   title: "Robinson",
@@ -21,6 +22,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
     <html lang="ru" className="bg-black text-slate-100">
       <link rel="apple-touch-icon" href="/pwa/apple-touch-icon.png" />
       <body className="bg-black text-slate-100 antialiased">
+        <LanguageProvider>
         {/* фирменная загрузка (overlay) */}
         <PulzBootOverlay />
 
@@ -90,6 +92,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
           {/* НИЖНИЙ ТАП-БАР С КОЛЕСОМ */}
           <div className="lg:hidden"><BottomNav /></div>
         </div>
+        </LanguageProvider>
       </body>
     </html>
   );

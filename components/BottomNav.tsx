@@ -5,6 +5,7 @@ import Link from "next/link";
 import Image from "next/image";
 import CashierPage from "@/app/cashier/page";
 import TournamentsSheetContent from "@/components/TournamentsSheetContent";
+import { useLang } from "@/components/LanguageProvider";
 
 const ICONS: Record<string, string> = {
   "/cashier": "/icons/wallet.png",
@@ -16,6 +17,7 @@ const ICONS: Record<string, string> = {
 type AuthMode = "login" | "register";
 
 export default function BottomNav() {
+  const { t } = useLang();
   const [openAuth, setOpenAuth] = useState(false);
   const [authMode, setAuthMode] = useState<AuthMode>("login");
   const [openMenu, setOpenMenu] = useState(false);
@@ -56,8 +58,8 @@ export default function BottomNav() {
             className="flex w-[72px] flex-col items-center gap-1 text-[10px] text-slate-100 border-r border-slate-700/70"
             onClick={() => setOpenCashier(true)}
           >
-            <NavIcon src={ICONS["/cashier"]} alt="Касса" />
-            <span>Касса</span>
+            <NavIcon src={ICONS["/cashier"]} alt={t("cashier")} />
+            <span>{t("cashier")}</span>
           </button>
 
           {/* Вход / Регистрация — bottom sheet */}
@@ -69,8 +71,8 @@ export default function BottomNav() {
               setOpenAuth(true);
             }}
           >
-            <NavIcon src={ICONS["/login"]} alt="Вход" />
-            <span>Вход</span>
+            <NavIcon src={ICONS["/login"]} alt={t("login")} />
+            <span>{t("login")}</span>
           </button>
 
           {/* Пустое место под центральную кнопку */}
@@ -82,8 +84,8 @@ export default function BottomNav() {
             className="flex w-[72px] flex-col items-center gap-1 text-[10px] text-slate-100 border-l border-slate-700/70"
             onClick={() => setOpenTournaments(true)}
           >
-            <NavIcon src={ICONS["/tournaments"]} alt="Турниры" />
-            <span>Турниры</span>
+            <NavIcon src={ICONS["/tournaments"]} alt={t("tournaments") } />
+            <span>{t("tournaments")}</span>
           </button>
 
           {/* Меню — bottom sheet */}
@@ -92,8 +94,8 @@ export default function BottomNav() {
             className="flex w-[72px] flex-col items-center gap-1 text-[10px] text-slate-100 border-l border-slate-700/70"
             onClick={() => setOpenMenu(true)}
           >
-            <NavIcon src={ICONS["/menu"]} alt="Меню" />
-            <span>Меню</span>
+            <NavIcon src={ICONS["/menu"]} alt={t("menu") } />
+            <span>{t("menu")}</span>
           </button>
 
           {/* Центральная кнопка — голова Робинзона */}
@@ -144,13 +146,13 @@ export default function BottomNav() {
             <div className="mx-auto mb-4 h-1.5 w-12 rounded-full bg-slate-700/60" />
 
             <div className="flex items-center justify-between">
-              <div className="text-lg font-semibold text-slate-100">Касса</div>
+              <div className="text-lg font-semibold text-slate-100">{t("cashier")}</div>
               <button
                 type="button"
                 onClick={() => setOpenCashier(false)}
                 className="rounded-xl px-3 py-2 text-sm text-slate-300 hover:bg-white/5"
               >
-                Закрыть
+                {t("close")}
               </button>
             </div>
 
@@ -174,13 +176,13 @@ export default function BottomNav() {
             <div className="mx-auto mb-4 h-1.5 w-12 rounded-full bg-slate-700/60" />
 
             <div className="flex items-center justify-between">
-              <div className="text-lg font-semibold text-slate-100">Турниры</div>
+              <div className="text-lg font-semibold text-slate-100">{t("tournaments")}</div>
               <button
                 type="button"
                 onClick={() => setOpenTournaments(false)}
                 className="rounded-xl px-3 py-2 text-sm text-slate-300 hover:bg-white/5"
               >
-                Закрыть
+                {t("close")}
               </button>
             </div>
 
@@ -206,7 +208,7 @@ export default function BottomNav() {
 
             <div className="flex items-center justify-between">
               <div className="text-lg font-semibold text-slate-100">
-                {authMode === "login" ? "Вход" : "Регистрация"}
+                {authMode === "login" ? t("login") : t("register")}
               </div>
 
               <button
@@ -214,7 +216,7 @@ export default function BottomNav() {
                 onClick={() => setOpenAuth(false)}
                 className="rounded-xl px-3 py-2 text-sm text-slate-300 hover:bg-white/5"
               >
-                Закрыть
+                {t("close")}
               </button>
             </div>
 
@@ -224,7 +226,7 @@ export default function BottomNav() {
                 className="rounded-2xl border border-slate-700/70 bg-slate-900/40 px-4 py-3 text-center text-sm text-slate-100"
                 onClick={() => setOpenAuth(false)}
               >
-                Вход
+                {t("login")}
               </Link>
 
               <Link
@@ -252,13 +254,13 @@ export default function BottomNav() {
             <div className="mx-auto mb-4 h-1.5 w-12 rounded-full bg-slate-700/60" />
 
             <div className="flex items-center justify-between">
-              <div className="text-lg font-semibold text-slate-100">Меню</div>
+              <div className="text-lg font-semibold text-slate-100">{t("menu")}</div>
               <button
                 type="button"
                 onClick={() => setOpenMenu(false)}
                 className="rounded-xl px-3 py-2 text-sm text-slate-300 hover:bg-white/5"
               >
-                Закрыть
+                {t("close")}
               </button>
             </div>
 
@@ -268,7 +270,7 @@ export default function BottomNav() {
                 className="rounded-2xl border border-slate-700/70 bg-slate-900/40 px-4 py-3 text-center text-sm text-slate-100"
                 onClick={() => setOpenMenu(false)}
               >
-                Аккаунт
+                {t("account")}
               </Link>
 
               <button
@@ -279,7 +281,7 @@ export default function BottomNav() {
                   setOpenCashier(true);
                 }}
               >
-                Касса
+                {t("cashier")}
               </button>
 
               <button
@@ -298,7 +300,7 @@ export default function BottomNav() {
                 className="rounded-2xl border border-slate-700/70 bg-slate-900/40 px-4 py-3 text-center text-sm text-slate-100"
                 onClick={() => setOpenMenu(false)}
               >
-                Робинзон
+                {t("robinson")}
               </Link>
             </div>
           </div>
